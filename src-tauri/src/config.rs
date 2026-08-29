@@ -173,7 +173,13 @@ pub fn load(app: &AppHandle) -> AppConfig {
 
     let version = raw.get("version").and_then(|v| v.as_u64()).unwrap_or(1) as u32;
     if version < 2 {
-        return migrate_v1(&raw).unwrap_or_default();
+        return migrate_v1(&raw).unwrap_or_else(|| {
+            eprintln!(
+                "[config] {} — не удалось перенести версию 1 (нет «games» или это не объект), начинаю с чистого",
+                path.display()
+            );
+            AppConfig::default()
+        });
     }
 
     let mut games = Vec::new();

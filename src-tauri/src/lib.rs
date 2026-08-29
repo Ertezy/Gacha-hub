@@ -8,18 +8,13 @@ mod vdf;
 
 use config::Game;
 
-/// При первом запуске список игр пуст. Заполняем его тем, что нашли в
+/// При первом запуске список игр пуст — заполняем его тем, что нашли в
 /// манифестах магазинов, чтобы человек сразу увидел свои игры, а не пустоту.
 /// Экран с галочками появится на этапе 3 и заменит это автозаполнение.
-fn seed_games_if_empty(app: &tauri::AppHandle) {
-    let mut cfg = config::load(app);
-    if !cfg.games.is_empty() {
-        return;
-    }
-
+fn seed_games(cfg: &mut config::AppConfig, installed: &[stores::InstalledGame]) {
     let mut used_ids = std::collections::HashSet::new();
-    for found in stores::installed() {
-        let content_id = catalog::content_id_for(&found);
+    for found in installed {
+        let content_id = catalog::content_id_for(found);
         let base = content_id
             .map(str::to_string)
             .unwrap_or_else(|| catalog::normalize(&found.title));
@@ -32,11 +27,11 @@ fn seed_games_if_empty(app: &tauri::AppHandle) {
 
         cfg.games.push(Game {
             id,
-            title: found.title,
+            title: found.title.clone(),
             content_id: content_id.map(str::to_string),
-            launch: found.launch,
-            install_path: Some(found.install_path),
-            exe_path: found.exe_path,
+            launch: found.launch.clone(),
+            install_path: Some(found.install_path.clone()),
+            exe_path: found.exe_path.clone(),
             args: String::new(),
             background: None,
         });
@@ -45,9 +40,28 @@ fn seed_games_if_empty(app: &tauri::AppHandle) {
     // Знакомые игры вперёд: ради них лаунчер и открывают.
     cfg.games.sort_by_key(|g| g.content_id.is_none());
     cfg.last_played = cfg.games.first().map(|g| g.id.clone());
+}
 
-    if let Err(e) = config::save(app, &cfg) {
-        eprintln!("[setup] не удалось сохранить начальный конфиг: {e}");
+/// Синхронизирует конфиг со списком установленного: на первом запуске
+/// заполняет список игр, на последующих — дополняет уже существующие записи
+/// (важно для тех, что перенеслись из v1 без данных о запуске: см.
+/// `catalog::enrich_from_stores`). `stores::installed()` вызывается ровно
+/// один раз, поэтому оба сценария собраны в одну функцию.
+fn sync_games_with_stores(app: &tauri::AppHandle) {
+    let mut cfg = config::load(app);
+    let installed = stores::installed();
+
+    let changed = if cfg.games.is_empty() {
+        seed_games(&mut cfg, &installed);
+        true
+    } else {
+        catalog::enrich_from_stores(&mut cfg.games, &installed)
+    };
+
+    if changed {
+        if let Err(e) = config::save(app, &cfg) {
+            eprintln!("[setup] не удалось сохранить конфиг: {e}");
+        }
     }
 }
 
@@ -58,7 +72,7 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_window_state::Builder::default().build())
         .setup(|app| {
-            seed_games_if_empty(&app.handle().clone());
+            sync_games_with_stores(&app.handle().clone());
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
