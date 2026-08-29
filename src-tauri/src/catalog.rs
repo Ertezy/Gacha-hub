@@ -1,100 +1,122 @@
-//! Static catalog of supported games.
+//! Соответствие «установленная игра → идентификатор контента».
 //!
-//! Research results (checked 2026-07-21 via the Steam store API,
-//! `store.steampowered.com/api/appdetails` and the local Steam library):
-//!   - Wuthering Waves  -> Steam appid 3513350 (verified; also installed
-//!     locally in Steam/steamapps/common/Wuthering Waves,
-//!     steam_appid.txt matches)
-//!   - Zenless Zone Zero -> Steam appid 4162040 (verified via appdetails)
-//!   - Arknights: Endfield -> Steam appid 4732690 (verified via appdetails)
-//!   - Genshin Impact  -> NOT on Steam
-//!   - Honkai: Star Rail -> not found in the Steam search on the dev machine
-//!     (appdetails for 2436370 returns success:false here); treat as
-//!     "verify before shipping" — the catalog is data, just fix the field.
+//! Каталог НЕ знает, как игру запускать: это говорят манифесты магазинов.
+//! Он отвечает только на вопрос, показывать ли по этой игре коды, баннеры
+//! и видео, и под каким идентификатором искать их в файле хаба.
 //!
-//! Epic Games Store blocks automated access (Cloudflare), so Epic presence
-//! is recorded from user reports and marked accordingly.
+//! На этапе 1 таблица встроенная. На этапе 2 она переезжает в файл хаба,
+//! чтобы поддержка новой игры не требовала обновления приложения, —
+//! сигнатура `content_id_for` при этом не меняется.
 
-use crate::config::LaunchMode;
+use crate::config::Launch;
+use crate::stores::InstalledGame;
 
-pub struct GameMeta {
-    pub id: &'static str,
-    pub name: &'static str,
-    pub publisher: &'static str,
-    /// Steam appid for `steam://rungameid/<appid>` (verified values above).
-    pub steam_appid: Option<u32>,
-    /// User-reported presence in the Epic Games Store (verify before release).
-    pub epic_supported: bool,
-    /// Whether the game ships a standalone official launcher (HoYoverse /
-    /// Hypergritype clients downloaded from the official website).
-    pub has_official_launcher: bool,
-    /// Store / official download page.
-    pub store_url: &'static str,
+struct Known {
+    content_id: &'static str,
+    /// Официальные названия, как их пишут магазины. Сравниваются нормализованно.
+    titles: &'static [&'static str],
+    /// Steam appid, если игра там есть. Приоритетнее названия.
+    steam_appids: &'static [u32],
 }
 
-impl GameMeta {
-    /// Sensible default launch method for a game without user config:
-    /// Steam when an appid is known, otherwise direct .exe (the user picks
-    /// the official launcher or game binary).
-    pub fn default_mode(&self) -> LaunchMode {
-        if self.steam_appid.is_some() {
-            LaunchMode::Steam
-        } else {
-            LaunchMode::Exe
-        }
-    }
-}
-
-pub const GAMES: &[GameMeta] = &[
-    GameMeta {
-        id: "genshin",
-        name: "Genshin Impact",
-        publisher: "HoYoverse",
-        steam_appid: None,
-        // Not on Steam; on Epic per user report (unverified — CF blocks checks).
-        epic_supported: true,
-        has_official_launcher: true,
-        store_url: "https://genshin.hoyoverse.com/download",
+static KNOWN: &[Known] = &[
+    Known {
+        content_id: "genshin",
+        titles: &["Genshin Impact"],
+        steam_appids: &[],
     },
-    GameMeta {
-        id: "hsr",
-        name: "Honkai: Star Rail",
-        publisher: "HoYoverse",
-        // Community lists HSR on Steam, but the Steam API on the dev machine
-        // returned success:false for the remembered appid — verify and fill.
-        steam_appid: None,
-        epic_supported: true,
-        has_official_launcher: true,
-        store_url: "https://hsr.hoyoverse.com/download",
+    Known {
+        content_id: "hsr",
+        titles: &["Honkai: Star Rail", "Honkai Star Rail"],
+        steam_appids: &[],
     },
-    GameMeta {
-        id: "zzz",
-        name: "Zenless Zone Zero",
-        publisher: "HoYoverse",
-        steam_appid: Some(4162040),
-        epic_supported: true,
-        has_official_launcher: true,
-        store_url: "https://zzz.hoyoverse.com/download",
+    Known {
+        content_id: "zzz",
+        titles: &["Zenless Zone Zero"],
+        steam_appids: &[],
     },
-    GameMeta {
-        id: "wuthering",
-        name: "Wuthering Waves",
-        publisher: "Kuro Games",
-        steam_appid: Some(3513350),
-        // User believes it is on EGS; not verifiable from this machine and
-        // not in the Steam-free Kuro distribution — flip to true if you
-        // confirm it and then fill the Epic product id in Settings.
-        epic_supported: false,
-        has_official_launcher: false,
-        store_url: "https://store.steampowered.com/app/3513350",
+    Known {
+        content_id: "wuthering",
+        titles: &["Wuthering Waves"],
+        // Проверено на реальной установке: appmanifest_3513350.acf.
+        steam_appids: &[3513350],
     },
-    GameMeta {
-        id: "endfield",
-        name: "Arknights: Endfield",
-        publisher: "Hypergritype",
-        steam_appid: Some(4732690),
-        epic_supported: true,
-        has_official_launcher: true,
-        store_url: "https://endfield.hypergritype.com",
+    Known {
+        content_id: "endfield",
+        titles: &["Arknights: Endfield", "Arknights Endfield"],
+        steam_appids: &[],
     },
 ];
+
+/// Приводит название к виду, устойчивому к пунктуации, регистру и пробелам.
+pub fn normalize(title: &str) -> String {
+    title
+        .chars()
+        .filter(|c| c.is_alphanumeric())
+        .flat_map(|c| c.to_lowercase())
+        .collect()
+}
+
+/// Идентификатор контента для найденной игры, если она нам знакома.
+pub fn content_id_for(game: &InstalledGame) -> Option<&'static str> {
+    if let Launch::Steam { appid } = game.launch {
+        if let Some(known) = KNOWN.iter().find(|k| k.steam_appids.contains(&appid)) {
+            return Some(known.content_id);
+        }
+    }
+    let normalized = normalize(&game.title);
+    KNOWN
+        .iter()
+        .find(|k| k.titles.iter().any(|t| normalize(t) == normalized))
+        .map(|k| k.content_id)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::stores::{InstalledGame, Source};
+    use std::path::PathBuf;
+
+    fn game(title: &str, launch: Launch, source: Source) -> InstalledGame {
+        InstalledGame {
+            title: title.to_string(),
+            install_path: PathBuf::from(r"C:\x"),
+            exe_path: None,
+            launch,
+            source,
+        }
+    }
+
+    #[test]
+    fn normalizes_punctuation_and_case() {
+        assert_eq!(normalize("Honkai: Star Rail"), "honkaistarrail");
+        assert_eq!(normalize("Arknights: Endfield"), "arknightsendfield");
+        assert_eq!(normalize("  ZENLESS  ZONE  ZERO "), "zenlesszonezero");
+    }
+
+    #[test]
+    fn matches_a_known_game_by_title() {
+        let g = game(
+            "Honkai: Star Rail",
+            Launch::Epic {
+                namespace: "n".into(),
+                catalog_item_id: "c".into(),
+                app_name: "a".into(),
+            },
+            Source::Epic,
+        );
+        assert_eq!(content_id_for(&g), Some("hsr"));
+    }
+
+    #[test]
+    fn matches_wuthering_waves_by_steam_appid_even_if_renamed() {
+        let g = game("Wuthering  Waves", Launch::Steam { appid: 3513350 }, Source::Steam);
+        assert_eq!(content_id_for(&g), Some("wuthering"));
+    }
+
+    #[test]
+    fn returns_none_for_a_game_we_know_nothing_about() {
+        let g = game("Limbus Company", Launch::Steam { appid: 1973530 }, Source::Steam);
+        assert_eq!(content_id_for(&g), None);
+    }
+}
