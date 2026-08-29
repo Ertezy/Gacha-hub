@@ -4,6 +4,7 @@ mod config;
 mod detect;
 mod hub;
 mod launch;
+mod stores;
 mod vdf;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
