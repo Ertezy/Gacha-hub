@@ -93,6 +93,11 @@ pub async fn get_hub(app: AppHandle) -> Result<hub::HubData, String> {
     hub::load(&app, cfg.hub_url.as_deref())
 }
 
+#[tauri::command]
+pub async fn get_last_played(app: AppHandle) -> Option<String> {
+    config::load(&app).last_played
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

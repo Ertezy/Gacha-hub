@@ -81,7 +81,8 @@ pub fn run() {
             commands::get_config_dir,
             commands::select_game,
             commands::launch_game,
-            commands::get_hub
+            commands::get_hub,
+            commands::get_last_played
         ])
         .run(tauri::generate_context!())
         .expect("ошибка при запуске приложения");

@@ -11,10 +11,13 @@ export default function App() {
   const [games, setGames] = useState<GameView[]>([]);
   const [hub, setHub] = useState<HubData | null>(null);
   const [error, setError] = useState("");
+  const [selectedId, setSelectedId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     try {
-      setGames(await api.getGames());
+      const [list, last] = await Promise.all([api.getGames(), api.getLastPlayed()]);
+      setGames(list);
+      setSelectedId(last);
       setError("");
     } catch (e) {
       setError(String(e));
@@ -32,7 +35,6 @@ export default function App() {
     .map((g) => g.contentId)
     .filter((id): id is string => id !== null);
 
-  const [selectedId, setSelectedId] = useState<string | null>(null);
   const selected = games.find((g) => g.id === selectedId) ?? games[0] ?? null;
 
   const select = useCallback((id: string) => {
