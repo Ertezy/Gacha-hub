@@ -1,37 +1,21 @@
-// TS mirrors of the Rust schemas (src-tauri/src). Field names are camelCase
-// on the wire (serde rename_all = "camelCase").
+// Зеркала Rust-схем. На проводе camelCase (serde rename_all = "camelCase").
 
-export type LaunchMode = "steam" | "epic" | "exe";
-
-export interface GameLaunchConfig {
-  launchMode: LaunchMode;
-  exePath?: string | null;
-  args: string;
-  epicProductId?: string | null;
-}
+export type LaunchKind = "steam" | "epic" | "exe";
 
 export interface GameView {
   id: string;
-  name: string;
-  publisher: string;
-  steamAppid: number | null;
-  epicSupported: boolean;
-  hasOfficialLauncher: boolean;
-  storeUrl: string;
-  config: GameLaunchConfig;
-}
-
-export interface AppConfig {
-  version: number;
-  games: Record<string, GameLaunchConfig>;
-  hubUrl?: string | null;
+  title: string;
+  contentId: string | null;
+  /** Подпись «запустится через …». */
+  sourceLabel: string;
+  /** Файл или папка игры пропали с диска. */
+  missing: boolean;
 }
 
 export interface PromoCode {
   gameId: string;
   code: string;
   rewards: string;
-  /** ISO date YYYY-MM-DD: valid through this day inclusive. */
   expired: string;
   source?: string;
 }
@@ -61,16 +45,6 @@ export interface HubData {
   _note?: string;
   _source?: string;
 }
-
-export interface DetectedInstall {
-  gameId: string;
-  /** Path to the launcher .exe. */
-  path: string;
-  /** "epic" | "steam" | "official" */
-  source: string;
-}
-
-export type Page = "games" | "news" | "promo" | "guides" | "settings";
 
 export interface LaunchResult {
   ok: boolean;
