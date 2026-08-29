@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { api } from "./lib/api";
 import SidePanel from "./components/SidePanel";
+import GameArt from "./components/GameArt";
 import type { GameView, HubData } from "./types";
 
 export default function App() {
@@ -28,14 +29,17 @@ export default function App() {
     .map((g) => g.contentId)
     .filter((id): id is string => id !== null);
 
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const selected = games.find((g) => g.id === selectedId) ?? games[0] ?? null;
+  // setSelectedId пока не вызывается — его подключит Task 12.
+  void setSelectedId;
+
   return (
     <div className="screen">
       <SidePanel hub={hub} contentIds={contentIds} />
       <main className="stage">
+        <GameArt game={selected} />
         {error && <div className="banner">Не удалось загрузить: {error}</div>}
-        <div className="stage-placeholder">
-          {games.length} игр найдено
-        </div>
       </main>
     </div>
   );
