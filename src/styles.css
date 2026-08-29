@@ -202,3 +202,65 @@ body {
   font-size: 12.5px;
   text-align: left;
 }
+
+.shelf-zone {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: 0;
+  width: min(70%, 760px);
+  padding-bottom: 18px;
+  padding-top: 44px;
+}
+
+.shelf-hint {
+  text-align: center;
+  font-size: 11px;
+  color: var(--ink-faint);
+  opacity: 1;
+  transition: opacity 0.18s ease;
+}
+
+.shelf {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  scrollbar-width: thin;
+  padding: 4px 2px 8px;
+  opacity: 0;
+  transform: translateY(10px);
+  transition: opacity 0.18s ease, transform 0.18s ease;
+  pointer-events: none;
+}
+
+.shelf-zone:hover .shelf {
+  opacity: 1;
+  transform: none;
+  pointer-events: auto;
+}
+
+.shelf-zone:hover .shelf-hint {
+  opacity: 0;
+}
+
+.chip {
+  flex: none;
+  font: 600 12px/1 system-ui, sans-serif;
+  padding: 8px 13px;
+  border-radius: 8px;
+  background: rgba(10, 14, 28, 0.62);
+  border: 1px solid var(--line);
+  color: var(--ink);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.chip.active {
+  background: var(--accent);
+  color: var(--accent-ink);
+  border-color: transparent;
+}
+
+.chip.missing {
+  color: var(--danger);
+}

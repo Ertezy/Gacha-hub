@@ -4,6 +4,7 @@ import SidePanel from "./components/SidePanel";
 import GameArt from "./components/GameArt";
 import GameHeader from "./components/GameHeader";
 import PlayButton from "./components/PlayButton";
+import GameShelf from "./components/GameShelf";
 import type { GameView, HubData, LaunchResult } from "./types";
 
 export default function App() {
@@ -33,8 +34,11 @@ export default function App() {
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const selected = games.find((g) => g.id === selectedId) ?? games[0] ?? null;
-  // setSelectedId пока не вызывается — его подключит Task 12.
-  void setSelectedId;
+
+  const select = useCallback((id: string) => {
+    setSelectedId(id);
+    api.selectGame(id).catch((e) => console.error("select_game:", e));
+  }, []);
 
   const launch = useCallback(async (): Promise<LaunchResult> => {
     if (!selected) return { ok: false, msg: "игра не выбрана" };
@@ -54,6 +58,7 @@ export default function App() {
         {selected && <GameHeader game={selected} />}
         {selected && <PlayButton onLaunch={launch} />}
         {error && <div className="banner">Не удалось загрузить: {error}</div>}
+        <GameShelf games={games} selectedId={selected?.id ?? null} onSelect={select} />
       </main>
     </div>
   );
