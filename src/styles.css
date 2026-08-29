@@ -167,6 +167,7 @@ body {
   letter-spacing: 0.05em;
 }
 
+/* Полка снизу доходит верхней панелью до кнопки PLAY по дизайну; кнопка должна быть на переднем плане. */
 .play-area {
   position: absolute;
   right: 48px;
@@ -175,6 +176,7 @@ body {
   flex-direction: column;
   align-items: flex-end;
   gap: 10px;
+  z-index: 2;
 }
 
 .play {
@@ -211,6 +213,7 @@ body {
   width: min(70%, 760px);
   padding-bottom: 18px;
   padding-top: 44px;
+  z-index: 1;
 }
 
 .shelf-hint {
