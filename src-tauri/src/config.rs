@@ -155,6 +155,12 @@ pub fn migrate_v1(raw: &serde_json::Value) -> Option<AppConfig> {
 /// Чтение настроек. Терпимое к поломкам: битая запись по одной игре
 /// отбрасывается с записью в лог, остальной конфиг живёт. В `.broken`
 /// уезжает только синтаксически сломанный файл.
+///
+/// Файл версии выше `CURRENT_VERSION` (например, записанный более новой
+/// сборкой) читается как есть, без понижения `version` до `CURRENT_VERSION`:
+/// `save` откажется писать такой конфиг обратно (см. ниже), так что файл
+/// остаётся на диске нетронутым — как и подобает записи, которая не сломана
+/// и не подлежит миграции.
 pub fn load(app: &AppHandle) -> AppConfig {
     let Ok(path) = config_path(app) else {
         return AppConfig::default();
@@ -173,13 +179,33 @@ pub fn load(app: &AppHandle) -> AppConfig {
 
     let version = raw.get("version").and_then(|v| v.as_u64()).unwrap_or(1) as u32;
     if version < 2 {
-        return migrate_v1(&raw).unwrap_or_else(|| {
-            eprintln!(
-                "[config] {} — не удалось перенести версию 1 (нет «games» или это не объект), начинаю с чистого",
-                path.display()
-            );
-            AppConfig::default()
-        });
+        return match migrate_v1(&raw) {
+            Some(cfg) => {
+                // Миграция должна пережить перезапуск сама по себе, а не
+                // ждать, пока её случайно сохранит другой вызов (например,
+                // sync_games_with_stores, если сверка с магазинами ничего
+                // не поменяла). Без этого файл на диске остаётся версии 1
+                // и мигрирует заново при каждом старте.
+                if let Err(e) = save(app, &cfg) {
+                    eprintln!("[config] не удалось сохранить перенесённый конфиг: {e}");
+                }
+                cfg
+            }
+            None => {
+                eprintln!(
+                    "[config] {} — не удалось перенести версию 1 (нет «games» или это не объект), начинаю с чистого",
+                    path.display()
+                );
+                AppConfig::default()
+            }
+        };
+    }
+
+    if version > CURRENT_VERSION {
+        eprintln!(
+            "[config] {} — версия файла ({version}) новее, чем понимает эта сборка (умеет до {CURRENT_VERSION}); читаю как есть, не понижаю версию",
+            path.display()
+        );
     }
 
     let mut games = Vec::new();
@@ -193,7 +219,7 @@ pub fn load(app: &AppHandle) -> AppConfig {
     }
 
     AppConfig {
-        version: CURRENT_VERSION,
+        version,
         hub_url: raw
             .get("hubUrl")
             .and_then(|v| v.as_str())
@@ -206,8 +232,24 @@ pub fn load(app: &AppHandle) -> AppConfig {
     }
 }
 
+/// Выделена из `save` отдельной чистой функцией, чтобы проверять её без
+/// `AppHandle` — в модульных тестах его взять неоткуда.
+fn reject_if_newer_than_current(version: u32) -> Result<(), String> {
+    if version > CURRENT_VERSION {
+        return Err(format!(
+            "конфиг версии {version} новее, чем понимает эта сборка (умеет до версии {CURRENT_VERSION}); отказываюсь перезаписывать файл"
+        ));
+    }
+    Ok(())
+}
+
 /// Атомарная запись: временный файл рядом, затем переименование поверх.
+///
+/// Отказывается писать конфиг версии выше `CURRENT_VERSION`: у этой сборки
+/// нет схемы для полей, которых она не знает, и молча их отбросить значило
+/// бы необратимо стереть данные более новой версии приложения.
 pub fn save(app: &AppHandle, cfg: &AppConfig) -> Result<(), String> {
+    reject_if_newer_than_current(cfg.version)?;
     let final_path = config_path(app)?;
     let tmp_path = final_path.with_file_name("config.json.tmp");
     let json = serde_json::to_string_pretty(cfg).map_err(|e| format!("сериализация: {e}"))?;
@@ -316,6 +358,26 @@ mod tests {
         });
         let cfg = migrate_v1(&v1).unwrap();
         assert!(matches!(cfg.games[0].launch, Launch::Exe));
+    }
+
+    #[test]
+    fn save_refuses_a_config_newer_than_this_build_understands() {
+        // `save` delegates the check to `reject_if_newer_than_current`, since
+        // `save` itself needs an `AppHandle` that unit tests have no way to
+        // construct. This exercises the exact guard `save` runs first, before
+        // any file is touched.
+        let newer = CURRENT_VERSION + 1;
+        let err = reject_if_newer_than_current(newer).expect_err("должен отказать");
+        assert!(
+            err.contains(&newer.to_string()),
+            "ошибка должна называть версию файла: {err}"
+        );
+        assert!(
+            err.contains(&CURRENT_VERSION.to_string()),
+            "ошибка должна называть версию, которую понимает сборка: {err}"
+        );
+
+        assert!(reject_if_newer_than_current(CURRENT_VERSION).is_ok());
     }
 
     #[test]
