@@ -74,10 +74,13 @@ pub fn installed() -> Vec<InstalledGame> {
             continue;
         }
         let Ok(text) = std::fs::read_to_string(&path) else {
+            eprintln!("[epic] не могу прочитать манифест {:?}", path);
             continue;
         };
         if let Some(game) = game_from_manifest(&text) {
             games.push(game);
+        } else {
+            eprintln!("[epic] не могу разобрать манифест {:?}", path);
         }
     }
     games
