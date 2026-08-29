@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "games": {
+    "wuthering": {
+      "launchMode": "steam"
+    },
+    "genshin": {
+      "launchMode": "exe",
+      "exePath": "C:\\Games\\Genshin Impact\\GenshinImpact.exe",
+      "args": "-dx12"
+    },
+    "hsr": {
+      "launchMode": "epic",
+      "epicProductId": "<вставьте Epic product id>"
+    }
+  }
+}

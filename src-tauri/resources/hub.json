@@ -1,0 +1,130 @@
+{
+  "version": 1,
+  "updatedAt": "2026-07-21",
+  "_note": "DEMO DATA — примеры структуры. Замените реальными данными из официальных источников.",
+  "promoCodes": [
+    {
+      "gameId": "genshin",
+      "code": "DEMO-GI-2026",
+      "rewards": "300 Первокамней, 40 Острой зари мистики (демо)",
+      "expired": "2026-09-30",
+      "source": "example.com"
+    },
+    {
+      "gameId": "genshin",
+      "code": "GI-OLD-CODE-2025",
+      "rewards": "10 Моры (демо)",
+      "expired": "2025-12-31",
+      "source": "example.com"
+    },
+    {
+      "gameId": "hsr",
+      "code": "DEMO-HSR-STAR",
+      "rewards": "50 Звёздных самоцветов (демо)",
+      "expired": "2026-08-31",
+      "source": "example.com"
+    },
+    {
+      "gameId": "hsr",
+      "code": "HSR-OLD-CODE",
+      "rewards": "30 Звёздных самоцветов (демо)",
+      "expired": "2026-04-30",
+      "source": "example.com"
+    },
+    {
+      "gameId": "zzz",
+      "code": "DEMO-ZZZ-ECHO",
+      "rewards": "300 Эхо (демо)",
+      "expired": "2026-09-15",
+      "source": "example.com"
+    },
+    {
+      "gameId": "wuthering",
+      "code": "DEMO-WW-ROCK",
+      "rewards": "2000 Роков (демо)",
+      "expired": "2026-08-15",
+      "source": "example.com"
+    },
+    {
+      "gameId": "endfield",
+      "code": "DEMO-EF-TRIMASTER",
+      "rewards": "1000 Тримастера (демо)",
+      "expired": "2026-03-01",
+      "source": "example.com"
+    }
+  ],
+  "news": [
+    {
+      "gameId": "genshin",
+      "title": "Пример: новая версия и баннер (демо)",
+      "date": "2026-07-18",
+      "summary": "Заглушка новости. Замените реальной анонсом с официального сайта.",
+      "url": "https://genshin.hoyoverse.com/news"
+    },
+    {
+      "gameId": "hsr",
+      "title": "Пример: шоукейс персонажа (демо)",
+      "date": "2026-07-15",
+      "summary": "Заглушка.",
+      "url": "https://hsr.hoyoverse.com/news"
+    },
+    {
+      "gameId": "wuthering",
+      "title": "Пример: обновление (демо)",
+      "date": "2026-07-10",
+      "summary": "Заглушка.",
+      "url": "https://wutheringwaves.kurogame.com"
+    },
+    {
+      "gameId": "zzz",
+      "title": "Пример: новая зона (демо)",
+      "date": "2026-07-05",
+      "summary": "Заглушка.",
+      "url": "https://zzz.hoyoverse.com"
+    },
+    {
+      "gameId": "endfield",
+      "title": "Пример: новости Endfield (демо)",
+      "date": "2026-06-28",
+      "summary": "Заглушка.",
+      "url": "https://endfield.hypergritype.com"
+    }
+  ],
+  "guides": [
+    {
+      "gameId": "genshin",
+      "title": "Пример: новый персонаж — билд (демо)",
+      "character": "плейсхолдер",
+      "date": "2026-07-19",
+      "url": "https://genshin.hoyoverse.com/wiki"
+    },
+    {
+      "gameId": "hsr",
+      "title": "Пример: гайд по новому персонажу (демо)",
+      "character": "плейсхолдер",
+      "date": "2026-07-16",
+      "url": "https://hsr.hoyoverse.com/wiki"
+    },
+    {
+      "gameId": "zzz",
+      "title": "Пример: старт на новом персонаже (демо)",
+      "character": "плейсхолдер",
+      "date": "2026-07-08",
+      "url": "https://zzz.hoyoverse.com/wiki"
+    },
+    {
+      "gameId": "wuthering",
+      "title": "Пример: подбор артефактов (демо)",
+      "character": "плейсхолдер",
+      "date": "2026-07-01",
+      "url": "https://wutheringwaves.kurogame.com"
+    },
+    {
+      "gameId": "endfield",
+      "title": "Пример: гайд по новому оператору (демо)",
+      "character": "плейсхолдер",
+      "date": "2026-06-25",
+      "url": "https://endfield.hypergritype.com"
+    }
+  ]
+}
