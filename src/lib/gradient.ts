@@ -15,9 +15,35 @@ function hash(text: string): number {
   return h >>> 0;
 }
 
+/**
+ * Avalanche-финализатор (как fmix32 из Murmur3): полностью перемешивает
+ * биты 32-битного числа. Нужен, чтобы независимо развести несколько
+ * значений из одного хеша — простые сдвиги (h >>> 9, h >>> 17, ...) одного
+ * и того же h делят между собой старшие биты и потому коррелируют: если по
+ * одному сдвигу два хеша оказались близки, по соседнему они, как правило,
+ * тоже близки. Пропуская каждое следующее значение через mix(), получаем
+ * фактически независимые числа.
+ */
+function mix(x: number): number {
+  x ^= x >>> 16;
+  x = Math.imul(x, 0x85ebca6b);
+  x ^= x >>> 13;
+  x = Math.imul(x, 0xc2b2ae35);
+  x ^= x >>> 16;
+  return x >>> 0;
+}
+
 export function gradientFor(title: string): string {
-  const h = hash(title);
-  const from = h % 360;
-  const to = (from + 35 + ((h >>> 8) % 70)) % 360;
-  return `linear-gradient(135deg, hsl(${from} 48% 24%), hsl(${to} 55% 48%))`;
+  const h0 = hash(title);
+  // Оттенок, насыщенность и светлота берутся из независимо перемешанных
+  // производных хеша: если два названия случайно сошлись по оттенку, они
+  // всё равно разойдутся по двум другим осям.
+  const h1 = mix(h0);
+  const h2 = mix(h1);
+  const h3 = mix(h2);
+  const hue = h0 % 360;
+  const sat = 42 + (h1 % 26);
+  const light = 20 + (h2 % 14);
+  const hue2 = (hue + 30 + (h3 % 60)) % 360;
+  return `linear-gradient(135deg, hsl(${hue} ${sat}% ${light}%), hsl(${hue2} ${sat + 8}% ${light + 22}%))`;
 }
