@@ -39,7 +39,6 @@ export default function App() {
 
   const select = useCallback((id: string) => {
     setSelectedId(id);
-    api.selectGame(id).catch((e) => console.error("select_game:", e));
   }, []);
 
   const launch = useCallback(async (): Promise<LaunchResult> => {

@@ -10,7 +10,6 @@ export const api = {
   getGames: () => invoke<GameView[]>("get_games"),
   getHub: () => invoke<HubData>("get_hub"),
   getLastPlayed: () => invoke<string | null>("get_last_played"),
-  selectGame: (gameId: string) => invoke<void>("select_game", { gameId }),
   launchGame: (gameId: string) => invoke<string>("launch_game", { gameId }),
 
   /**

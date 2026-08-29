@@ -56,17 +56,6 @@ pub async fn get_config_dir(app: AppHandle) -> Result<String, String> {
     Ok(config::config_dir(&app)?.to_string_lossy().into_owned())
 }
 
-/// Запомнить выбранную игру, не запуская её.
-#[tauri::command]
-pub async fn select_game(app: AppHandle, game_id: String) -> Result<(), String> {
-    let mut cfg = config::load(&app);
-    if !cfg.games.iter().any(|g| g.id == game_id) {
-        return Err(format!("нет такой игры: {game_id}"));
-    }
-    cfg.last_played = Some(game_id);
-    config::save(&app, &cfg)
-}
-
 /// Запустить игру. `lastPlayed` пишется только после удачного старта.
 #[tauri::command]
 pub async fn launch_game(app: AppHandle, game_id: String) -> Result<String, String> {

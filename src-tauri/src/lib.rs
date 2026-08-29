@@ -79,7 +79,6 @@ pub fn run() {
             commands::get_games,
             commands::get_config,
             commands::get_config_dir,
-            commands::select_game,
             commands::launch_game,
             commands::get_hub,
             commands::get_last_played
