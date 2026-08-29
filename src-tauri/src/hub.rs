@@ -14,6 +14,7 @@
 
 use serde::{Deserialize, Serialize};
 use std::fs;
+use std::io::Read;
 use std::path::Path;
 use tauri::{AppHandle, Manager};
 
@@ -118,11 +119,28 @@ fn read_json_file(path: &Path) -> Option<HubData> {
     serde_json::from_str(&text).ok()
 }
 
-/// Blocking https fetch with a short timeout. Runs on an async command
-/// thread; at worst it occupies one worker for REMOTE_TIMEOUT.
+/// Не больше двух мегабайт: файл хаба — это текст, всё что крупнее либо
+/// ошибка, либо попытка занять нам память.
+const MAX_HUB_BYTES: usize = 2 * 1024 * 1024;
+
+/// Блокирующая загрузка по https с коротким таймаутом.
+/// Редиректы запрещены: иначе ответ https-адреса мог бы увести нас на http.
 fn fetch_remote(url: &str) -> Option<HubData> {
-    let resp = ureq::get(url).timeout(REMOTE_TIMEOUT).call().ok()?;
-    resp.into_json().ok()
+    let resp = ureq::builder()
+        .redirects(0)
+        .build()
+        .get(url)
+        .timeout(REMOTE_TIMEOUT)
+        .call()
+        .ok()?;
+
+    let mut body = String::new();
+    resp.into_reader()
+        .take(MAX_HUB_BYTES as u64)
+        .read_to_string(&mut body)
+        .ok()?;
+
+    serde_json::from_str(&body).ok()
 }
 
 /// Load hub data (see the module docs for the source priority).

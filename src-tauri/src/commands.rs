@@ -1,56 +1,49 @@
-//! Tauri commands — the only bridge between the React UI and the backend.
-//! All system calls (URI schemes, process spawn, filesystem) happen on this
-//! side; the frontend never touches the OS directly.
+//! Команды — единственный мост между интерфейсом и системой.
+//! Все обращения к файлам, реестру и оболочке живут здесь и глубже.
+//!
+//! Все команды асинхронные: синхронные в Tauri выполняются в главном потоке
+//! и подмораживали бы окно на чтении файлов и запуске процессов.
 
-use crate::catalog::{GameMeta, GAMES};
-use crate::config::{self, GameLaunchConfig, LaunchMode};
-use crate::detect;
+use serde::Serialize;
+use tauri::AppHandle;
+
+use crate::config::{self, Game, Launch};
 use crate::hub;
 use crate::launch;
-use serde::Serialize;
-use std::path::PathBuf;
-use tauri::{AppHandle, State};
 
-/// One game for the UI: catalog meta + the user's launch config.
+/// Игра в том виде, в каком её рисует интерфейс.
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GameView {
     pub id: String,
-    pub name: String,
-    pub publisher: String,
-    pub steam_appid: Option<u32>,
-    pub epic_supported: bool,
-    pub has_official_launcher: bool,
-    pub store_url: String,
-    pub config: GameLaunchConfig,
+    pub title: String,
+    pub content_id: Option<String>,
+    /// Подпись «запустится через …».
+    pub source_label: String,
+    /// Файл или папка игры пропали с диска.
+    pub missing: bool,
 }
 
-fn view(g: &GameMeta, cfg: &config::AppConfig) -> GameView {
-    let user_cfg = cfg
-        .games
-        .get(g.id)
-        .cloned()
-        .unwrap_or_else(|| GameLaunchConfig::default_for(g));
+pub fn view_of(game: &Game) -> GameView {
+    let source_label = match game.launch {
+        Launch::Steam { .. } => "Steam",
+        Launch::Epic { .. } => "Epic Games",
+        Launch::Exe => "напрямую",
+    }
+    .to_string();
+
     GameView {
-        id: g.id.to_string(),
-        name: g.name.to_string(),
-        publisher: g.publisher.to_string(),
-        steam_appid: g.steam_appid,
-        epic_supported: g.epic_supported,
-        has_official_launcher: g.has_official_launcher,
-        store_url: g.store_url.to_string(),
-        config: user_cfg,
+        id: game.id.clone(),
+        title: game.title.clone(),
+        content_id: game.content_id.clone(),
+        source_label,
+        missing: !config::is_present(game),
     }
 }
 
-// All commands are async: in Tauri, sync commands run on the main thread
-// and would briefly freeze the window (file reads, shell spawn); async
-// commands run on the async runtime instead.
-
 #[tauri::command]
 pub async fn get_games(app: AppHandle) -> Vec<GameView> {
-    let cfg = config::load(&app);
-    GAMES.iter().map(|g| view(g, &cfg)).collect()
+    config::load(&app).games.iter().map(view_of).collect()
 }
 
 #[tauri::command]
@@ -63,93 +56,73 @@ pub async fn get_config_dir(app: AppHandle) -> Result<String, String> {
     Ok(config::config_dir(&app)?.to_string_lossy().into_owned())
 }
 
+/// Запомнить выбранную игру, не запуская её.
 #[tauri::command]
-pub async fn save_config(app: AppHandle, config: config::AppConfig) -> Result<(), String> {
-    config::save(&app, &config)
+pub async fn select_game(app: AppHandle, game_id: String) -> Result<(), String> {
+    let mut cfg = config::load(&app);
+    if !cfg.games.iter().any(|g| g.id == game_id) {
+        return Err(format!("нет такой игры: {game_id}"));
+    }
+    cfg.last_played = Some(game_id);
+    config::save(&app, &cfg)
 }
 
+/// Запустить игру. `lastPlayed` пишется только после удачного старта.
 #[tauri::command]
-pub async fn launch_game(
-    app: AppHandle,
-    detect: State<'_, detect::Cache>,
-    game_id: String,
-) -> Result<(), String> {
-    let meta = GAMES
+pub async fn launch_game(app: AppHandle, game_id: String) -> Result<String, String> {
+    let mut cfg = config::load(&app);
+    let game = cfg
+        .games
         .iter()
         .find(|g| g.id == game_id)
-        .ok_or_else(|| format!("unknown game: {game_id}"))?;
-
-    let cfg = config::load(&app);
-    let user_cfg = cfg
-        .games
-        .get(&game_id)
         .cloned()
-        .unwrap_or_else(|| GameLaunchConfig::default_for(meta));
+        .ok_or_else(|| format!("нет такой игры: {game_id}"))?;
 
-    let target = match user_cfg.launch_mode {
-        LaunchMode::Steam => {
-            let appid = meta
-                .steam_appid
-                .ok_or_else(|| format!("no Steam appid for «{}» in the catalog", meta.name))?;
-            launch::LaunchTarget::Steam(appid)
-        }
-        LaunchMode::Epic => {
-            let id = user_cfg
-                .epic_product_id
-                .as_deref()
-                .map(str::trim)
-                .filter(|s| !s.is_empty())
-                .map(str::to_string);
-            match id {
-                Some(id) => launch::LaunchTarget::Epic(id),
-                // No product id: try to find the game in the Epic Games
-                // library folder and launch its .exe directly.
-                None => match detect::pick_from(&detect.get(), &meta.id, Some("epic")) {
-                    Some(found) => launch::LaunchTarget::Exe(
-                        PathBuf::from(found.path),
-                        user_cfg.args.clone(),
-                    ),
-                    None => {
-                        return Err(format!(
-                            "{}: Epic product id not set and the game was not found in the \
-                             Epic Games folder. Fill the product id in the settings, or switch \
-                             to \"direct .exe\" (press \"Scan\" there).",
-                            meta.name
-                        ))
-                    }
-                },
-            }
-        }
-        LaunchMode::Exe => {
-            let exe = user_cfg
-                .exe_path
-                .clone()
-                .filter(|p| !p.as_os_str().is_empty())
-                .ok_or_else(|| "game path not set — pick an .exe in the settings (or press \"Scan\")".to_string())?;
-            launch::LaunchTarget::Exe(exe, user_cfg.args.clone())
-        }
-    };
+    launch::launch(&app, &game)?;
 
-    launch::launch(&app, &game_id, target)
-}
-
-#[tauri::command]
-pub async fn detect_installs(
-    detect: State<'_, detect::Cache>,
-) -> Result<Vec<detect::DetectedInstall>, String> {
-    Ok(detect.get())
-}
-
-/// Force a full rescan (the "Скан" button in settings).
-#[tauri::command]
-pub async fn rescan_installs(
-    detect: State<'_, detect::Cache>,
-) -> Result<Vec<detect::DetectedInstall>, String> {
-    Ok(detect.refresh())
+    cfg.last_played = Some(game_id.clone());
+    let _ = config::save(&app, &cfg);
+    Ok(game_id)
 }
 
 #[tauri::command]
 pub async fn get_hub(app: AppHandle) -> Result<hub::HubData, String> {
     let cfg = config::load(&app);
     hub::load(&app, cfg.hub_url.as_deref())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::config::{Game, Launch};
+
+    fn steam_game() -> Game {
+        Game {
+            id: "wuthering".into(),
+            title: "Wuthering Waves".into(),
+            content_id: Some("wuthering".into()),
+            launch: Launch::Steam { appid: 3513350 },
+            install_path: Some(std::path::PathBuf::from(r"C:\nope\never")),
+            exe_path: None,
+            args: String::new(),
+            background: None,
+        }
+    }
+
+    #[test]
+    fn view_labels_the_store_a_game_starts_through() {
+        assert_eq!(view_of(&steam_game()).source_label, "Steam");
+    }
+
+    #[test]
+    fn view_marks_a_game_whose_folder_disappeared() {
+        assert!(view_of(&steam_game()).missing);
+    }
+
+    #[test]
+    fn exe_games_are_labelled_as_direct() {
+        let mut g = steam_game();
+        g.launch = Launch::Exe;
+        assert_eq!(view_of(&g).source_label, "напрямую");
+    }
 }
