@@ -37,16 +37,6 @@ pub enum Source {
     Epic,
 }
 
-impl Source {
-    /// Подпись под названием игры на главном экране.
-    pub fn label(&self) -> &'static str {
-        match self {
-            Source::Steam => "Steam",
-            Source::Epic => "Epic Games",
-        }
-    }
-}
-
 /// Игра, найденная в манифесте магазина.
 #[derive(Debug, Clone)]
 pub struct InstalledGame {
@@ -55,6 +45,10 @@ pub struct InstalledGame {
     /// Известен только для Epic — там манифест прямо называет исполняемый файл.
     pub exe_path: Option<PathBuf>,
     pub launch: Launch,
+    /// Пока не читается: пригодится на этапе 3 для выбора между несколькими
+    /// установками одной игры (§6.6 — магазин приоритетнее найденной по имени
+    /// папки).
+    #[allow(dead_code)]
     pub source: Source,
 }
 
