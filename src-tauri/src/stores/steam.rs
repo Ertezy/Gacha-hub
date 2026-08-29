@@ -13,10 +13,24 @@ pub fn install_roots() -> Vec<PathBuf> {
 
     #[cfg(windows)]
     {
-        use winreg::enums::HKEY_LOCAL_MACHINE;
+        use winreg::enums::{HKEY_CURRENT_USER, HKEY_LOCAL_MACHINE};
         use winreg::RegKey;
         if let Ok(key) = RegKey::predef(HKEY_LOCAL_MACHINE).open_subkey(r"SOFTWARE\Valve\Steam") {
             if let Ok(path) = key.get_value::<String, _>("InstallPath") {
+                if !path.trim().is_empty() {
+                    roots.push(PathBuf::from(path));
+                }
+            }
+        }
+
+        // Пользовательская запись: не подвержена перенаправлению WOW64 и
+        // остаётся на месте, когда машинной записи нет. Steam пишет сюда путь
+        // через прямые слэши — PathBuf на Windows их понимает. Если оба
+        // источника дали один и тот же каталог в разном написании, дубль стоит
+        // одного лишнего чтения каталога: installed() всё равно отсеивает игры
+        // по appid.
+        if let Ok(key) = RegKey::predef(HKEY_CURRENT_USER).open_subkey(r"Software\Valve\Steam") {
+            if let Ok(path) = key.get_value::<String, _>("SteamPath") {
                 if !path.trim().is_empty() {
                     roots.push(PathBuf::from(path));
                 }
@@ -77,6 +91,7 @@ pub fn installed() -> Vec<InstalledGame> {
         for library in library_roots_from_vdf(&vdf_text, &steam_root) {
             let dir = library.join("steamapps");
             let Ok(entries) = std::fs::read_dir(&dir) else {
+                eprintln!("[steam] не могу прочитать библиотеку {:?}", dir);
                 continue;
             };
             for entry in entries.flatten() {
@@ -90,6 +105,7 @@ pub fn installed() -> Vec<InstalledGame> {
                     continue;
                 }
                 let Ok(text) = std::fs::read_to_string(&path) else {
+                    eprintln!("[steam] не могу прочитать манифест {:?}", path);
                     continue;
                 };
                 if let Some(game) = game_from_manifest(&text, &library) {
@@ -98,6 +114,8 @@ pub fn installed() -> Vec<InstalledGame> {
                             games.push(game);
                         }
                     }
+                } else {
+                    eprintln!("[steam] не могу разобрать манифест {:?}", path);
                 }
             }
         }

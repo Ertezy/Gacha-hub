@@ -158,8 +158,7 @@ Steam и Epic ведут машинно-читаемые списки устан
 
 **Steam:** файлы `steamapps/appmanifest_<appid>.acf` в каждой библиотеке. Дают
 `appid`, `name`, `installdir`. Список библиотек берётся из
-`steamapps/libraryfolders.vdf` (путь к самому Steam — из реестра
-`HKLM\SOFTWARE\Valve\Steam\InstallPath`, плюс стандартные места).
+`steamapps/libraryfolders.vdf` (путь к самому Steam — из реестра — `HKLM\SOFTWARE\Valve\Steam\InstallPath` и `HKCU\Software\Valve\Steam\SteamPath`, плюс стандартные места).
 
 **Epic:** файлы `*.item` в `C:\ProgramData\Epic\EpicGamesLauncher\Data\Manifests\`.
 Дают `DisplayName`, `InstallLocation`, `LaunchExecutable`, а также
