@@ -145,3 +145,60 @@ body {
   color: rgba(255, 255, 255, 0.14);
   white-space: nowrap;
 }
+
+.game-header {
+  position: absolute;
+  top: 60px;
+  right: 48px;
+  text-align: right;
+  line-height: 1.2;
+}
+
+.game-header b {
+  display: block;
+  font-size: 27px;
+  letter-spacing: 0.14em;
+  text-shadow: 0 3px 12px rgba(0, 0, 0, 0.45);
+}
+
+.game-header span {
+  font-size: 13px;
+  color: var(--ink-dim);
+  letter-spacing: 0.05em;
+}
+
+.play-area {
+  position: absolute;
+  right: 48px;
+  bottom: 92px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 10px;
+}
+
+.play {
+  background: var(--accent);
+  color: var(--accent-ink);
+  font: 700 21px/1 system-ui, sans-serif;
+  padding: 17px 52px;
+  border: 0;
+  border-radius: 40px;
+  cursor: pointer;
+  box-shadow: 0 7px 26px rgba(0, 0, 0, 0.35);
+}
+
+.play:disabled {
+  opacity: 0.65;
+  cursor: default;
+}
+
+.play-error {
+  max-width: 420px;
+  background: rgba(255, 90, 70, 0.22);
+  border: 1px solid var(--danger);
+  border-radius: 8px;
+  padding: 9px 12px;
+  font-size: 12.5px;
+  text-align: left;
+}
