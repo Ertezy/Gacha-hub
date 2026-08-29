@@ -1,7 +1,9 @@
 //! Epic Games Launcher ведёт по файлу `*.item` на каждую установленную вещь
 //! в `%PROGRAMDATA%\Epic\EpicGamesLauncher\Data\Manifests`.
 //!
-//! Записи с пустым `LaunchExecutable` — это DLC, а не игры; их отбрасываем.
+//! Записи с пустым `LaunchExecutable` — это DLC, а не игры; их отбрасываем
+//! молча, без лога: это ожидаемый случай, а не сбой. Настоящая ошибка
+//! разбора — совсем другое дело, и только она попадает в `[epic]`-лог.
 //! Три идентификатора из манифеста складываются в официальную ссылку запуска,
 //! поэтому пользователю не нужно ничего вводить руками.
 
@@ -22,14 +24,29 @@ struct Manifest {
     app_name: String,
 }
 
-/// Одна игра из содержимого файла `.item`.
-pub fn game_from_manifest(json: &str) -> Option<InstalledGame> {
-    let m: Manifest = serde_json::from_str(json).ok()?;
+/// Три исхода разбора одной записи `.item`: их нельзя схлопывать в один
+/// `Option`, иначе вызывающий код не отличит нормальный пропуск DLC от
+/// настоящей ошибки — а именно это и была исходная проблема.
+#[derive(Debug)]
+pub enum ManifestEntry {
+    /// Настоящая игра, годная к запуску.
+    Game(InstalledGame),
+    /// DLC: `LaunchExecutable` пуст. Это норма, а не сбой — логировать не надо.
+    Dlc,
+    /// JSON не разобрался или не хватает полей — вот это уже стоит залогировать.
+    Invalid,
+}
+
+/// Одна запись из содержимого файла `.item`.
+pub fn game_from_manifest(json: &str) -> ManifestEntry {
+    let Ok(m) = serde_json::from_str::<Manifest>(json) else {
+        return ManifestEntry::Invalid;
+    };
     if m.launch_executable.trim().is_empty() {
-        return None;
+        return ManifestEntry::Dlc;
     }
     let install_path = PathBuf::from(&m.install_location);
-    Some(InstalledGame {
+    ManifestEntry::Game(InstalledGame {
         title: m.display_name,
         exe_path: Some(install_path.join(&m.launch_executable)),
         install_path,
@@ -77,10 +94,12 @@ pub fn installed() -> Vec<InstalledGame> {
             eprintln!("[epic] не могу прочитать манифест {:?}", path);
             continue;
         };
-        if let Some(game) = game_from_manifest(&text) {
-            games.push(game);
-        } else {
-            eprintln!("[epic] не могу разобрать манифест {:?}", path);
+        match game_from_manifest(&text) {
+            ManifestEntry::Game(game) => games.push(game),
+            ManifestEntry::Dlc => {}
+            ManifestEntry::Invalid => {
+                eprintln!("[epic] не могу разобрать манифест {:?}", path);
+            }
         }
     }
     games
@@ -108,9 +127,16 @@ mod tests {
       "AppName": "KingletAztec"
     }"#;
 
+    fn expect_game(entry: ManifestEntry) -> InstalledGame {
+        match entry {
+            ManifestEntry::Game(game) => game,
+            other => panic!("ожидалась игра, получено {other:?}"),
+        }
+    }
+
     #[test]
     fn parses_a_real_manifest() {
-        let game = game_from_manifest(GENSHIN).expect("должен разобраться");
+        let game = expect_game(game_from_manifest(GENSHIN));
         assert_eq!(game.title, "Genshin Impact");
         assert_eq!(game.install_path, PathBuf::from(r"D:\Games\GenshinImpact"));
         assert_eq!(
@@ -122,7 +148,7 @@ mod tests {
 
     #[test]
     fn keeps_all_three_launch_identifiers() {
-        let game = game_from_manifest(GENSHIN).unwrap();
+        let game = expect_game(game_from_manifest(GENSHIN));
         match game.launch {
             Launch::Epic {
                 namespace,
@@ -139,11 +165,28 @@ mod tests {
 
     #[test]
     fn skips_dlc_entries_that_have_no_executable() {
-        assert!(game_from_manifest(DLC).is_none());
+        assert!(matches!(game_from_manifest(DLC), ManifestEntry::Dlc));
     }
 
     #[test]
     fn skips_malformed_json() {
-        assert!(game_from_manifest("{ not json").is_none());
+        assert!(matches!(
+            game_from_manifest("{ not json"),
+            ManifestEntry::Invalid
+        ));
+    }
+
+    /// Закрепляет саму суть исправления: DLC и нечитаемая запись — это два
+    /// разных исхода, а не один и тот же `None`. Раньше `installed()` не мог
+    /// их различить и логировал оба как ошибку разбора.
+    #[test]
+    fn dlc_and_malformed_entries_are_distinguishable() {
+        let dlc = game_from_manifest(DLC);
+        let invalid = game_from_manifest("{ not json");
+
+        assert!(matches!(dlc, ManifestEntry::Dlc));
+        assert!(matches!(invalid, ManifestEntry::Invalid));
+        assert!(!matches!(dlc, ManifestEntry::Invalid));
+        assert!(!matches!(invalid, ManifestEntry::Dlc));
     }
 }
