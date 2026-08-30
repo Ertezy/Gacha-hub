@@ -103,12 +103,6 @@ fn bundled(app: &AppHandle) -> Result<HubData, String> {
 /// Нужна в `setup()`: каталог для сопоставления игр лежит в этом же файле, а
 /// `setup()` выполняется до появления окна. Сетевой запрос оттуда заставил бы
 /// окно ждать сеть там, где сейчас оно не ждёт.
-///
-/// В `setup()` вызывается начиная со следующей задачи этапа (перенос каталога
-/// игр на данные хаба); пока не подключена — без `allow` это дало бы
-/// предупреждение о неиспользуемой функции.
-// TODO(задача 5): снять после подключения в setup()
-#[allow(dead_code)]
 pub fn load_local(app: &AppHandle) -> HubData {
     if let Ok(cfg_dir) = app.path().app_config_dir() {
         for (name, label) in [("hub.json", "override"), ("hub_cache.json", "cache")] {

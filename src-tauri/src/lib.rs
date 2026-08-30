@@ -12,12 +12,12 @@ use config::Game;
 /// При первом запуске список игр пуст — заполняем его тем, что нашли в
 /// манифестах магазинов, чтобы человек сразу увидел свои игры, а не пустоту.
 /// Экран с галочками появится на этапе 3 и заменит это автозаполнение.
-fn seed_games(cfg: &mut config::AppConfig, installed: &[stores::InstalledGame]) {
+fn seed_games(cfg: &mut config::AppConfig, installed: &[stores::InstalledGame], hub_games: &[hub::HubGame]) {
     let mut used_ids = std::collections::HashSet::new();
     for found in installed {
-        let content_id = catalog::content_id_for(found);
+        let content_id = catalog::content_id_for(found, hub_games);
         let base = content_id
-            .map(str::to_string)
+            .clone()
             .unwrap_or_else(|| catalog::normalize(&found.title));
         let mut id = base.clone();
         let mut n = 2;
@@ -29,7 +29,7 @@ fn seed_games(cfg: &mut config::AppConfig, installed: &[stores::InstalledGame]) 
         cfg.games.push(Game {
             id,
             title: found.title.clone(),
-            content_id: content_id.map(str::to_string),
+            content_id,
             launch: found.launch.clone(),
             install_path: Some(found.install_path.clone()),
             exe_path: found.exe_path.clone(),
@@ -51,12 +51,15 @@ fn seed_games(cfg: &mut config::AppConfig, installed: &[stores::InstalledGame]) 
 fn sync_games_with_stores(app: &tauri::AppHandle) {
     let mut cfg = config::load(app);
     let installed = stores::installed();
+    // Локальная копия, без сети: setup() выполняется до появления окна,
+    // и сетевой запрос отсюда заставил бы окно ждать сеть (спека §3.4).
+    let hub_games = hub::load_local(app).games;
 
     let changed = if cfg.games.is_empty() {
-        seed_games(&mut cfg, &installed);
+        seed_games(&mut cfg, &installed, &hub_games);
         true
     } else {
-        catalog::enrich_from_stores(&mut cfg.games, &installed)
+        catalog::enrich_from_stores(&mut cfg.games, &installed, &hub_games)
     };
 
     if changed {

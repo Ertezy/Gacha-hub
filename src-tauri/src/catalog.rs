@@ -4,49 +4,12 @@
 //! Он отвечает только на вопрос, показывать ли по этой игре коды, баннеры
 //! и видео, и под каким идентификатором искать их в файле хаба.
 //!
-//! На этапе 1 таблица встроенная. На этапе 2 она переезжает в файл хаба,
-//! чтобы поддержка новой игры не требовала обновления приложения, —
-//! сигнатура `content_id_for` при этом не меняется.
+//! Таблица соответствий живёт в файле хаба, а не в коде: поддержка шестой
+//! игры — правка файла, а не выпуск новой версии приложения (спека §3.2).
 
 use crate::config::{Game, Launch};
+use crate::hub::HubGame;
 use crate::stores::InstalledGame;
-
-struct Known {
-    content_id: &'static str,
-    /// Официальные названия, как их пишут магазины. Сравниваются нормализованно.
-    titles: &'static [&'static str],
-    /// Steam appid, если игра там есть. Приоритетнее названия.
-    steam_appids: &'static [u32],
-}
-
-static KNOWN: &[Known] = &[
-    Known {
-        content_id: "genshin",
-        titles: &["Genshin Impact"],
-        steam_appids: &[],
-    },
-    Known {
-        content_id: "hsr",
-        titles: &["Honkai: Star Rail", "Honkai Star Rail"],
-        steam_appids: &[],
-    },
-    Known {
-        content_id: "zzz",
-        titles: &["Zenless Zone Zero"],
-        steam_appids: &[],
-    },
-    Known {
-        content_id: "wuthering",
-        titles: &["Wuthering Waves"],
-        // Проверено на реальной установке: appmanifest_3513350.acf.
-        steam_appids: &[3513350],
-    },
-    Known {
-        content_id: "endfield",
-        titles: &["Arknights: Endfield", "Arknights Endfield"],
-        steam_appids: &[],
-    },
-];
 
 /// Приводит название к виду, устойчивому к пунктуации, регистру и пробелам.
 pub fn normalize(title: &str) -> String {
@@ -57,26 +20,46 @@ pub fn normalize(title: &str) -> String {
         .collect()
 }
 
-/// Идентификатор контента для найденной игры, если она нам знакома.
-pub fn content_id_for(game: &InstalledGame) -> Option<&'static str> {
+/// Идентификатор контента для найденной игры, если она есть в каталоге.
+///
+/// Steam appid приоритетнее названия: название в манифесте могут поменять,
+/// appid — нет.
+pub fn content_id_for(game: &InstalledGame, hub_games: &[HubGame]) -> Option<String> {
     if let Launch::Steam { appid } = game.launch {
-        if let Some(known) = KNOWN.iter().find(|k| k.steam_appids.contains(&appid)) {
-            return Some(known.content_id);
+        if let Some(g) = hub_games
+            .iter()
+            .find(|g| g.matching.steam_app_ids.contains(&appid))
+        {
+            return Some(g.id.clone());
         }
     }
-    let normalized = normalize(&game.title);
-    KNOWN
+
+    let title = normalize(&game.title);
+    hub_games
         .iter()
-        .find(|k| k.titles.iter().any(|t| normalize(t) == normalized))
-        .map(|k| k.content_id)
+        .find(|g| {
+            normalize(&g.title) == title
+                || g.matching
+                    .folder_names
+                    .iter()
+                    .any(|n| normalize(n) == title)
+        })
+        .map(|g| g.id.clone())
 }
 
 /// Находит установленную игру, соответствующую записи пользователя: сперва
 /// по идентификатору контента, если он есть, иначе — по нормализованному
 /// названию.
-fn find_installed<'a>(game: &Game, installed: &'a [InstalledGame]) -> Option<&'a InstalledGame> {
+fn find_installed<'a>(
+    game: &Game,
+    installed: &'a [InstalledGame],
+    hub_games: &[HubGame],
+) -> Option<&'a InstalledGame> {
     if let Some(cid) = game.content_id.as_deref() {
-        if let Some(found) = installed.iter().find(|ig| content_id_for(ig) == Some(cid)) {
+        if let Some(found) = installed
+            .iter()
+            .find(|ig| content_id_for(ig, hub_games).as_deref() == Some(cid))
+        {
             return Some(found);
         }
     }
@@ -94,11 +77,15 @@ fn find_installed<'a>(game: &Game, installed: &'a [InstalledGame]) -> Option<&'a
 /// v1, где эти данные взять было неоткуда). Если пользователь уже указал
 /// свой exe — в том числе намеренно направив его в папку другой игры к
 /// общему лаунчеру — это решение не трогаем.
-pub fn enrich_from_stores(games: &mut [Game], installed: &[InstalledGame]) -> bool {
+pub fn enrich_from_stores(
+    games: &mut [Game],
+    installed: &[InstalledGame],
+    hub_games: &[HubGame],
+) -> bool {
     let mut changed = false;
 
     for game in games.iter_mut() {
-        let Some(found) = find_installed(game, installed) else {
+        let Some(found) = find_installed(game, installed, hub_games) else {
             continue;
         };
 
@@ -151,6 +138,15 @@ mod tests {
 
     #[test]
     fn matches_a_known_game_by_title() {
+        use crate::hub::HubGame;
+
+        let hub_games = vec![HubGame {
+            id: "hsr".into(),
+            title: "Honkai: Star Rail".into(),
+            icon: None,
+            redeem_url: None,
+            matching: Default::default(),
+        }];
         let g = game(
             "Honkai: Star Rail",
             Launch::Epic {
@@ -160,25 +156,34 @@ mod tests {
             },
             Source::Epic,
         );
-        assert_eq!(content_id_for(&g), Some("hsr"));
+        assert_eq!(content_id_for(&g, &hub_games).as_deref(), Some("hsr"));
     }
 
     #[test]
     fn matches_wuthering_waves_by_steam_appid_even_if_renamed() {
         let g = game("Wuthering  Waves", Launch::Steam { appid: 3513350 }, Source::Steam);
-        assert_eq!(content_id_for(&g), Some("wuthering"));
+        assert_eq!(content_id_for(&g, &hub_games()).as_deref(), Some("wuthering"));
     }
 
     #[test]
     fn returns_none_for_a_game_we_know_nothing_about() {
         let g = game("Limbus Company", Launch::Steam { appid: 1973530 }, Source::Steam);
-        assert_eq!(content_id_for(&g), None);
+        assert_eq!(content_id_for(&g, &hub_games()), None);
     }
 
     #[test]
     fn enrich_fills_launch_and_paths_for_a_migrated_game_matched_by_content_id() {
+        use crate::hub::HubGame;
+
         // «title == id» — отпечаток записи, перенесённой из v1: там ключ
         // словаря стал одновременно id и title.
+        let hub_games = vec![HubGame {
+            id: "hsr".into(),
+            title: "Honkai: Star Rail".into(),
+            icon: None,
+            redeem_url: None,
+            matching: Default::default(),
+        }];
         let mut games = vec![crate::config::Game {
             id: "hsr".into(),
             title: "hsr".into(),
@@ -201,7 +206,7 @@ mod tests {
             source: Source::Epic,
         }];
 
-        let changed = enrich_from_stores(&mut games, &installed);
+        let changed = enrich_from_stores(&mut games, &installed, &hub_games);
 
         assert!(changed);
         assert_eq!(games[0].title, "Honkai: Star Rail");
@@ -235,7 +240,7 @@ mod tests {
             source: Source::Steam,
         }];
 
-        let changed = enrich_from_stores(&mut games, &installed);
+        let changed = enrich_from_stores(&mut games, &installed, &hub_games());
 
         assert!(!changed);
         assert!(matches!(games[0].launch, Launch::Exe));
@@ -263,7 +268,7 @@ mod tests {
         }];
         let installed: Vec<InstalledGame> = Vec::new();
 
-        let changed = enrich_from_stores(&mut games, &installed);
+        let changed = enrich_from_stores(&mut games, &installed, &hub_games());
 
         assert!(!changed);
         assert_eq!(games[0].title, "limbus");
@@ -291,6 +296,78 @@ mod tests {
             source: Source::Steam,
         }];
 
-        assert!(!enrich_from_stores(&mut games, &installed));
+        assert!(!enrich_from_stores(&mut games, &installed, &hub_games()));
+    }
+
+    fn hub_games() -> Vec<crate::hub::HubGame> {
+        use crate::hub::{HubGame, Match};
+        vec![
+            HubGame {
+                id: "wuthering".into(),
+                title: "Wuthering Waves".into(),
+                icon: None,
+                redeem_url: None,
+                matching: Match {
+                    steam_app_ids: vec![3513350],
+                    epic_app_names: vec![],
+                    folder_names: vec!["Wuthering Waves".into()],
+                },
+            },
+            HubGame {
+                id: "zzz".into(),
+                title: "Zenless Zone Zero".into(),
+                icon: None,
+                redeem_url: Some("https://zenless.hoyoverse.com/redemption?code={code}".into()),
+                matching: Match {
+                    steam_app_ids: vec![],
+                    epic_app_names: vec![],
+                    folder_names: vec!["ZenlessZoneZero".into()],
+                },
+            },
+        ]
+    }
+
+    fn installed(title: &str, launch: Launch) -> InstalledGame {
+        InstalledGame {
+            title: title.into(),
+            install_path: std::path::PathBuf::from(r"C:\Games\X"),
+            exe_path: None,
+            launch,
+            source: crate::stores::Source::Steam,
+        }
+    }
+
+    #[test]
+    fn a_steam_appid_beats_the_title() {
+        // Название в манифесте могут переименовать; appid — нет.
+        let g = installed("Совершенно другое имя", Launch::Steam { appid: 3513350 });
+        assert_eq!(content_id_for(&g, &hub_games()).as_deref(), Some("wuthering"));
+    }
+
+    #[test]
+    fn a_title_matches_when_there_is_no_appid() {
+        let g = installed("Zenless Zone Zero", Launch::Exe);
+        assert_eq!(content_id_for(&g, &hub_games()).as_deref(), Some("zzz"));
+    }
+
+    #[test]
+    fn title_matching_survives_punctuation_and_case() {
+        let g = installed("zenless  zone-zero", Launch::Exe);
+        assert_eq!(content_id_for(&g, &hub_games()).as_deref(), Some("zzz"));
+    }
+
+    #[test]
+    fn an_unknown_game_matches_nothing() {
+        // Игра не из каталога — не ошибка. Человек ставит что хочет,
+        // лаунчер её запустит, просто контента по ней не будет.
+        let g = installed("Factorio", Launch::Exe);
+        assert_eq!(content_id_for(&g, &hub_games()), None);
+    }
+
+    #[test]
+    fn an_empty_catalogue_matches_nothing_and_does_not_panic() {
+        // Файл хаба может не приехать вовсе. Сопоставление обязано это пережить.
+        let g = installed("Wuthering Waves", Launch::Steam { appid: 3513350 });
+        assert_eq!(content_id_for(&g, &[]), None);
     }
 }
