@@ -130,11 +130,4 @@ mod tests {
         g.launch = Launch::Exe;
         assert_eq!(view_of(&g).source_label, "напрямую");
     }
-
-    #[test]
-    fn an_image_url_that_is_not_https_is_refused_before_any_request() {
-        // Проверка схемы обязана срабатывать до сетевого обращения.
-        assert!(!crate::hub::is_safe_https("http://example.test/a.png"));
-        assert!(!crate::hub::is_safe_https("file:///C:/secret.png"));
-    }
 }

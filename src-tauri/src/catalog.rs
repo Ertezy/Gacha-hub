@@ -89,6 +89,20 @@ pub fn enrich_from_stores(
             continue;
         };
 
+        // Восстанавливаем идентификатор контента, если его нет.
+        //
+        // Он присваивается один раз, при первом запуске, и если каталог тогда
+        // не прочитался — остаётся пустым навсегда: на последующих запусках
+        // работает уже эта функция, а не посев. Панель для такой игры молча
+        // пуста, и починить это изнутри приложения нечем до третьего этапа.
+        // Пишем только в пустое: заполненный идентификатор не трогаем.
+        if game.content_id.is_none() {
+            if let Some(found_id) = content_id_for(found, hub_games) {
+                game.content_id = Some(found_id);
+                changed = true;
+            }
+        }
+
         // Отпечаток записи, перенесённой из v1: title там равен id, потому
         // что ключ словаря стал и тем, и другим.
         if game.title == game.id && game.title != found.title {
@@ -297,6 +311,50 @@ mod tests {
         }];
 
         assert!(!enrich_from_stores(&mut games, &installed, &hub_games()));
+    }
+
+    #[test]
+    fn enrich_restores_a_content_id_that_was_never_assigned() {
+        // Первый запуск с непрочитанным каталогом оставляет content_id пустым.
+        // Когда каталог появляется, он обязан дозаполниться, иначе панель для
+        // этой игры пуста навсегда.
+        let mut games = vec![Game {
+            id: "wuthering".into(),
+            title: "Wuthering Waves".into(),
+            content_id: None,
+            launch: Launch::Steam { appid: 3513350 },
+            install_path: Some(std::path::PathBuf::from(r"C:\Games\WW")),
+            exe_path: Some(std::path::PathBuf::from(r"C:\Games\WW\game.exe")),
+            args: String::new(),
+            background: None,
+        }];
+        let found = vec![installed("Wuthering Waves", Launch::Steam { appid: 3513350 })];
+
+        let changed = enrich_from_stores(&mut games, &found, &hub_games());
+
+        assert!(changed);
+        assert_eq!(games[0].content_id.as_deref(), Some("wuthering"));
+    }
+
+    #[test]
+    fn enrich_never_overwrites_a_content_id_that_is_already_set() {
+        // Заполненный идентификатор — свершившийся факт, как и выставленный
+        // вручную путь. Перезапись сломала бы осознанный выбор человека.
+        let mut games = vec![Game {
+            id: "wuthering".into(),
+            title: "Wuthering Waves".into(),
+            content_id: Some("что-то-своё".into()),
+            launch: Launch::Steam { appid: 3513350 },
+            install_path: Some(std::path::PathBuf::from(r"C:\Games\WW")),
+            exe_path: Some(std::path::PathBuf::from(r"C:\Games\WW\game.exe")),
+            args: String::new(),
+            background: None,
+        }];
+        let found = vec![installed("Wuthering Waves", Launch::Steam { appid: 3513350 })];
+
+        enrich_from_stores(&mut games, &found, &hub_games());
+
+        assert_eq!(games[0].content_id.as_deref(), Some("что-то-своё"));
     }
 
     fn hub_games() -> Vec<crate::hub::HubGame> {
