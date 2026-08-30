@@ -1,0 +1,65 @@
+import { api } from "../../lib/api";
+import CachedImage from "./CachedImage";
+import { timeAgo } from "../../lib/time";
+import type { Video } from "../../types";
+
+interface Props {
+  /** Уже отфильтрованы по выбранной игре. */
+  videos: Video[];
+  nowSec: number;
+}
+
+/** Сколько роликов показываем на игру. Лента отдаёт пятнадцать. */
+const SHOWN = 6;
+
+/** Длительность в «м:сс». */
+function duration(seconds: number): string {
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  return `${m}:${String(s).padStart(2, "0")}`;
+}
+
+export default function Videos({ videos, nowSec }: Props) {
+  const shown = [...videos]
+    .sort((a, b) => b.publishedAt - a.publishedAt)
+    .slice(0, SHOWN);
+
+  if (shown.length === 0) return null;
+
+  return (
+    <section className="panel-section">
+      <div className="panel-label">
+        <span>Видео</span>
+      </div>
+
+      {shown.map((v) => (
+        <div
+          key={v.url}
+          className="video-card"
+          role="button"
+          tabIndex={0}
+          onClick={() => void api.openSafeUrl(v.url).catch(() => undefined)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              void api.openSafeUrl(v.url).catch(() => undefined);
+            }
+          }}
+        >
+          <div className="video-thumb-wrap">
+            <CachedImage className="video-thumb" url={v.thumb} fallbackText={v.title} />
+            {/* Значок рисуется только когда данные есть: лента RSS не даёт
+                ни длительности, ни отметки премьеры. */}
+            {v.premiere ? (
+              <span className="video-badge premiere">премьера</span>
+            ) : v.duration !== null ? (
+              <span className="video-badge">{duration(v.duration)}</span>
+            ) : null}
+          </div>
+          <div className="video-title">{v.title}</div>
+          <div className="video-meta">{timeAgo(v.publishedAt, nowSec)}</div>
+        </div>
+      ))}
+    </section>
+  );
+}
