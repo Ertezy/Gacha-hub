@@ -19,8 +19,14 @@ export default function Banners({ banners, nowSec }: Props) {
   const running = banners.filter((b) => b.startsAt <= nowSec && b.endsAt > nowSec);
   const [index, setIndex] = useState(0);
 
-  // Смена игры меняет список; без сброса указатель показал бы на пустоту.
-  useEffect(() => setIndex(0), [banners]);
+  // Сброс навешен на СОДЕРЖИМОЕ списка, а не на ссылку на массив.
+  //
+  // Родитель пересчитывает `banners` фильтром на каждой отрисовке, а часы в
+  // панели тикают раз в полминуты — значит ссылка меняется постоянно, даже
+  // когда список тот же. Навесив сброс на неё, мы возвращали бы карусель на
+  // первый баннер каждые тридцать секунд, и стрелки выглядели бы сломанными.
+  const runningKey = running.map((b) => `${b.gameId}:${b.startsAt}`).join("|");
+  useEffect(() => setIndex(0), [runningKey]);
 
   if (running.length === 0) return null;
 
