@@ -12,37 +12,53 @@ export interface GameView {
   missing: boolean;
 }
 
-export interface PromoCode {
+export interface HubGame {
+  id: string;
+  title: string;
+  icon: string | null;
+  /** Шаблон с подстановкой {code}. Отсутствует у игр без веб-погашения. */
+  redeemUrl: string | null;
+}
+
+export interface Code {
   gameId: string;
   code: string;
   rewards: string;
-  expired: string;
-  source?: string;
+  /** unix-секунды; null — бессрочный. */
+  expiresAt: number | null;
+  region: string;
+  source: string | null;
 }
 
-export interface NewsItem {
+export interface Banner {
   gameId: string;
   title: string;
-  date: string;
-  summary: string;
-  url: string;
+  featured: string[];
+  rarity: number | null;
+  /** Уже уменьшенный адрес; null у ХСР — вики не хранит арт. */
+  image: string | null;
+  startsAt: number;
+  endsAt: number;
+  url: string | null;
 }
 
-export interface Guide {
+export interface Video {
   gameId: string;
   title: string;
-  character?: string;
-  date?: string;
   url: string;
+  thumb: string | null;
+  publishedAt: number;
+  duration: number | null;
+  premiere: boolean;
 }
 
 export interface HubData {
-  version?: number;
-  updatedAt?: string;
-  promoCodes: PromoCode[];
-  news: NewsItem[];
-  guides: Guide[];
-  _note?: string;
+  version: number;
+  updatedAt: number;
+  games: HubGame[];
+  codes: Code[];
+  banners: Banner[];
+  videos: Video[];
   _source?: string;
 }
 

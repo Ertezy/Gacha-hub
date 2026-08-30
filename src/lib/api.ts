@@ -12,6 +12,9 @@ export const api = {
   getLastPlayed: () => invoke<string | null>("get_last_played"),
   launchGame: (gameId: string) => invoke<string>("launch_game", { gameId }),
 
+  /** Путь к картинке в локальном кеше; Rust качает её, если надо. */
+  cacheImage: (url: string) => invoke<string>("cache_image", { url }),
+
   /**
    * Открыть внешнюю ссылку в браузере пользователя.
    * Только https: данные хаба приходят из сети и не должны иметь возможности
