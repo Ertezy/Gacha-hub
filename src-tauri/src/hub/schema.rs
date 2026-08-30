@@ -22,7 +22,15 @@ where
     D: Deserializer<'de>,
     T: DeserializeOwned,
 {
-    let raw = Vec::<serde_json::Value>::deserialize(d)?;
+    // Разбираем в `Value`, а не сразу в `Vec<Value>`: при `"codes": null`
+    // или `"codes": 42` разбор вектора вернул бы ошибку наружу и уронил
+    // разбор ВСЕГО файла — ровно та пустая панель, которую эта функция и
+    // должна предотвращать. `#[serde(default)]` тут не помогает: он
+    // срабатывает на отсутствующее поле, а не на присутствующее с чужим типом.
+    let raw = match serde_json::Value::deserialize(d)? {
+        serde_json::Value::Array(items) => items,
+        _ => return Ok(Vec::new()),
+    };
     Ok(raw
         .into_iter()
         .filter_map(|v| serde_json::from_value(v).ok())
@@ -239,5 +247,28 @@ mod tests {
     fn entries_of_the_wrong_shape_are_skipped_not_fatal() {
         let d: HubData = serde_json::from_str(r#"{"version":2,"codes":[42,"строка",null]}"#).unwrap();
         assert!(d.codes.is_empty());
+    }
+
+    #[test]
+    fn a_list_that_is_not_a_list_yields_nothing_rather_than_failing() {
+        for json in [
+            r#"{"version":2,"codes":null}"#,
+            r#"{"version":2,"codes":42}"#,
+            r#"{"version":2,"codes":{"a":1}}"#,
+        ] {
+            let d: HubData = serde_json::from_str(json)
+                .unwrap_or_else(|e| panic!("разбор упал на {json}: {e}"));
+            assert_eq!(d.version, 2);
+            assert!(d.codes.is_empty());
+        }
+    }
+
+    #[test]
+    fn region_falls_back_to_all_when_absent() {
+        // Прежний тест «отсутствующих полей» проставлял region явно,
+        // поэтому ветка умолчания не исполнялась ни разу.
+        let json = r#"{"gameId":"gi","code":"Z","rewards":""}"#;
+        let c: Code = serde_json::from_str(json).unwrap();
+        assert_eq!(c.region, "all");
     }
 }

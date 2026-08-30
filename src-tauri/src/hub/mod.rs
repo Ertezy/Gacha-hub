@@ -15,6 +15,7 @@ pub mod schema;
 // картинок, которые появятся в следующих задачах этапа. Здесь их ещё никто
 // не использует, поэтому без `allow` анализ мёртвого кода принял бы это за
 // неиспользуемый импорт.
+// TODO(задача 6): снять после подключения типов в commands.rs
 #[allow(unused_imports)]
 pub use schema::{Banner, Code, HubData, HubGame, Match, Video};
 
@@ -37,7 +38,21 @@ const MAX_HUB_BYTES: usize = 2 * 1024 * 1024;
 pub fn is_safe_https(url: &str) -> bool {
     // Схема нечувствительна к регистру по RFC 3986, остальное — нет.
     // Ведущие пробелы не обрезаются: адрес с ними — уже подозрительный.
-    url.len() > 8 && url[..8].eq_ignore_ascii_case("https://")
+    //
+    // Сравнение идёт по БАЙТАМ, а не срезом строки. `url[..8]` на строке,
+    // где восьмой байт попадает внутрь многобайтового символа, не вернёт
+    // false, а вызовет панику: «https:/日本» — опечатка в один слеш плюс
+    // неASCII-хост — роняет приложение. Адреса приходят из недоверенного
+    // файла, так что вход не гипотетический.
+    let Some(head) = url.as_bytes().get(..8) else {
+        return false;
+    };
+    if !head.eq_ignore_ascii_case(b"https://") {
+        return false;
+    }
+    // После схемы обязан быть хотя бы один символ хоста: «https:///путь»
+    // иначе проходит воротами насквозь.
+    url.as_bytes().get(8).is_some_and(|c| *c != b'/')
 }
 
 fn read_json_file(path: &Path) -> Option<HubData> {
@@ -92,6 +107,7 @@ fn bundled(app: &AppHandle) -> Result<HubData, String> {
 /// В `setup()` вызывается начиная со следующей задачи этапа (перенос каталога
 /// игр на данные хаба); пока не подключена — без `allow` это дало бы
 /// предупреждение о неиспользуемой функции.
+// TODO(задача 5): снять после подключения в setup()
 #[allow(dead_code)]
 pub fn load_local(app: &AppHandle) -> HubData {
     if let Ok(cfg_dir) = app.path().app_config_dir() {
@@ -167,9 +183,26 @@ mod tests {
     }
 
     #[test]
-    fn rejects_case_tricks_around_the_scheme() {
-        // Схема сравнивается без учёта регистра, но всё, что за ней, — нет.
+    fn the_scheme_is_case_insensitive_but_nothing_else_is() {
         assert!(is_safe_https("HTTPS://example.test/a.png"));
         assert!(!is_safe_https(" https://example.test/a.png"));
+    }
+
+    #[test]
+    fn a_non_ascii_url_is_rejected_and_does_not_panic() {
+        // Единственный способ этой функции сломаться: сравнение по срезу
+        // строки паникует, когда восьмой байт попадает внутрь символа.
+        assert!(!is_safe_https("https:/日本"));
+        assert!(!is_safe_https("日日日x"));
+        assert!(!is_safe_https("ааа€x"));
+        // А правильный адрес с неASCII-хостом проходить обязан.
+        assert!(is_safe_https("https://日本.test/арт.png"));
+    }
+
+    #[test]
+    fn an_empty_host_is_rejected() {
+        assert!(!is_safe_https("https:///etc/passwd"));
+        assert!(!is_safe_https("https://"));
+        assert!(is_safe_https("https://a"));
     }
 }
