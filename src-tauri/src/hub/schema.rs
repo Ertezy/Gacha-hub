@@ -271,4 +271,17 @@ mod tests {
         let c: Code = serde_json::from_str(json).unwrap();
         assert_eq!(c.region, "all");
     }
+
+    #[test]
+    fn the_bundled_snapshot_parses_and_is_not_a_demo() {
+        let text = include_str!("../../resources/hub.json");
+        let d: HubData = serde_json::from_str(text).expect("файл из комплекта не разобрался");
+        assert_eq!(d.version, 2);
+        assert_eq!(d.games.len(), 5, "в комплекте должны быть все пять игр");
+        assert!(d.updated_at > 1_700_000_000, "updatedAt не заполнен");
+        assert!(!d.codes.is_empty(), "снимок без кодов бесполезен");
+        // Демо-данные из первого этапа не должны пережить замену.
+        assert!(!text.contains("DEMO"), "в файле остались демо-данные");
+        assert!(!text.contains("example.com"), "в файле остались заглушечные адреса");
+    }
 }

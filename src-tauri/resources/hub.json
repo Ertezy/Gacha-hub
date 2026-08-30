@@ -1,130 +1,144 @@
 {
-  "version": 1,
-  "updatedAt": "2026-07-21",
-  "_note": "DEMO DATA — примеры структуры. Замените реальными данными из официальных источников.",
-  "promoCodes": [
+  "version": 2,
+  "updatedAt": 1788093643,
+
+  "games": [
     {
-      "gameId": "genshin",
-      "code": "DEMO-GI-2026",
-      "rewards": "300 Первокамней, 40 Острой зари мистики (демо)",
-      "expired": "2026-09-30",
-      "source": "example.com"
+      "id": "genshin",
+      "title": "Genshin Impact",
+      "redeemUrl": "https://genshin.hoyoverse.com/en/gift?code={code}",
+      "match": { "steamAppIds": [], "epicAppNames": [], "folderNames": ["Genshin Impact"] }
     },
     {
-      "gameId": "genshin",
-      "code": "GI-OLD-CODE-2025",
-      "rewards": "10 Моры (демо)",
-      "expired": "2025-12-31",
-      "source": "example.com"
+      "id": "hsr",
+      "title": "Honkai: Star Rail",
+      "redeemUrl": "https://hsr.hoyoverse.com/gift?code={code}",
+      "match": { "steamAppIds": [], "epicAppNames": [], "folderNames": ["Honkai: Star Rail", "Honkai Star Rail"] }
     },
     {
-      "gameId": "hsr",
-      "code": "DEMO-HSR-STAR",
-      "rewards": "50 Звёздных самоцветов (демо)",
-      "expired": "2026-08-31",
-      "source": "example.com"
+      "id": "zzz",
+      "title": "Zenless Zone Zero",
+      "redeemUrl": "https://zenless.hoyoverse.com/redemption?code={code}",
+      "match": { "steamAppIds": [], "epicAppNames": [], "folderNames": ["Zenless Zone Zero"] }
     },
     {
-      "gameId": "hsr",
-      "code": "HSR-OLD-CODE",
-      "rewards": "30 Звёздных самоцветов (демо)",
-      "expired": "2026-04-30",
-      "source": "example.com"
+      "id": "wuthering",
+      "title": "Wuthering Waves",
+      "match": { "steamAppIds": [3513350], "epicAppNames": [], "folderNames": ["Wuthering Waves"] }
     },
     {
-      "gameId": "zzz",
-      "code": "DEMO-ZZZ-ECHO",
-      "rewards": "300 Эхо (демо)",
-      "expired": "2026-09-15",
-      "source": "example.com"
-    },
-    {
-      "gameId": "wuthering",
-      "code": "DEMO-WW-ROCK",
-      "rewards": "2000 Роков (демо)",
-      "expired": "2026-08-15",
-      "source": "example.com"
-    },
-    {
-      "gameId": "endfield",
-      "code": "DEMO-EF-TRIMASTER",
-      "rewards": "1000 Тримастера (демо)",
-      "expired": "2026-03-01",
-      "source": "example.com"
+      "id": "endfield",
+      "title": "Arknights: Endfield",
+      "match": { "steamAppIds": [], "epicAppNames": [], "folderNames": ["Arknights: Endfield", "Arknights Endfield"] }
     }
   ],
-  "news": [
+
+  "codes": [
+    { "gameId": "genshin", "code": "BALLETCOLLAB", "rewards": "30 Primogem, 10000 Mora, 3 Hero's Wit, 3 Mystic Enhancement Ore", "expiresAt": null, "region": "all", "source": "https://hoyo-codes.seria.moe/codes?game=genshin" },
+    { "gameId": "genshin", "code": "Y1INABQB6DEX", "rewards": "", "expiresAt": null, "region": "all", "source": "https://hoyo-codes.seria.moe/codes?game=genshin" },
+    { "gameId": "genshin", "code": "2BJ64QRZ7RT8", "rewards": "60 Primogem, 5 Adventurer's Experience", "expiresAt": null, "region": "all", "source": "https://hoyo-codes.seria.moe/codes?game=genshin" },
+    { "gameId": "genshin", "code": "P7G0XA30H0Q3", "rewards": "", "expiresAt": null, "region": "all", "source": "https://hoyo-codes.seria.moe/codes?game=genshin" },
+    { "gameId": "genshin", "code": "XVIZDH2B9WGX", "rewards": "10000 Mora, 10 Adventurer's Experience, 5 Fine Enhancement Ore, 5 Jueyun Chili Chicken, 5 Stir-Fried Fish Noodles", "expiresAt": null, "region": "all", "source": "https://hoyo-codes.seria.moe/codes?game=genshin" },
+    { "gameId": "genshin", "code": "MYSNEZHNAYACAREER", "rewards": "160 Primogem, 20000 Mora, 3 Hero's Wit", "expiresAt": null, "region": "all", "source": "https://hoyo-codes.seria.moe/codes?game=genshin" },
+    { "gameId": "genshin", "code": "LEGEDILJKSGM", "rewards": "60 Primogem, 5 Adventurer's Experience", "expiresAt": null, "region": "all", "source": "https://hoyo-codes.seria.moe/codes?game=genshin" },
+
+    { "gameId": "hsr", "code": "5S6ZHRWTDNJB", "rewards": "60 stellar jade", "expiresAt": null, "region": "all", "source": "https://hoyo-codes.seria.moe/codes?game=hkrpg" },
+    { "gameId": "hsr", "code": "4TKSX77Y58QK", "rewards": "30 stellar jade, three traveler's guides, five condensed aether, four lost gold fragments, and 20k credits", "expiresAt": null, "region": "all", "source": "https://hoyo-codes.seria.moe/codes?game=hkrpg" },
+    { "gameId": "hsr", "code": "STARRAILGIFT", "rewards": "50 stellar jade, 10k credits, two traveler's guides, and five bottled soda", "expiresAt": null, "region": "all", "source": "https://hoyo-codes.seria.moe/codes?game=hkrpg" },
+    { "gameId": "hsr", "code": "SUNSWEPTROBIN", "rewards": "", "expiresAt": null, "region": "all", "source": "https://hoyo-codes.seria.moe/codes?game=hkrpg" },
+    { "gameId": "hsr", "code": "IFYOUAREREADINGTHIS", "rewards": "60 stellar jade and one fuel", "expiresAt": null, "region": "all", "source": "https://hoyo-codes.seria.moe/codes?game=hkrpg" },
+    { "gameId": "hsr", "code": "FAREWELL", "rewards": "60 stellar jade and one fuel", "expiresAt": null, "region": "all", "source": "https://hoyo-codes.seria.moe/codes?game=hkrpg" },
+    { "gameId": "hsr", "code": "CTK5DRQVT48F", "rewards": "", "expiresAt": null, "region": "all", "source": "https://hoyo-codes.seria.moe/codes?game=hkrpg" },
+    { "gameId": "hsr", "code": "CREATIONNYMPH", "rewards": "60 stellar jade and one fuel", "expiresAt": null, "region": "all", "source": "https://hoyo-codes.seria.moe/codes?game=hkrpg" },
+    { "gameId": "hsr", "code": "OMEGA", "rewards": "60 stellar jade and one fuel", "expiresAt": null, "region": "all", "source": "https://hoyo-codes.seria.moe/codes?game=hkrpg" },
+
+    { "gameId": "zzz", "code": "FLINTWORKS", "rewards": "300 Polychrome, 2 Senior Investigator Log, 3 W-Engine Energy Module, 30,000 Denny", "expiresAt": 1788105599, "region": "all", "source": "https://zenless-zone-zero.fandom.com/wiki/Redemption_Code" },
+    { "gameId": "zzz", "code": "ZZZMEIJI", "rewards": "3 Senior Investigator Log, 3 W-Engine Energy Module, 30,000 Denny", "expiresAt": 1788879599, "region": "all", "source": "https://zenless-zone-zero.fandom.com/wiki/Redemption_Code" },
+    { "gameId": "zzz", "code": "ZZZ2YEAR", "rewards": "50 Polychrome", "expiresAt": null, "region": "all", "source": "https://zenless-zone-zero.fandom.com/wiki/Redemption_Code" },
+    { "gameId": "zzz", "code": "ZZZ31REMIELLE", "rewards": "60 Polychrome, 6,666 Denny", "expiresAt": null, "region": "all", "source": "https://zenless-zone-zero.fandom.com/wiki/Redemption_Code" },
+    { "gameId": "zzz", "code": "CBW0884678", "rewards": "20,000 Denny", "expiresAt": null, "region": "SEA", "source": "https://zenless-zone-zero.fandom.com/wiki/Redemption_Code" },
+    { "gameId": "zzz", "code": "ZENLESSGIFT", "rewards": "50 Polychrome, 2 Official Investigator Log, 3 W-Engine Power Supply, 1 Bangboo Algorithm Module", "expiresAt": null, "region": "all", "source": "https://zenless-zone-zero.fandom.com/wiki/Redemption_Code" },
+
+    { "gameId": "wuthering", "code": "WUTHERINGGIFT", "rewards": "50 Astrite, 2 Premium Resonance Potion, 2 Medium Revival Inhaler, 2 Medium Energy Bag, 10000 Shell Credit", "expiresAt": null, "region": "all", "source": "https://wutheringwaves.fandom.com/wiki/Redemption_Code" }
+  ],
+
+  "banners": [
     {
       "gameId": "genshin",
-      "title": "Пример: новая версия и баннер (демо)",
-      "date": "2026-07-18",
-      "summary": "Заглушка новости. Замените реальной анонсом с официального сайта.",
-      "url": "https://genshin.hoyoverse.com/news"
+      "title": "Ледяная тень лебедя",
+      "featured": ["Одетта"],
+      "rarity": 5,
+      "image": "https://static.wikia.nocookie.net/gensin-impact/images/1/16/Swan%27s_Shadow_in_Silken_Ice_2026-08-12.png/revision/latest/scale-to-width-down/400",
+      "startsAt": 1786489200,
+      "endsAt": 1788256740
     },
     {
       "gameId": "hsr",
-      "title": "Пример: шоукейс персонажа (демо)",
-      "date": "2026-07-15",
-      "summary": "Заглушка.",
-      "url": "https://hsr.hoyoverse.com/news"
-    },
-    {
-      "gameId": "wuthering",
-      "title": "Пример: обновление (демо)",
-      "date": "2026-07-10",
-      "summary": "Заглушка.",
-      "url": "https://wutheringwaves.kurogame.com"
+      "title": "Песнь солнца",
+      "featured": ["Зарянка"],
+      "rarity": 5,
+      "image": null,
+      "startsAt": 1787709600,
+      "endsAt": 1789210740,
+      "url": "https://www.hoyolab.com/article/46439490"
     },
     {
       "gameId": "zzz",
-      "title": "Пример: новая зона (демо)",
-      "date": "2026-07-05",
-      "summary": "Заглушка.",
-      "url": "https://zzz.hoyoverse.com"
+      "title": "Возвращённый рай",
+      "featured": ["Ремиэлла"],
+      "rarity": 5,
+      "image": "https://static.wikia.nocookie.net/zenless-zone-zero/images/b/b2/Paradise_Regained_2026-07-29.png/revision/latest/scale-to-width-down/400",
+      "startsAt": 1785290400,
+      "endsAt": 1788850799
+    },
+    {
+      "gameId": "wuthering",
+      "title": "Wind of Transcendence",
+      "featured": ["Qingxiao"],
+      "rarity": 5,
+      "image": "https://static.wikia.nocookie.net/wutheringwaves/images/6/69/Wind_of_Transcendence_2026-08-20.jpg/revision/latest/scale-to-width-down/400",
+      "startsAt": 1787191200,
+      "endsAt": 1789005599,
+      "url": "https://wutheringwaves.kurogames.com/en/main/news/detail/5331"
     },
     {
       "gameId": "endfield",
-      "title": "Пример: новости Endfield (демо)",
-      "date": "2026-06-28",
-      "summary": "Заглушка.",
-      "url": "https://endfield.hypergritype.com"
+      "title": "Good Morning from Your Dawnstar",
+      "featured": ["Liino"],
+      "rarity": 6,
+      "image": "https://endfield.wiki.gg/images/thumb/Good_Morning_from_Your_Dawnstar_banner.png/400px-Good_Morning_from_Your_Dawnstar_banner.png",
+      "startsAt": 1786248000,
+      "endsAt": 1788299999
     }
   ],
-  "guides": [
-    {
-      "gameId": "genshin",
-      "title": "Пример: новый персонаж — билд (демо)",
-      "character": "плейсхолдер",
-      "date": "2026-07-19",
-      "url": "https://genshin.hoyoverse.com/wiki"
-    },
-    {
-      "gameId": "hsr",
-      "title": "Пример: гайд по новому персонажу (демо)",
-      "character": "плейсхолдер",
-      "date": "2026-07-16",
-      "url": "https://hsr.hoyoverse.com/wiki"
-    },
-    {
-      "gameId": "zzz",
-      "title": "Пример: старт на новом персонаже (демо)",
-      "character": "плейсхолдер",
-      "date": "2026-07-08",
-      "url": "https://zzz.hoyoverse.com/wiki"
-    },
-    {
-      "gameId": "wuthering",
-      "title": "Пример: подбор артефактов (демо)",
-      "character": "плейсхолдер",
-      "date": "2026-07-01",
-      "url": "https://wutheringwaves.kurogame.com"
-    },
-    {
-      "gameId": "endfield",
-      "title": "Пример: гайд по новому оператору (демо)",
-      "character": "плейсхолдер",
-      "date": "2026-06-25",
-      "url": "https://endfield.hypergritype.com"
-    }
+
+  "videos": [
+    { "gameId": "genshin", "title": "Local Legend - Churin \"Apprentice Sculptor, Martial Master\" #NowSnezhnaya #GenshinSnezhnaya", "url": "https://www.youtube.com/shorts/2uJw3z-cYlc", "thumb": "https://i3.ytimg.com/vi/2uJw3z-cYlc/hqdefault.jpg", "publishedAt": 1787738439, "duration": null, "premiere": false },
+    { "gameId": "genshin", "title": "Would you like to adopt a puppy? #GenshinImpact #NowSnezhnaya #GenshinSnezhnaya #Alyosha", "url": "https://www.youtube.com/shorts/LmkcqLBdn5o", "thumb": "https://i1.ytimg.com/vi/LmkcqLBdn5o/hqdefault.jpg", "publishedAt": 1787652028, "duration": null, "premiere": false },
+    { "gameId": "genshin", "title": "If the desperate wish to hold onto something burns too fiercely… #NowSnezhnaya #GenshinSnezhnaya", "url": "https://www.youtube.com/shorts/mh3CY72-Hlc", "thumb": "https://i2.ytimg.com/vi/mh3CY72-Hlc/hqdefault.jpg", "publishedAt": 1787565622, "duration": null, "premiere": false },
+    { "gameId": "genshin", "title": "Cutscene Animation: \"Triumphant Return\" | Genshin Impact #NowSnezhnaya #GenshinSnezhnaya", "url": "https://www.youtube.com/watch?v=YridTO5hKfM", "thumb": "https://i2.ytimg.com/vi/YridTO5hKfM/hqdefault.jpg", "publishedAt": 1787479220, "duration": null, "premiere": false },
+    { "gameId": "genshin", "title": "Story Teaser: Embers Beneath the Ice | Genshin Impact #NowSnezhnaya #GenshinSnezhnaya", "url": "https://www.youtube.com/watch?v=t2aHM2w-VO0", "thumb": "https://i1.ytimg.com/vi/t2aHM2w-VO0/hqdefault.jpg", "publishedAt": 1787457609, "duration": null, "premiere": false },
+    { "gameId": "genshin", "title": "Cutscene Animation: \"The Hour of Resurrection Draws Near\" | Genshin Impact #NowSnezhnaya", "url": "https://www.youtube.com/watch?v=s5u5aSDvk0A", "thumb": "https://i4.ytimg.com/vi/s5u5aSDvk0A/hqdefault.jpg", "publishedAt": 1787392832, "duration": null, "premiere": false },
+
+    { "gameId": "hsr", "title": "Astral Glamor | Robin • Summeretto", "url": "https://www.youtube.com/shorts/oMw1Wtcn20Q", "thumb": "https://i4.ytimg.com/vi/oMw1Wtcn20Q/hqdefault.jpg", "publishedAt": 1787832013, "duration": null, "premiere": false },
+    { "gameId": "hsr", "title": "Come Experience the Version Content of \"To Roll the Stars in Astropolis\"!", "url": "https://www.youtube.com/shorts/iF654p9vwsk", "thumb": "https://i2.ytimg.com/vi/iF654p9vwsk/hqdefault.jpg", "publishedAt": 1787734810, "duration": null, "premiere": false },
+    { "gameId": "hsr", "title": "Welcome to Version 4.5 \"To Roll the Stars in Astropolis\" !", "url": "https://www.youtube.com/shorts/f9V2PM5-Y_g", "thumb": "https://i3.ytimg.com/vi/f9V2PM5-Y_g/hqdefault.jpg", "publishedAt": 1787713215, "duration": null, "premiere": false },
+    { "gameId": "hsr", "title": "Summer Chorus | Robin • Summeretto", "url": "https://www.youtube.com/shorts/ZiHFH-4uIsw", "thumb": "https://i3.ytimg.com/vi/ZiHFH-4uIsw/hqdefault.jpg", "publishedAt": 1787659232, "duration": null, "premiere": false },
+    { "gameId": "hsr", "title": "Robin • Summeretto Character Trailer: \"Chasing the Wind\" | Honkai: Star Rail", "url": "https://www.youtube.com/watch?v=hpqKHn0yS7I", "thumb": "https://i1.ytimg.com/vi/hpqKHn0yS7I/hqdefault.jpg", "publishedAt": 1787630439, "duration": null, "premiere": false },
+    { "gameId": "hsr", "title": "Summer Spotlight | A Song from the Heart", "url": "https://www.youtube.com/shorts/-Tb0gXqTFdM", "thumb": "https://i2.ytimg.com/vi/-Tb0gXqTFdM/hqdefault.jpg", "publishedAt": 1787371238, "duration": null, "premiere": false },
+
+    { "gameId": "zzz", "title": "Exclusive Report 丨 Their Secret Histories", "url": "https://www.youtube.com/shorts/zQTPE_yMn5Q", "thumb": "https://i3.ytimg.com/vi/zQTPE_yMn5Q/hqdefault.jpg", "publishedAt": 1787976025, "duration": null, "premiere": false },
+    { "gameId": "zzz", "title": "Version 3.2 Teaser - \"Their Secret Histories\" | Zenless Zone Zero", "url": "https://www.youtube.com/watch?v=4O-Iq8lj9_k", "thumb": "https://i1.ytimg.com/vi/4O-Iq8lj9_k/hqdefault.jpg", "publishedAt": 1787918994, "duration": null, "premiere": false },
+    { "gameId": "zzz", "title": "Zenless Zone Zero Version 3.2 \"Their Secret Histories\" Special Program", "url": "https://www.youtube.com/watch?v=kdGJDZb6mWk", "thumb": "https://i4.ytimg.com/vi/kdGJDZb6mWk/hqdefault.jpg", "publishedAt": 1787916546, "duration": null, "premiere": false },
+    { "gameId": "zzz", "title": "Random Play | Pranks Come After the Tea Party", "url": "https://www.youtube.com/shorts/l-7MsF3EbCI", "thumb": "https://i1.ytimg.com/vi/l-7MsF3EbCI/hqdefault.jpg", "publishedAt": 1787284830, "duration": null, "premiere": false },
+    { "gameId": "zzz", "title": "Sigrid Character Teaser - \"My Little Sigrid\" | Zenless Zone Zero", "url": "https://www.youtube.com/watch?v=HHL6KTgTEdU", "thumb": "https://i1.ytimg.com/vi/HHL6KTgTEdU/hqdefault.jpg", "publishedAt": 1786939203, "duration": null, "premiere": false },
+    { "gameId": "zzz", "title": "Knight's Extolment W-Engine Showcase", "url": "https://www.youtube.com/shorts/XtEsgM23noU", "thumb": "https://i1.ytimg.com/vi/XtEsgM23noU/hqdefault.jpg", "publishedAt": 1786768202, "duration": null, "premiere": false },
+
+    { "gameId": "wuthering", "title": "Wuthering Waves Story Cinematics | Then and Now, One Sword", "url": "https://www.youtube.com/watch?v=NT256TQC_9s", "thumb": "https://i3.ytimg.com/vi/NT256TQC_9s/hqdefault.jpg", "publishedAt": 1788058828, "duration": null, "premiere": false },
+    { "gameId": "wuthering", "title": "Wuthering Waves Story Cinematics | Immortal and Mortal", "url": "https://www.youtube.com/watch?v=QRXTBmlVVVo", "thumb": "https://i2.ytimg.com/vi/QRXTBmlVVVo/hqdefault.jpg", "publishedAt": 1787972402, "duration": null, "premiere": false },
+    { "gameId": "wuthering", "title": "\"When the Blight Rain and Miasmic Thunder fade, what remains is only... locked obsessions.\"", "url": "https://www.youtube.com/shorts/NbZ943KYti0", "thumb": "https://i3.ytimg.com/vi/NbZ943KYti0/hqdefault.jpg", "publishedAt": 1787889919, "duration": null, "premiere": false },
+    { "gameId": "wuthering", "title": "\"I have tasted every longing beneath the heavens, and at last... I know where my heart belongs.\"", "url": "https://www.youtube.com/shorts/TQUyOhestvY", "thumb": "https://i1.ytimg.com/vi/TQUyOhestvY/hqdefault.jpg", "publishedAt": 1787886321, "duration": null, "premiere": false },
+    { "gameId": "wuthering", "title": "Post-Lament Anthropocene: Stars Intertwined — Suoming", "url": "https://www.youtube.com/shorts/0mwDm3U7m-w", "thumb": "https://i1.ytimg.com/vi/0mwDm3U7m-w/hqdefault.jpg", "publishedAt": 1787799916, "duration": null, "premiere": false },
+    { "gameId": "wuthering", "title": "Midnight Podcast | Qingxiao", "url": "https://www.youtube.com/watch?v=eUz1KwRDbKg", "thumb": "https://i2.ytimg.com/vi/eUz1KwRDbKg/hqdefault.jpg", "publishedAt": 1787742002, "duration": null, "premiere": false }
   ]
 }
