@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "updatedAt": 1788093643,
+  "updatedAt": 1788094372,
 
   "games": [
     {
@@ -34,23 +34,23 @@
   ],
 
   "codes": [
-    { "gameId": "genshin", "code": "BALLETCOLLAB", "rewards": "30 Primogem, 10000 Mora, 3 Hero's Wit, 3 Mystic Enhancement Ore", "expiresAt": null, "region": "all", "source": "https://hoyo-codes.seria.moe/codes?game=genshin" },
-    { "gameId": "genshin", "code": "Y1INABQB6DEX", "rewards": "", "expiresAt": null, "region": "all", "source": "https://hoyo-codes.seria.moe/codes?game=genshin" },
-    { "gameId": "genshin", "code": "2BJ64QRZ7RT8", "rewards": "60 Primogem, 5 Adventurer's Experience", "expiresAt": null, "region": "all", "source": "https://hoyo-codes.seria.moe/codes?game=genshin" },
-    { "gameId": "genshin", "code": "P7G0XA30H0Q3", "rewards": "", "expiresAt": null, "region": "all", "source": "https://hoyo-codes.seria.moe/codes?game=genshin" },
-    { "gameId": "genshin", "code": "XVIZDH2B9WGX", "rewards": "10000 Mora, 10 Adventurer's Experience, 5 Fine Enhancement Ore, 5 Jueyun Chili Chicken, 5 Stir-Fried Fish Noodles", "expiresAt": null, "region": "all", "source": "https://hoyo-codes.seria.moe/codes?game=genshin" },
-    { "gameId": "genshin", "code": "MYSNEZHNAYACAREER", "rewards": "160 Primogem, 20000 Mora, 3 Hero's Wit", "expiresAt": null, "region": "all", "source": "https://hoyo-codes.seria.moe/codes?game=genshin" },
-    { "gameId": "genshin", "code": "LEGEDILJKSGM", "rewards": "60 Primogem, 5 Adventurer's Experience", "expiresAt": null, "region": "all", "source": "https://hoyo-codes.seria.moe/codes?game=genshin" },
+    { "gameId": "genshin", "code": "BALLETCOLLAB", "rewards": "30 Primogem, 10000 Mora, 3 Hero's Wit, 3 Mystic Enhancement Ore", "expiresAt": null, "region": "G", "source": "https://genshin-impact.fandom.com/wiki/Promotional_Code" },
+    { "gameId": "genshin", "code": "MySnezhnayaCareer", "rewards": "160 Primogem, 20000 Mora, 3 Hero's Wit", "expiresAt": 1788739199, "region": "G", "source": "https://genshin-impact.fandom.com/wiki/Promotional_Code" },
+    { "gameId": "genshin", "code": "Snezhnaya", "rewards": "30000 Mora, 3 Hero's Wit, 5 Fine Enhancement Ore", "expiresAt": null, "region": "SEA", "source": "https://genshin-impact.fandom.com/wiki/Promotional_Code" },
+    { "gameId": "genshin", "code": "XVIZDH2B9WGX", "rewards": "10000 Mora, 10 Adventurer's Experience, 5 Fine Enhancement Ore, 5 Jueyun Chili Chicken, 5 Stir-Fried Fish Noodles", "expiresAt": null, "region": "G", "source": "https://genshin-impact.fandom.com/wiki/Promotional_Code" },
+    { "gameId": "genshin", "code": "GS70XRNWFB", "rewards": "30000 Mora, 3 Hero's Wit, 5 Fine Enhancement Ore", "expiresAt": null, "region": "G", "source": "https://genshin-impact.fandom.com/wiki/Promotional_Code" },
+    { "gameId": "genshin", "code": "2BJ64QRZ7RT8", "rewards": "60 Primogem, 5 Adventurer's Experience", "expiresAt": null, "region": "G", "source": "https://genshin-impact.fandom.com/wiki/Promotional_Code" },
+    { "gameId": "genshin", "code": "LEGEDILJKSGM", "rewards": "60 Primogem, 5 Adventurer's Experience", "expiresAt": 1788393599, "region": "G", "source": "https://genshin-impact.fandom.com/wiki/Promotional_Code" },
+    { "gameId": "genshin", "code": "YuanShen", "rewards": "50 Primogem, 3 Hero's Wit", "expiresAt": null, "region": "CN", "source": "https://genshin-impact.fandom.com/wiki/Promotional_Code" },
 
-    { "gameId": "hsr", "code": "5S6ZHRWTDNJB", "rewards": "60 stellar jade", "expiresAt": null, "region": "all", "source": "https://hoyo-codes.seria.moe/codes?game=hkrpg" },
-    { "gameId": "hsr", "code": "4TKSX77Y58QK", "rewards": "30 stellar jade, three traveler's guides, five condensed aether, four lost gold fragments, and 20k credits", "expiresAt": null, "region": "all", "source": "https://hoyo-codes.seria.moe/codes?game=hkrpg" },
-    { "gameId": "hsr", "code": "STARRAILGIFT", "rewards": "50 stellar jade, 10k credits, two traveler's guides, and five bottled soda", "expiresAt": null, "region": "all", "source": "https://hoyo-codes.seria.moe/codes?game=hkrpg" },
-    { "gameId": "hsr", "code": "SUNSWEPTROBIN", "rewards": "", "expiresAt": null, "region": "all", "source": "https://hoyo-codes.seria.moe/codes?game=hkrpg" },
-    { "gameId": "hsr", "code": "IFYOUAREREADINGTHIS", "rewards": "60 stellar jade and one fuel", "expiresAt": null, "region": "all", "source": "https://hoyo-codes.seria.moe/codes?game=hkrpg" },
-    { "gameId": "hsr", "code": "FAREWELL", "rewards": "60 stellar jade and one fuel", "expiresAt": null, "region": "all", "source": "https://hoyo-codes.seria.moe/codes?game=hkrpg" },
-    { "gameId": "hsr", "code": "CTK5DRQVT48F", "rewards": "", "expiresAt": null, "region": "all", "source": "https://hoyo-codes.seria.moe/codes?game=hkrpg" },
-    { "gameId": "hsr", "code": "CREATIONNYMPH", "rewards": "60 stellar jade and one fuel", "expiresAt": null, "region": "all", "source": "https://hoyo-codes.seria.moe/codes?game=hkrpg" },
-    { "gameId": "hsr", "code": "OMEGA", "rewards": "60 stellar jade and one fuel", "expiresAt": null, "region": "all", "source": "https://hoyo-codes.seria.moe/codes?game=hkrpg" },
+    { "gameId": "hsr", "code": "NSJR3B97ZZ5X", "rewards": "50 Stellar Jade, 10000 Credit", "expiresAt": null, "region": "all", "source": "https://honkai-star-rail.fandom.com/wiki/Redemption_Code" },
+    { "gameId": "hsr", "code": "STARRAILFATE2026", "rewards": "2 The Fluffy Multi-Functional Fan Glowstick, 3 Traveler's Guide", "expiresAt": null, "region": "all", "source": "https://honkai-star-rail.fandom.com/wiki/Redemption_Code" },
+    { "gameId": "hsr", "code": "BESTCOFFEEEVER", "rewards": "3 Traveler's Guide, 2 Express Special Blend: Rustic Infusion", "expiresAt": null, "region": "all", "source": "https://honkai-star-rail.fandom.com/wiki/Redemption_Code" },
+    { "gameId": "hsr", "code": "OMEGA", "rewards": "60 Stellar Jade, 1 Fuel", "expiresAt": null, "region": "all", "source": "https://honkai-star-rail.fandom.com/wiki/Redemption_Code" },
+    { "gameId": "hsr", "code": "CREATIONNYMPH", "rewards": "60 Stellar Jade, 1 Fuel, 1 Heroic Variable", "expiresAt": null, "region": "all", "source": "https://honkai-star-rail.fandom.com/wiki/Redemption_Code" },
+    { "gameId": "hsr", "code": "FAREWELL", "rewards": "60 Stellar Jade, 1 Fuel", "expiresAt": null, "region": "all", "source": "https://honkai-star-rail.fandom.com/wiki/Redemption_Code" },
+    { "gameId": "hsr", "code": "IFYOUAREREADINGTHIS", "rewards": "60 Stellar Jade, 1 Fuel", "expiresAt": null, "region": "all", "source": "https://honkai-star-rail.fandom.com/wiki/Redemption_Code" },
+    { "gameId": "hsr", "code": "STARRAILGIFT", "rewards": "50 Stellar Jade, 10000 Credit", "expiresAt": null, "region": "all", "source": "https://honkai-star-rail.fandom.com/wiki/Redemption_Code" },
 
     { "gameId": "zzz", "code": "FLINTWORKS", "rewards": "300 Polychrome, 2 Senior Investigator Log, 3 W-Engine Energy Module, 30,000 Denny", "expiresAt": 1788105599, "region": "all", "source": "https://zenless-zone-zero.fandom.com/wiki/Redemption_Code" },
     { "gameId": "zzz", "code": "ZZZMEIJI", "rewards": "3 Senior Investigator Log, 3 W-Engine Energy Module, 30,000 Denny", "expiresAt": 1788879599, "region": "all", "source": "https://zenless-zone-zero.fandom.com/wiki/Redemption_Code" },
@@ -59,7 +59,13 @@
     { "gameId": "zzz", "code": "CBW0884678", "rewards": "20,000 Denny", "expiresAt": null, "region": "SEA", "source": "https://zenless-zone-zero.fandom.com/wiki/Redemption_Code" },
     { "gameId": "zzz", "code": "ZENLESSGIFT", "rewards": "50 Polychrome, 2 Official Investigator Log, 3 W-Engine Power Supply, 1 Bangboo Algorithm Module", "expiresAt": null, "region": "all", "source": "https://zenless-zone-zero.fandom.com/wiki/Redemption_Code" },
 
-    { "gameId": "wuthering", "code": "WUTHERINGGIFT", "rewards": "50 Astrite, 2 Premium Resonance Potion, 2 Medium Revival Inhaler, 2 Medium Energy Bag, 10000 Shell Credit", "expiresAt": null, "region": "all", "source": "https://wutheringwaves.fandom.com/wiki/Redemption_Code" }
+    { "gameId": "wuthering", "code": "WUTHERINGGIFT", "rewards": "50 Astrite, 2 Premium Resonance Potion, 2 Medium Revival Inhaler, 2 Medium Energy Bag, 10000 Shell Credit", "expiresAt": null, "region": "all", "source": "https://wutheringwaves.fandom.com/wiki/Redemption_Code" },
+
+    { "gameId": "endfield", "code": "AKENDFIELDSUB", "rewards": "100 Oroberyl", "expiresAt": 1788969599, "region": "all", "source": "https://game8.co/games/Arknights-Endfield/archives/571509" },
+    { "gameId": "endfield", "code": "ENDFIELDRENEW", "rewards": "1 Sticker: Safety Helmet, 71600 T-Creds", "expiresAt": 1788105599, "region": "all", "source": "https://game8.co/games/Arknights-Endfield/archives/571509" },
+    { "gameId": "endfield", "code": "ZAU2SYXHWX5L4ZH", "rewards": "5000 T-Creds, 10 Arms INSP Kit", "expiresAt": null, "region": "all", "source": "https://game8.co/games/Arknights-Endfield/archives/571509" },
+    { "gameId": "endfield", "code": "ENDFIELDGIFT", "rewards": "150 Oroberyl, 10,000 T-Creds, 20 Intermediate Combat Record, 20 Arms INSP Kit", "expiresAt": null, "region": "all", "source": "https://game8.co/games/Arknights-Endfield/archives/571509" },
+    { "gameId": "endfield", "code": "ENDFIELD4PC", "rewards": "13,000 T-Creds, 2 Advanced Combat Record, 2 Arms INSP Kit", "expiresAt": null, "region": "all", "source": "https://game8.co/games/Arknights-Endfield/archives/571509" }
   ],
 
   "banners": [
