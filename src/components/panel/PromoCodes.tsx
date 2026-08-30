@@ -60,6 +60,14 @@ export default function PromoCodes({ codes, games, nowSec }: Props) {
               role="button"
               tabIndex={0}
               onKeyDown={(e) => {
+                // Отсекаем события, всплывшие от вложенных кнопок.
+                //
+                // Без этой строки Enter на кнопке «забрать» молча копирует код
+                // вместо перехода на сайт: событие всплывает сюда, наш
+                // preventDefault подавляет синтез нажатия самой кнопки, и
+                // выполняется действие карточки. Кнопка становится
+                // недоступной с клавиатуры, а человек не понимает почему.
+                if (e.target !== e.currentTarget) return;
                 if (e.key === "Enter" || e.key === " ") {
                   e.preventDefault();
                   void copy(c.code);
