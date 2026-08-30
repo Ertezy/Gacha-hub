@@ -12,6 +12,8 @@
 //! The schema mirrors the TS types in `src/types.ts`; the UI only depends
 //! on the `HubData` shape, so the source can change without UI changes.
 
+pub mod schema;
+
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::io::Read;
