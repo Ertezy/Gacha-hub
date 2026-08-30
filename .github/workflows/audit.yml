@@ -1,0 +1,66 @@
+name: audit
+
+# Проверка зависимостей на известные уязвимости.
+#
+# Расписание нужно отдельно от push: уязвимость находят не в тот день, когда мы
+# трогаем код. Без еженедельного запуска про дыру в зависимости мы узнали бы
+# только при следующем коммите, а он может быть через месяц.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: '0 6 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  cargo:
+    name: Rust
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install cargo-audit
+        run: cargo install cargo-audit --locked
+
+      # Проверяется Cargo.lock, поэтому собирать проект не нужно —
+      # системные библиотеки Tauri тут не потребуются.
+      #
+      # На момент заведения: 508 зависимостей, уязвимостей ноль, предупреждений
+      # семнадцать. Все семнадцать — заброшенные привязки к GTK и glib, то есть
+      # линуксовая часть Tauri, которая в нашей сборке под Windows не работает.
+      # cargo audit роняет сборку на уязвимостях, но не на предупреждениях, —
+      # это то поведение, которое нам и нужно.
+      - name: Audit
+        working-directory: src-tauri
+        run: cargo audit
+
+  npm:
+    name: JavaScript
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      # Роняет только то, что доезжает до пользователя.
+      #
+      # Уязвимость в vite или vitest живёт на машине разработчика: vite
+      # собирает фронтенд у нас, до собранного приложения не доезжает, а vitest
+      # гоняет тесты. Ронять на них сборку — значит держать проверку постоянно
+      # красной, а постоянно красная проверка приучает не смотреть на красное.
+      #
+      # На момент заведения: боевых уязвимостей ноль, в инструментах
+      # разработки пять. Обновления для вторых предложит dependabot отдельными
+      # запросами на слияние, там их и видно.
+      - name: Runtime dependencies
+        run: npm audit --omit=dev
+
+      # Инструменты разработки — видно в журнале, сборку не роняет.
+      - name: Development dependencies
+        run: npm audit || true

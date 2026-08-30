@@ -1,0 +1,25 @@
+# Следит за известными уязвимостями в зависимостях и присылает запрос на
+# слияние, когда появляется исправленная версия.
+#
+# Раз в неделю, а не ежедневно: у проекта пятнадцать зависимостей, и ежедневная
+# проверка дала бы шум вместо сигнала. Уязвимости от этого не теряются —
+# оповещения о них приходят сразу, независимо от расписания.
+version: 2
+updates:
+  - package-ecosystem: cargo
+    directory: /src-tauri
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+
+  # Сами шаги в проверках тоже версионируются и тоже устаревают.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
