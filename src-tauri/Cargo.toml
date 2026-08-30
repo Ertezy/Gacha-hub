@@ -25,6 +25,7 @@ serde_json = "1"
 winreg = "0.52"
 # Small blocking https client for the remote hub (native-tls on Windows).
 ureq = { version = "2", features = ["json"] }
+tauri-plugin-clipboard-manager = "2.3.2"
 
 [dev-dependencies]
 # Нужен только тесту уборки кеша: выставить файлу метку доступа в прошлое.

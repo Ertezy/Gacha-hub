@@ -1,4 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
+import { writeText } from "@tauri-apps/plugin-clipboard-manager";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import type { GameView, HubData } from "../types";
 
@@ -14,6 +15,9 @@ export const api = {
 
   /** Путь к картинке в локальном кеше; Rust качает её, если надо. */
   cacheImage: (url: string) => invoke<string>("cache_image", { url }),
+
+  /** Положить текст в буфер обмена. */
+  copyText: (text: string) => writeText(text),
 
   /**
    * Открыть внешнюю ссылку в браузере пользователя.
