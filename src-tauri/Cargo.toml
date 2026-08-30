@@ -12,7 +12,9 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
-tauri = { version = "2", features = [] }
+# protocol-asset: обслуживает файлы кеша картинок по схеме asset:// (см.
+# assetProtocol в tauri.conf.json и src/images.rs).
+tauri = { version = "2", features = ["protocol-asset"] }
 tauri-plugin-dialog = "2"
 tauri-plugin-opener = "2"
 # Запоминает размер и положение окна между запусками.
@@ -23,3 +25,7 @@ serde_json = "1"
 winreg = "0.52"
 # Small blocking https client for the remote hub (native-tls on Windows).
 ureq = { version = "2", features = ["json"] }
+
+[dev-dependencies]
+# Нужен только тесту уборки кеша: выставить файлу метку доступа в прошлое.
+filetime = "0.2"

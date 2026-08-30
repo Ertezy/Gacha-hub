@@ -2,6 +2,7 @@ mod catalog;
 mod commands;
 mod config;
 mod hub;
+mod images;
 mod launch;
 mod stores;
 mod vdf;
