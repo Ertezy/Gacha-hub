@@ -29,6 +29,16 @@ const FETCH_TIMEOUT: Duration = Duration::from_secs(10);
 /// либо ошибка сборщика, либо попытка занять нам диск.
 const MAX_IMAGE_BYTES: u64 = 5 * 1024 * 1024;
 
+/// Правда, если прочитанное тело не влезло в потолок размера.
+///
+/// Вынесена отдельно от `fetch`, потому что именно в этой границе легко
+/// ошибиться на один байт: `fetch` читает `max + 1` байт и проверяет
+/// результат этой функции, а не наоборот. Сетевой части `fetch` тест не
+/// нужен — граница проверяется здесь напрямую, без сервера.
+fn exceeds_ceiling(len: usize, max: u64) -> bool {
+    len as u64 > max
+}
+
 /// Картинка, к которой не обращались столько, удаляется при следующем запуске.
 /// Баннеры меняются каждые три недели, ролики каждый день; без уборки папка
 /// за год превращается в свалку.
@@ -86,20 +96,40 @@ pub fn fetch(app: &AppHandle, url: &str) -> Result<PathBuf, String> {
     }
     let dir = cache_dir(app)?;
 
-    // Если файл с любым известным расширением уже лежит — отдаём его.
+    // Один адрес может прийти под разными типами содержимого (перенастройка
+    // CDN, смена картинки на той стороне), и тогда в кеше окажутся файлы с
+    // одним хешем и разными расширениями. Берём самый свежий, лишние удаляем:
+    // фиксированный порядок списка отдавал бы устаревший файл до самой уборки.
+    let mut found: Vec<(SystemTime, PathBuf)> = Vec::new();
     for ext in ["png", "jpg", "webp", "gif", "bin"] {
         let candidate = dir.join(file_name_for(url, ext));
-        if candidate.is_file() {
-            // Отодвигает файл в конец очереди на уборку.
-            let _ = touch(&candidate);
-            return Ok(candidate);
+        if let Ok(meta) = fs::metadata(&candidate) {
+            if meta.is_file() {
+                found.push((meta.modified().unwrap_or(SystemTime::UNIX_EPOCH), candidate));
+            }
         }
     }
+    if !found.is_empty() {
+        found.sort_by_key(|(t, _)| *t);
+        let (_, newest) = found.pop().expect("проверено на непустоту");
+        for (_, stale) in found {
+            let _ = fs::remove_file(stale);
+        }
+        // Отодвигает файл в конец очереди на уборку.
+        let _ = touch(&newest);
+        return Ok(newest);
+    }
 
-    // Редиректы разрешены, но не больше двух и только внутри https:
-    // картинка декодируется в файл, а не исполняется.
+    // Редиректов не больше двух и только внутри https.
+    //
+    // `.redirects(N)` пропускает N-1 переходов (ureq считает
+    // `history.len() + 1 >= redirects`), поэтому для двух ставим 3.
+    // `https_only` обязателен отдельно: без него сервер, до которого мы дошли
+    // по https, уводит редиректом на http, и ureq послушно идёт — адрес
+    // приходит из недоверенного файла, проверять его один раз мало.
     let resp = ureq::builder()
-        .redirects(2)
+        .redirects(3)
+        .https_only(true)
         .build()
         .get(url)
         .timeout(FETCH_TIMEOUT)
@@ -108,11 +138,18 @@ pub fn fetch(app: &AppHandle, url: &str) -> Result<PathBuf, String> {
 
     let ext = ext_for(resp.header("Content-Type").unwrap_or(""));
 
+    // Читаем на байт больше потолка: если он прочитался, ответ не влез,
+    // и записывать обрезок нельзя — он не раскодируется никогда, а цикл
+    // повторного использования выше проверяет только наличие файла, так что
+    // испорченный кеш сам не вылечится.
     let mut bytes = Vec::new();
     resp.into_reader()
-        .take(MAX_IMAGE_BYTES)
+        .take(MAX_IMAGE_BYTES + 1)
         .read_to_end(&mut bytes)
         .map_err(|e| format!("не удалось прочитать {url}: {e}"))?;
+    if exceeds_ceiling(bytes.len(), MAX_IMAGE_BYTES) {
+        return Err(format!("картинка больше {MAX_IMAGE_BYTES} байт: {url}"));
+    }
 
     let path = dir.join(file_name_for(url, ext));
     // Проверка после сборки пути, а не до: убеждаемся в свойстве результата.
@@ -218,6 +255,22 @@ mod tests {
         let dir = std::path::Path::new(r"C:\cache");
         let p = dir.join(file_name_for("https://example.test/../../evil.png", "png"));
         assert!(p.starts_with(dir), "путь ушёл из кеша: {}", p.display());
+    }
+
+    #[test]
+    fn a_body_exactly_at_the_ceiling_is_accepted() {
+        // Проверяет ровно ту границу, на которой легко ошибиться на один
+        // байт: `fetch` читает `MAX_IMAGE_BYTES + 1` байт и передаёт длину
+        // сюда, а не наоборот. Тело точно в потолок обязано пройти.
+        assert!(!exceeds_ceiling(MAX_IMAGE_BYTES as usize, MAX_IMAGE_BYTES));
+    }
+
+    #[test]
+    fn a_body_one_byte_over_the_ceiling_is_rejected() {
+        // Ответ длиннее потолка ровно на один байт — то самое значение,
+        // которое получилось бы прочитать `.take(MAX_IMAGE_BYTES + 1)`,
+        // если сервер прислал больше положенного.
+        assert!(exceeds_ceiling(MAX_IMAGE_BYTES as usize + 1, MAX_IMAGE_BYTES));
     }
 
     #[test]
