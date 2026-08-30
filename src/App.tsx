@@ -53,7 +53,11 @@ export default function App() {
 
   return (
     <div className="screen">
-      <SidePanel hub={hub} contentIds={contentIds} />
+      <SidePanel
+        hub={hub}
+        contentIds={contentIds}
+        selectedContentId={selected?.contentId ?? null}
+      />
       <main className="stage">
         <GameArt game={selected} />
         {selected && <GameHeader game={selected} />}
