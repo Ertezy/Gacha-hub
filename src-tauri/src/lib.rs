@@ -77,6 +77,14 @@ pub fn run() {
         .plugin(tauri_plugin_window_state::Builder::default().build())
         .setup(|app| {
             sync_games_with_stores(&app.handle().clone());
+            // Уборка кеша картинок при запуске: дёшево, и без неё папка
+            // за год превращается в свалку.
+            if let Ok(dir) = images::cache_dir(&app.handle().clone()) {
+                let removed = images::evict(&dir, images::MAX_AGE);
+                if removed > 0 {
+                    eprintln!("[images] убрано из кеша: {removed}");
+                }
+            }
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -85,7 +93,8 @@ pub fn run() {
             commands::get_config_dir,
             commands::launch_game,
             commands::get_hub,
-            commands::get_last_played
+            commands::get_last_played,
+            commands::cache_image
         ])
         .run(tauri::generate_context!())
         .expect("ошибка при запуске приложения");

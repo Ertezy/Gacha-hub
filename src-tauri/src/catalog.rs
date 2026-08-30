@@ -300,7 +300,8 @@ mod tests {
     }
 
     fn hub_games() -> Vec<crate::hub::HubGame> {
-        use crate::hub::{HubGame, Match};
+        use crate::hub::HubGame;
+        use crate::hub::schema::Match;
         vec![
             HubGame {
                 id: "wuthering".into(),

@@ -87,6 +87,15 @@ pub async fn get_last_played(app: AppHandle) -> Option<String> {
     config::load(&app).last_played
 }
 
+/// Путь к картинке в локальном кеше; качает, если её там нет.
+///
+/// Интерфейс получает путь к файлу, а не адрес: страница в интернет не ходит.
+#[tauri::command]
+pub async fn cache_image(app: AppHandle, url: String) -> Result<String, String> {
+    let path = crate::images::fetch(&app, &url)?;
+    Ok(path.to_string_lossy().into_owned())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -120,5 +129,12 @@ mod tests {
         let mut g = steam_game();
         g.launch = Launch::Exe;
         assert_eq!(view_of(&g).source_label, "напрямую");
+    }
+
+    #[test]
+    fn an_image_url_that_is_not_https_is_refused_before_any_request() {
+        // Проверка схемы обязана срабатывать до сетевого обращения.
+        assert!(!crate::hub::is_safe_https("http://example.test/a.png"));
+        assert!(!crate::hub::is_safe_https("file:///C:/secret.png"));
     }
 }
