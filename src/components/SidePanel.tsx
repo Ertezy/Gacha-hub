@@ -13,6 +13,9 @@ export default function SidePanel({ hub, contentIds }: Props) {
 
   return (
     <aside className="panel">
+      {/* Секции прокручиваются внутри себя, шестерёнка остаётся прибита к низу
+          (спека §5.4). Без этого контент упирается в край панели и обрезается. */}
+      <div className="panel-scroll">
       <section className="panel-section">
         <div className="panel-label">
           <span>Промокоды</span>
@@ -39,6 +42,7 @@ export default function SidePanel({ hub, contentIds }: Props) {
           </div>
         ))}
       </section>
+      </div>
 
       <div className="panel-foot">⚙ Настройки и игры</div>
     </aside>

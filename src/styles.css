@@ -47,10 +47,27 @@ body {
   overflow: hidden;
 }
 
+/* Прокручиваемая часть панели. `min-height: 0` обязателен: без него
+   flex-элемент не сжимается ниже своего содержимого, прокрутка не включается,
+   и контент выдавливает шестерёнку за нижний край. */
+.panel-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.22) transparent;
+}
+
 .panel-section {
   padding-bottom: 13px;
   margin-bottom: 13px;
   border-bottom: 1px solid var(--line);
+}
+
+.panel-section:last-child {
+  border-bottom: 0;
+  margin-bottom: 0;
 }
 
 .panel-label {
@@ -94,10 +111,12 @@ body {
   margin-top: 3px;
 }
 
+/* Прибита к низу: прокручивается только .panel-scroll над ней. */
 .panel-foot {
-  margin-top: auto;
+  flex: none;
   border-top: 1px solid var(--line);
   padding-top: 11px;
+  margin-top: 12px;
   font-size: 12px;
   color: var(--ink-dim);
 }
@@ -106,15 +125,6 @@ body {
   flex: 1;
   position: relative;
   overflow: hidden;
-}
-
-.stage-placeholder {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--ink-faint);
 }
 
 .banner {
