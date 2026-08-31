@@ -4,6 +4,7 @@ mod config;
 mod hub;
 mod images;
 mod launch;
+mod library;
 mod stores;
 mod vdf;
 

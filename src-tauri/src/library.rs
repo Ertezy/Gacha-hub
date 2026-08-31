@@ -1,0 +1,258 @@
+//! Правка списка игр: добавить, изменить, удалить, переставить.
+//!
+//! Все функции работают над `&mut AppConfig` и ничего не знают про Tauri.
+//! Так их можно проверить обычными тестами, а команды остаются тонкой
+//! обёрткой: прочитать конфиг, позвать сюда, записать обратно.
+
+// TODO(задача 4): снять после подключения команд
+#![allow(dead_code)]
+
+use std::collections::HashSet;
+use std::path::PathBuf;
+
+use crate::config::{AppConfig, Game, Launch};
+
+/// Что менять у игры. `None` означает «не трогать это поле».
+///
+/// У `content_id` два уровня: внешний `None` — не трогать, внутренний
+/// `Some(None)` — стереть привязку. «Нет привязки» это осмысленный выбор
+/// человека, а не отсутствие правки.
+#[derive(Debug, Default)]
+pub struct GamePatch {
+    pub title: Option<String>,
+    pub exe_path: Option<PathBuf>,
+    pub background: Option<PathBuf>,
+    pub content_id: Option<Option<String>>,
+}
+
+/// Идентификатор, которого ещё нет в конфиге.
+///
+/// Принимает готовую основу, а не название: у игры, добавленной вручную,
+/// основа берётся из названия, а у найденной в магазине — из идентификатора
+/// каталога. Обе дороги ведут сюда, чтобы правило разрешения совпадений
+/// существовало в одном экземпляре.
+pub(crate) fn free_id(cfg: &AppConfig, base: &str) -> String {
+    let base = if base.is_empty() { "game" } else { base };
+    let taken: HashSet<&str> = cfg.games.iter().map(|g| g.id.as_str()).collect();
+    if !taken.contains(base) {
+        return base.to_string();
+    }
+    let mut n = 2;
+    loop {
+        let candidate = format!("{base}-{n}");
+        if !taken.contains(candidate.as_str()) {
+            return candidate;
+        }
+        n += 1;
+    }
+}
+
+/// Добавляет игру, указанную человеком вручную. Возвращает её идентификатор.
+pub fn add(cfg: &mut AppConfig, title: String, exe: PathBuf) -> String {
+    let id = free_id(cfg, &crate::catalog::normalize(&title));
+    cfg.games.push(Game {
+        id: id.clone(),
+        title,
+        content_id: None,
+        launch: Launch::Exe,
+        install_path: exe.parent().map(PathBuf::from),
+        exe_path: Some(exe),
+        args: String::new(),
+        background: None,
+    });
+    id
+}
+
+/// Меняет названные поля одной игры. `false` — игры с таким идентификатором нет.
+pub fn update(cfg: &mut AppConfig, id: &str, patch: GamePatch) -> bool {
+    let Some(game) = cfg.games.iter_mut().find(|g| g.id == id) else {
+        return false;
+    };
+    if let Some(title) = patch.title {
+        game.title = title;
+    }
+    if let Some(exe) = patch.exe_path {
+        game.install_path = exe.parent().map(PathBuf::from);
+        game.exe_path = Some(exe);
+    }
+    if let Some(bg) = patch.background {
+        game.background = Some(bg);
+    }
+    if let Some(content) = patch.content_id {
+        game.content_id = content;
+    }
+    true
+}
+
+/// Удаляет игру. `false` — такой игры не было.
+pub fn remove(cfg: &mut AppConfig, id: &str) -> bool {
+    let before = cfg.games.len();
+    cfg.games.retain(|g| g.id != id);
+    if cfg.games.len() == before {
+        return false;
+    }
+    // Указатель на последнюю запущенную обязан перестать указывать в пустоту:
+    // иначе следующий запуск попробует открыть удалённую игру.
+    if cfg.last_played.as_deref() == Some(id) {
+        cfg.last_played = None;
+    }
+    true
+}
+
+/// Переставляет игры в порядке `ids`.
+///
+/// Отказывает, если список не совпадает с содержимым конфига по составу:
+/// пропущенный, лишний или повторённый идентификатор означает рассинхрон
+/// между экраном и конфигом, а молча потерять игру нельзя.
+pub fn reorder(cfg: &mut AppConfig, ids: &[String]) -> bool {
+    if ids.len() != cfg.games.len() {
+        return false;
+    }
+    let wanted: HashSet<&str> = ids.iter().map(String::as_str).collect();
+    if wanted.len() != ids.len() {
+        return false;
+    }
+    let have: HashSet<&str> = cfg.games.iter().map(|g| g.id.as_str()).collect();
+    if wanted != have {
+        return false;
+    }
+
+    let mut ordered = Vec::with_capacity(cfg.games.len());
+    for id in ids {
+        let pos = cfg
+            .games
+            .iter()
+            .position(|g| &g.id == id)
+            .expect("состав уже сверен выше");
+        ordered.push(cfg.games.remove(pos));
+    }
+    cfg.games = ordered;
+    true
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::config::{AppConfig, Behaviour, Game, Launch};
+
+    fn cfg_with(ids: &[&str]) -> AppConfig {
+        AppConfig {
+            version: 3,
+            hub_url: None,
+            last_played: None,
+            seeded: true,
+            behaviour: Behaviour::default(),
+            games: ids
+                .iter()
+                .map(|id| Game {
+                    id: (*id).into(),
+                    title: (*id).into(),
+                    content_id: None,
+                    launch: Launch::Exe,
+                    install_path: None,
+                    exe_path: Some(PathBuf::from(format!(r"C:\g\{id}.exe"))),
+                    args: String::new(),
+                    background: None,
+                })
+                .collect(),
+        }
+    }
+
+    #[test]
+    fn add_appends_a_game_and_returns_its_id() {
+        let mut cfg = cfg_with(&["a"]);
+        let id = add(&mut cfg, "Моя игра".into(), PathBuf::from(r"C:\x\game.exe"));
+        assert_eq!(cfg.games.len(), 2);
+        assert_eq!(cfg.games[1].id, id);
+        assert_eq!(cfg.games[1].title, "Моя игра");
+        assert_eq!(cfg.games[1].launch, Launch::Exe);
+        assert_eq!(cfg.games[1].content_id, None);
+    }
+
+    #[test]
+    fn add_never_collides_with_an_existing_id() {
+        // Два «Моя игра» подряд должны получить разные идентификаторы,
+        // иначе вторая перезапишет первую при любой правке.
+        let mut cfg = cfg_with(&[]);
+        let first = add(&mut cfg, "Моя игра".into(), PathBuf::from(r"C:\1.exe"));
+        let second = add(&mut cfg, "Моя игра".into(), PathBuf::from(r"C:\2.exe"));
+        assert_ne!(first, second);
+        assert_eq!(cfg.games.len(), 2);
+    }
+
+    #[test]
+    fn update_changes_only_the_named_fields() {
+        let mut cfg = cfg_with(&["a", "b"]);
+        let ok = update(
+            &mut cfg,
+            "a",
+            GamePatch {
+                title: Some("Новое имя".into()),
+                exe_path: None,
+                background: None,
+                content_id: None,
+            },
+        );
+        assert!(ok);
+        assert_eq!(cfg.games[0].title, "Новое имя");
+        // Путь не назывался — значит не тронут.
+        assert_eq!(cfg.games[0].exe_path, Some(PathBuf::from(r"C:\g\a.exe")));
+        // Соседняя игра не тронута вовсе.
+        assert_eq!(cfg.games[1].title, "b");
+    }
+
+    #[test]
+    fn update_can_clear_the_content_binding() {
+        // «Нет привязки» — осмысленное значение, а не отсутствие правки.
+        let mut cfg = cfg_with(&["a"]);
+        cfg.games[0].content_id = Some("genshin".into());
+        update(&mut cfg, "a", GamePatch { title: None, exe_path: None, background: None, content_id: Some(None) });
+        assert_eq!(cfg.games[0].content_id, None);
+    }
+
+    #[test]
+    fn update_reports_false_for_an_unknown_game() {
+        let mut cfg = cfg_with(&["a"]);
+        let ok = update(&mut cfg, "нет-такой", GamePatch { title: Some("x".into()), exe_path: None, background: None, content_id: None });
+        assert!(!ok);
+    }
+
+    #[test]
+    fn remove_deletes_only_that_game() {
+        let mut cfg = cfg_with(&["a", "b", "c"]);
+        assert!(remove(&mut cfg, "b"));
+        let ids: Vec<&str> = cfg.games.iter().map(|g| g.id.as_str()).collect();
+        assert_eq!(ids, vec!["a", "c"]);
+    }
+
+    #[test]
+    fn removing_the_last_played_game_clears_the_pointer() {
+        // Иначе при следующем запуске приложение попробует открыть игру,
+        // которой больше нет.
+        let mut cfg = cfg_with(&["a", "b"]);
+        cfg.last_played = Some("a".into());
+        remove(&mut cfg, "a");
+        assert_eq!(cfg.last_played, None);
+    }
+
+    #[test]
+    fn reorder_rearranges_by_the_given_order() {
+        let mut cfg = cfg_with(&["a", "b", "c"]);
+        assert!(reorder(&mut cfg, &["c".into(), "a".into(), "b".into()]));
+        let ids: Vec<&str> = cfg.games.iter().map(|g| g.id.as_str()).collect();
+        assert_eq!(ids, vec!["c", "a", "b"]);
+    }
+
+    #[test]
+    fn reorder_refuses_a_list_that_does_not_match_the_games() {
+        // Пропущенный или лишний идентификатор означает рассинхрон между
+        // экраном и конфигом. Молча потерять игру нельзя.
+        let mut cfg = cfg_with(&["a", "b", "c"]);
+        assert!(!reorder(&mut cfg, &["a".into(), "b".into()]));
+        assert!(!reorder(&mut cfg, &["a".into(), "b".into(), "c".into(), "d".into()]));
+        assert!(!reorder(&mut cfg, &["a".into(), "a".into(), "b".into()]));
+        // Список остался прежним.
+        let ids: Vec<&str> = cfg.games.iter().map(|g| g.id.as_str()).collect();
+        assert_eq!(ids, vec!["a", "b", "c"]);
+    }
+}
