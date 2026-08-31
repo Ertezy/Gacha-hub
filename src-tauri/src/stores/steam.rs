@@ -91,7 +91,7 @@ pub fn installed() -> Vec<InstalledGame> {
         for library in library_roots_from_vdf(&vdf_text, &steam_root) {
             let dir = library.join("steamapps");
             let Ok(entries) = std::fs::read_dir(&dir) else {
-                eprintln!("[steam] не могу прочитать библиотеку {:?}", dir);
+                log::warn!("[steam] не могу прочитать библиотеку {:?}", dir);
                 continue;
             };
             for entry in entries.flatten() {
@@ -105,7 +105,7 @@ pub fn installed() -> Vec<InstalledGame> {
                     continue;
                 }
                 let Ok(text) = std::fs::read_to_string(&path) else {
-                    eprintln!("[steam] не могу прочитать манифест {:?}", path);
+                    log::warn!("[steam] не могу прочитать манифест {:?}", path);
                     continue;
                 };
                 if let Some(game) = game_from_manifest(&text, &library) {
@@ -115,7 +115,7 @@ pub fn installed() -> Vec<InstalledGame> {
                         }
                     }
                 } else {
-                    eprintln!("[steam] не могу разобрать манифест {:?}", path);
+                    log::warn!("[steam] не могу разобрать манифест {:?}", path);
                 }
             }
         }

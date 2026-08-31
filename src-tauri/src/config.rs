@@ -151,7 +151,7 @@ pub fn migrate_v1(raw: &serde_json::Value) -> Option<AppConfig> {
 
     for (key, value) in games_obj {
         let Some(entry) = value.as_object() else {
-            eprintln!("[config] пропускаю «{key}»: запись не объект");
+            log::warn!("[config] пропускаю «{key}»: запись не объект");
             continue;
         };
         let args = entry
@@ -165,7 +165,7 @@ pub fn migrate_v1(raw: &serde_json::Value) -> Option<AppConfig> {
             .map(PathBuf::from);
         let mode = entry.get("launchMode").and_then(|v| v.as_str());
         if entry.contains_key("launchMode") && mode.is_none() {
-            eprintln!("[config] пропускаю «{key}»: launchMode не строка");
+            log::warn!("[config] пропускаю «{key}»: launchMode не строка");
             continue;
         }
 
@@ -219,7 +219,7 @@ pub fn migrate_v2(raw: &serde_json::Value) -> Option<AppConfig> {
     for item in raw_games {
         match serde_json::from_value::<Game>(item.clone()) {
             Ok(game) => games.push(game),
-            Err(e) => eprintln!("[config] пропускаю игру при переносе на v3: {e}"),
+            Err(e) => log::warn!("[config] пропускаю игру при переносе на v3: {e}"),
         }
     }
 
@@ -260,7 +260,7 @@ pub fn load(app: &AppHandle) -> AppConfig {
         return AppConfig::default();
     };
     let Ok(raw) = serde_json::from_str::<serde_json::Value>(&text) else {
-        eprintln!("[config] {} — не JSON, начинаю с чистого", path.display());
+        log::error!("[config] {} — не JSON, начинаю с чистого", path.display());
         let _ = fs::rename(&path, path.with_file_name("config.json.broken"));
         return AppConfig::default();
     };
@@ -275,12 +275,12 @@ pub fn load(app: &AppHandle) -> AppConfig {
                 // не поменяла). Без этого файл на диске остаётся версии 1
                 // и мигрирует заново при каждом старте.
                 if let Err(e) = save(app, &cfg) {
-                    eprintln!("[config] не удалось сохранить перенесённый конфиг: {e}");
+                    log::error!("[config] не удалось сохранить перенесённый конфиг: {e}");
                 }
                 cfg
             }
             None => {
-                eprintln!(
+                log::error!(
                     "[config] {} — не удалось перенести версию 1 (нет «games» или это не объект), начинаю с чистого",
                     path.display()
                 );
@@ -295,12 +295,12 @@ pub fn load(app: &AppHandle) -> AppConfig {
                 // Та же причина, что и для версии 1: миграция должна
                 // пережить перезапуск сама по себе.
                 if let Err(e) = save(app, &cfg) {
-                    eprintln!("[config] не удалось сохранить перенесённый конфиг: {e}");
+                    log::error!("[config] не удалось сохранить перенесённый конфиг: {e}");
                 }
                 cfg
             }
             None => {
-                eprintln!(
+                log::error!(
                     "[config] {} — не удалось перенести версию 2 (нет «games» или записи не соответствуют схеме), начинаю с чистого",
                     path.display()
                 );
@@ -310,7 +310,7 @@ pub fn load(app: &AppHandle) -> AppConfig {
     }
 
     if version > CURRENT_VERSION {
-        eprintln!(
+        log::warn!(
             "[config] {} — версия файла ({version}) новее, чем понимает эта сборка (умеет до {CURRENT_VERSION}); читаю как есть, не понижаю версию",
             path.display()
         );
@@ -321,7 +321,7 @@ pub fn load(app: &AppHandle) -> AppConfig {
         for item in list {
             match serde_json::from_value::<Game>(item.clone()) {
                 Ok(game) => games.push(game),
-                Err(e) => eprintln!("[config] отбрасываю запись игры: {e}"),
+                Err(e) => log::warn!("[config] отбрасываю запись игры: {e}"),
             }
         }
     }

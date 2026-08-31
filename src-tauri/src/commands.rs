@@ -71,7 +71,7 @@ pub async fn launch_game(app: AppHandle, game_id: String) -> Result<String, Stri
 
     cfg.last_played = Some(game_id.clone());
     if let Err(e) = config::save(&app, &cfg) {
-        eprintln!("[config] не удалось сохранить lastPlayed: {e}");
+        log::error!("[config] не удалось сохранить lastPlayed: {e}");
     }
     Ok(game_id)
 }

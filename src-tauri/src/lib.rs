@@ -65,7 +65,7 @@ fn sync_games_with_stores(app: &tauri::AppHandle) {
 
     if changed {
         if let Err(e) = config::save(app, &cfg) {
-            eprintln!("[setup] не удалось сохранить конфиг: {e}");
+            log::error!("[setup] не удалось сохранить конфиг: {e}");
         }
     }
 }
@@ -77,6 +77,22 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_window_state::Builder::default().build())
         .plugin(tauri_plugin_clipboard_manager::init())
+        .plugin(
+            tauri_plugin_log::Builder::new()
+                // В файл и в терминал сразу: файл нужен людям, терминал — нам
+                // при разработке.
+                .target(tauri_plugin_log::Target::new(
+                    tauri_plugin_log::TargetKind::LogDir { file_name: None },
+                ))
+                .target(tauri_plugin_log::Target::new(
+                    tauri_plugin_log::TargetKind::Stdout,
+                ))
+                // Журнал попадает к посторонним при разборе жалобы, поэтому
+                // в нём только техническое: пути, коды ошибок, счётчики.
+                .level(log::LevelFilter::Info)
+                .max_file_size(512 * 1024)
+                .build(),
+        )
         .setup(|app| {
             sync_games_with_stores(&app.handle().clone());
             // Уборка кеша картинок при запуске: дёшево, и без неё папка
@@ -84,7 +100,7 @@ pub fn run() {
             if let Ok(dir) = images::cache_dir(&app.handle().clone()) {
                 let removed = images::evict(&dir, images::MAX_AGE);
                 if removed > 0 {
-                    eprintln!("[images] убрано из кеша: {removed}");
+                    log::info!("[images] убрано из кеша: {removed}");
                 }
             }
             Ok(())
