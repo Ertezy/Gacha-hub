@@ -510,3 +510,42 @@ body {
   color: var(--ink-dim);
   margin-bottom: 16px;
 }
+
+.game-row {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  margin-bottom: 7px;
+  background: var(--card);
+}
+
+.game-row.missing { opacity: 0.62; }
+
+.game-row-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  cursor: pointer;
+}
+
+.game-row-grip { color: var(--ink-faint); cursor: grab; }
+.game-row-title { flex: 1; min-width: 0; }
+.game-row-source { font-size: 11.5px; color: var(--ink-dim); }
+.game-row-warn { font-size: 11.5px; color: var(--danger); }
+
+.game-row-body {
+  border-top: 1px solid var(--line);
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.settings-error {
+  background: rgba(255, 138, 118, 0.16);
+  border: 1px solid var(--danger);
+  border-radius: 8px;
+  padding: 9px 11px;
+  font-size: 12.5px;
+  margin-bottom: 12px;
+}

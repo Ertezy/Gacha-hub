@@ -1,0 +1,61 @@
+import type { GameView } from "../../types";
+
+interface Props {
+  game: GameView;
+  /** Строка развёрнута для правки. */
+  expanded: boolean;
+  onToggle: () => void;
+  onDragStart: () => void;
+  onDragOver: () => void;
+  onDrop: () => void;
+  children?: React.ReactNode;
+}
+
+export default function GameRow({
+  game,
+  expanded,
+  onToggle,
+  onDragStart,
+  onDragOver,
+  onDrop,
+  children,
+}: Props) {
+  return (
+    <div
+      className={game.missing ? "game-row missing" : "game-row"}
+      draggable
+      onDragStart={onDragStart}
+      onDragOver={(e) => {
+        e.preventDefault();
+        onDragOver();
+      }}
+      onDrop={onDrop}
+    >
+      <div
+        className="game-row-head"
+        role="button"
+        tabIndex={0}
+        onClick={onToggle}
+        onKeyDown={(e) => {
+          if (e.target !== e.currentTarget) return;
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            onToggle();
+          }
+        }}
+      >
+        <span className="game-row-grip" aria-hidden="true">
+          ⋮⋮
+        </span>
+        <span className="game-row-title">{game.title}</span>
+        <span className="game-row-source">{game.sourceLabel}</span>
+        {game.missing && (
+          <span className="game-row-warn" title="Файл игры не найден">
+            файл пропал
+          </span>
+        )}
+      </div>
+      {expanded && <div className="game-row-body">{children}</div>}
+    </div>
+  );
+}
