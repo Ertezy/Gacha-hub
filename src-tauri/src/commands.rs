@@ -5,7 +5,7 @@
 //! и подмораживали бы окно на чтении файлов и запуске процессов.
 
 use serde::Serialize;
-use tauri::AppHandle;
+use tauri::{AppHandle, Manager};
 
 use crate::config::{self, Game, Launch};
 use crate::hub;
@@ -94,6 +94,219 @@ pub async fn get_last_played(app: AppHandle) -> Option<String> {
 pub async fn cache_image(app: AppHandle, url: String) -> Result<String, String> {
     let path = crate::images::fetch(&app, &url)?;
     Ok(path.to_string_lossy().into_owned())
+}
+
+/// Найденная в магазинах игра — для экрана с галочками.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FoundGame {
+    pub title: String,
+    /// Идентификатор контента, если игру знает каталог. `None` — по ней не
+    /// будет ни кодов, ни баннеров, и на экране это подписывается честно.
+    pub content_id: Option<String>,
+    pub source_label: String,
+    /// Игра с таким путём уже есть в конфиге — галочку ставить не нужно.
+    pub already_added: bool,
+}
+
+/// Что нашлось в магазинах. **Конфиг не меняется** — это только предложение,
+/// человек сам решает, что добавить.
+#[tauri::command]
+pub async fn scan_installed(app: AppHandle) -> Vec<FoundGame> {
+    let cfg = config::load(&app);
+    let hub_games = crate::hub::load_local(&app).games;
+    let known: std::collections::HashSet<_> = cfg
+        .games
+        .iter()
+        .filter_map(|g| g.exe_path.clone())
+        .collect();
+
+    crate::stores::installed()
+        .into_iter()
+        .map(|found| {
+            let content_id = crate::catalog::content_id_for(&found, &hub_games);
+            let source_label = match found.launch {
+                Launch::Steam { .. } => "Steam",
+                Launch::Epic { .. } => "Epic Games",
+                Launch::Exe => "напрямую",
+            }
+            .to_string();
+            let already_added = found
+                .exe_path
+                .as_ref()
+                .map(|p| known.contains(p))
+                .unwrap_or(false);
+            FoundGame {
+                title: found.title,
+                content_id,
+                source_label,
+                already_added,
+            }
+        })
+        .collect()
+}
+
+/// Общий помощник: прочитать конфиг, изменить, записать.
+fn with_config<F>(app: &AppHandle, f: F) -> Result<(), String>
+where
+    F: FnOnce(&mut config::AppConfig) -> bool,
+{
+    let mut cfg = config::load(app);
+    if !f(&mut cfg) {
+        return Err("игра не найдена или правка невозможна".to_string());
+    }
+    config::save(app, &cfg)
+}
+
+#[tauri::command]
+pub async fn add_game(app: AppHandle, title: String, exe: String) -> Result<String, String> {
+    let exe = std::path::PathBuf::from(exe);
+    // Путь вводит человек, значит это недоверенный ввод: проверяем, что файл
+    // существует, до того как записать его в конфиг.
+    if !exe.is_file() {
+        return Err(format!("файла нет: {}", exe.display()));
+    }
+    let mut cfg = config::load(&app);
+    let id = crate::library::add(&mut cfg, title, exe);
+    config::save(&app, &cfg)?;
+    Ok(id)
+}
+
+#[tauri::command]
+pub async fn update_game(
+    app: AppHandle,
+    game_id: String,
+    title: Option<String>,
+    exe: Option<String>,
+    background: Option<String>,
+    content_id: Option<Option<String>>,
+) -> Result<(), String> {
+    let exe_path = match exe {
+        Some(p) => {
+            let p = std::path::PathBuf::from(p);
+            if !p.is_file() {
+                return Err(format!("файла нет: {}", p.display()));
+            }
+            Some(p)
+        }
+        None => None,
+    };
+    let patch = crate::library::GamePatch {
+        title,
+        exe_path,
+        background: background.map(std::path::PathBuf::from),
+        content_id,
+    };
+    with_config(&app, |cfg| crate::library::update(cfg, &game_id, patch))
+}
+
+#[tauri::command]
+pub async fn remove_game(app: AppHandle, game_id: String) -> Result<(), String> {
+    with_config(&app, |cfg| crate::library::remove(cfg, &game_id))
+}
+
+#[tauri::command]
+pub async fn reorder_games(app: AppHandle, ids: Vec<String>) -> Result<(), String> {
+    with_config(&app, |cfg| crate::library::reorder(cfg, &ids))
+}
+
+#[tauri::command]
+pub async fn relocate_game(app: AppHandle, game_id: String) -> Result<(), String> {
+    let hub_games = crate::hub::load_local(&app).games;
+    let installed = crate::stores::installed();
+    with_config(&app, |cfg| {
+        cfg.games
+            .iter_mut()
+            .find(|g| g.id == game_id)
+            .map(|g| crate::catalog::relocate(g, &installed, &hub_games))
+            .unwrap_or(false)
+    })
+}
+
+#[tauri::command]
+pub async fn get_behaviour(app: AppHandle) -> config::Behaviour {
+    config::load(&app).behaviour
+}
+
+#[tauri::command]
+pub async fn set_behaviour(
+    app: AppHandle,
+    close_to_tray: bool,
+    tray_on_launch: bool,
+) -> Result<(), String> {
+    let mut cfg = config::load(&app);
+    cfg.behaviour = config::Behaviour {
+        close_to_tray,
+        tray_on_launch,
+    };
+    config::save(&app, &cfg)
+}
+
+#[tauri::command]
+pub async fn set_hub_url(app: AppHandle, url: Option<String>) -> Result<(), String> {
+    // Пустая строка означает «нет адреса», а не адрес из пустой строки.
+    let url = url.filter(|u| !u.trim().is_empty());
+    if let Some(u) = &url {
+        if !crate::hub::is_safe_https(u) {
+            return Err("адрес должен начинаться с https://".to_string());
+        }
+    }
+    let mut cfg = config::load(&app);
+    cfg.hub_url = url;
+    config::save(&app, &cfg)
+}
+
+/// Размер кеша картинок в байтах — чтобы показать его рядом с кнопкой очистки.
+#[tauri::command]
+pub async fn image_cache_size(app: AppHandle) -> u64 {
+    let Ok(dir) = crate::images::cache_dir(&app) else {
+        return 0;
+    };
+    let Ok(entries) = std::fs::read_dir(dir) else {
+        return 0;
+    };
+    entries
+        .flatten()
+        .filter_map(|e| e.metadata().ok())
+        .filter(|m| m.is_file())
+        .map(|m| m.len())
+        .sum()
+}
+
+#[tauri::command]
+pub async fn clear_image_cache(app: AppHandle) -> Result<usize, String> {
+    let dir = crate::images::cache_dir(&app)?;
+    let entries = std::fs::read_dir(&dir).map_err(|e| format!("не читается кеш: {e}"))?;
+    let mut removed = 0;
+    for entry in entries.flatten() {
+        if entry.metadata().map(|m| m.is_file()).unwrap_or(false)
+            && std::fs::remove_file(entry.path()).is_ok()
+        {
+            removed += 1;
+        }
+    }
+    Ok(removed)
+}
+
+/// Сведения для раздела «О программе».
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct About {
+    pub version: String,
+    pub log_path: String,
+}
+
+#[tauri::command]
+pub async fn get_about(app: AppHandle) -> About {
+    let log_path = app
+        .path()
+        .app_log_dir()
+        .map(|d| d.to_string_lossy().into_owned())
+        .unwrap_or_default();
+    About {
+        version: app.package_info().version.to_string(),
+        log_path,
+    }
 }
 
 #[cfg(test)]

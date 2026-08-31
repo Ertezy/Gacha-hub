@@ -96,7 +96,19 @@ pub fn run() {
             commands::launch_game,
             commands::get_hub,
             commands::get_last_played,
-            commands::cache_image
+            commands::cache_image,
+            commands::scan_installed,
+            commands::add_game,
+            commands::update_game,
+            commands::remove_game,
+            commands::reorder_games,
+            commands::relocate_game,
+            commands::get_behaviour,
+            commands::set_behaviour,
+            commands::set_hub_url,
+            commands::image_cache_size,
+            commands::clear_image_cache,
+            commands::get_about
         ])
         .run(tauri::generate_context!())
         .expect("ошибка при запуске приложения");

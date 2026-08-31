@@ -138,7 +138,6 @@ pub fn enrich_from_stores(
 ///
 /// Название не меняется: человек мог переименовать игру, и возвращать ему
 /// имя из манифеста — значит отменять его правку.
-#[allow(dead_code)]
 pub fn relocate(game: &mut Game, installed: &[InstalledGame], hub_games: &[HubGame]) -> bool {
     let Some(found) = find_installed(game, installed, hub_games) else {
         return false;
