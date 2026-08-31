@@ -127,6 +127,28 @@ pub fn enrich_from_stores(
     changed
 }
 
+/// Заново находит игру в манифестах магазинов и **перезаписывает** её путь.
+///
+/// Это единственное место, где заполненный путь перезаписывается, и оно
+/// намеренно отличается от `enrich_from_stores`, которая пишет только в пустое.
+///
+/// Отличие безопасно, потому что вызов приходит от человека: он нажал «Найти
+/// заново» на игре, у которой файл действительно пропал. Автоматика
+/// по-прежнему не трогает заполненное; трогает человек, и он знает, что делает.
+///
+/// Название не меняется: человек мог переименовать игру, и возвращать ему
+/// имя из манифеста — значит отменять его правку.
+#[allow(dead_code)]
+pub fn relocate(game: &mut Game, installed: &[InstalledGame], hub_games: &[HubGame]) -> bool {
+    let Some(found) = find_installed(game, installed, hub_games) else {
+        return false;
+    };
+    game.launch = found.launch.clone();
+    game.install_path = Some(found.install_path.clone());
+    game.exe_path = found.exe_path.clone();
+    true
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -428,5 +450,70 @@ mod tests {
         // Файл хаба может не приехать вовсе. Сопоставление обязано это пережить.
         let g = installed("Wuthering Waves", Launch::Steam { appid: 3513350 });
         assert_eq!(content_id_for(&g, &[]), None);
+    }
+
+    #[test]
+    fn relocate_overwrites_a_path_that_went_stale() {
+        // Это единственное место, где заполненный путь ПЕРЕЗАПИСЫВАЕТСЯ.
+        // Оно вызывается только по прямому нажатию человека на «Найти заново»,
+        // и только для одной игры.
+        let mut game = Game {
+            id: "wuthering".into(),
+            title: "Wuthering Waves".into(),
+            content_id: Some("wuthering".into()),
+            launch: Launch::Exe,
+            install_path: Some(std::path::PathBuf::from(r"C:\СТАРЫЙ\путь")),
+            exe_path: Some(std::path::PathBuf::from(r"C:\СТАРЫЙ\путь\game.exe")),
+            args: String::new(),
+            background: None,
+        };
+        let found = vec![installed("Wuthering Waves", Launch::Steam { appid: 3513350 })];
+
+        let ok = relocate(&mut game, &found, &hub_games());
+
+        assert!(ok);
+        assert_eq!(game.launch, Launch::Steam { appid: 3513350 });
+        assert_eq!(game.install_path, Some(std::path::PathBuf::from(r"C:\Games\X")));
+    }
+
+    #[test]
+    fn relocate_leaves_everything_alone_when_nothing_matches() {
+        let mut game = Game {
+            id: "самопал".into(),
+            title: "Совершенно своя игра".into(),
+            content_id: None,
+            launch: Launch::Exe,
+            install_path: Some(std::path::PathBuf::from(r"C:\своё")),
+            exe_path: Some(std::path::PathBuf::from(r"C:\своё\game.exe")),
+            args: String::new(),
+            background: None,
+        };
+        let found = vec![installed("Wuthering Waves", Launch::Steam { appid: 3513350 })];
+
+        let ok = relocate(&mut game, &found, &hub_games());
+
+        assert!(!ok);
+        assert_eq!(game.exe_path, Some(std::path::PathBuf::from(r"C:\своё\game.exe")));
+    }
+
+    #[test]
+    fn relocate_does_not_touch_the_title_the_user_chose() {
+        // Человек мог переименовать игру. Восстановление пути — не повод
+        // возвращать название из манифеста.
+        let mut game = Game {
+            id: "ww".into(),
+            title: "Моё название".into(),
+            content_id: Some("wuthering".into()),
+            launch: Launch::Exe,
+            install_path: None,
+            exe_path: Some(std::path::PathBuf::from(r"C:\старое\game.exe")),
+            args: String::new(),
+            background: None,
+        };
+        let found = vec![installed("Wuthering Waves", Launch::Steam { appid: 3513350 })];
+
+        relocate(&mut game, &found, &hub_games());
+
+        assert_eq!(game.title, "Моё название");
     }
 }
