@@ -1,9 +1,10 @@
 //! Пользовательские настройки: %APPDATA%\<identifier>\config.json
 //!
-//! Схема версии 2. Главное отличие от версии 1: игра — это запись в конфиге,
-//! а не константа в коде, и `games` — упорядоченный массив, а не словарь.
+//! Схема версии 3. От версии 1 к версии 2 игра стала записью в конфиге,
+//! а не константой в коде, и `games` — упорядоченный массив, а не словарь.
 //! Порядок значим: он задаёт полку на главном экране, а словарь давал бы
-//! случайный порядок при каждом запуске.
+//! случайный порядок при каждом запуске. Версия 3 добавляет `seeded` (был ли
+//! уже первый запуск) и `behaviour` (настройки поведения окна).
 //!
 //! Запись атомарная: во временный файл рядом, затем переименование поверх.
 
@@ -12,7 +13,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use tauri::{AppHandle, Manager};
 
-pub const CURRENT_VERSION: u32 = 2;
+pub const CURRENT_VERSION: u32 = 3;
 
 /// Способ запуска определён в `stores`, потому что узнаём мы его из манифеста
 /// магазина. Переэкспортируем, чтобы остальной код писал `config::Launch`.
@@ -62,6 +63,29 @@ impl Game {
     }
 }
 
+/// Настройки поведения окна.
+///
+/// Оба значения по умолчанию — `true`: это ровно то, как приложение вело себя
+/// до появления переключателей, поэтому обновление ничего не меняет под
+/// человеком.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Behaviour {
+    /// Крестик прячет окно в трей, а не закрывает приложение.
+    pub close_to_tray: bool,
+    /// После удачного запуска игры окно уходит в трей.
+    pub tray_on_launch: bool,
+}
+
+impl Default for Behaviour {
+    fn default() -> Self {
+        Self {
+            close_to_tray: true,
+            tray_on_launch: true,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AppConfig {
@@ -71,6 +95,13 @@ pub struct AppConfig {
     /// Игра, открытая при следующем запуске. Пишется в момент удачного старта.
     #[serde(default)]
     pub last_played: Option<String>,
+    /// Первый запуск уже состоялся. После этого пустой список игр остаётся
+    /// пустым: человек, удаливший всё, сделал это осознанно, и возвращать
+    /// игры автоматически — значит не слушаться его.
+    #[serde(default)]
+    pub seeded: bool,
+    #[serde(default)]
+    pub behaviour: Behaviour,
     #[serde(default)]
     pub games: Vec<Game>,
 }
@@ -81,6 +112,9 @@ impl Default for AppConfig {
             version: CURRENT_VERSION,
             hub_url: None,
             last_played: None,
+            // Свежая установка: первого запуска ещё не было.
+            seeded: false,
+            behaviour: Behaviour::default(),
             games: Vec::new(),
         }
     }
@@ -100,12 +134,17 @@ pub fn config_path(app: &AppHandle) -> Result<PathBuf, String> {
     Ok(config_dir(app)?.join("config.json"))
 }
 
-/// Перенос конфига версии 1 на версию 2.
+/// Перенос конфига версии 1 сразу до текущей версии.
 ///
 /// В версии 1 игры лежали словарём, ключ был идентификатором из зашитого
 /// каталога, а способ запуска — строкой `launchMode`. Appid и идентификаторы
 /// Epic в конфиге не хранились, поэтому режимы `steam` и `epic` при переносе
 /// падают до `Exe`: конкретика подтянется заново из манифестов магазинов.
+///
+/// Функция пишет `version: CURRENT_VERSION` напрямую, минуя промежуточную
+/// версию 2: у человека, пришедшего с версии 1, уже есть игры, так что поля
+/// уровня приложения, добавленные в версии 3, получают те же значения, что и
+/// при переносе с версии 2 (см. `migrate_v2`).
 pub fn migrate_v1(raw: &serde_json::Value) -> Option<AppConfig> {
     let games_obj = raw.get("games")?.as_object()?;
     let mut games = Vec::new();
@@ -151,6 +190,34 @@ pub fn migrate_v1(raw: &serde_json::Value) -> Option<AppConfig> {
             .and_then(|v| v.as_str())
             .map(str::to_string),
         last_played: None,
+        // У человека уже есть игры — первый запуск для него состоялся.
+        seeded: true,
+        behaviour: Behaviour::default(),
+        games,
+    })
+}
+
+/// Перенос конфига со второй версии на третью.
+///
+/// Игры переносятся дословно — это главное требование этапа. Прибавляются
+/// только два поля уровня приложения, и оба получают значения, при которых
+/// приложение ведёт себя так же, как до обновления.
+pub fn migrate_v2(raw: &serde_json::Value) -> Option<AppConfig> {
+    let games: Vec<Game> = serde_json::from_value(raw.get("games")?.clone()).ok()?;
+
+    Some(AppConfig {
+        version: CURRENT_VERSION,
+        hub_url: raw
+            .get("hubUrl")
+            .and_then(|v| v.as_str())
+            .map(str::to_string),
+        last_played: raw
+            .get("lastPlayed")
+            .and_then(|v| v.as_str())
+            .map(str::to_string),
+        // У человека уже есть игры — первый запуск для него состоялся.
+        seeded: true,
+        behaviour: Behaviour::default(),
         games,
     })
 }
@@ -204,6 +271,26 @@ pub fn load(app: &AppHandle) -> AppConfig {
         };
     }
 
+    if version < 3 {
+        return match migrate_v2(&raw) {
+            Some(cfg) => {
+                // Та же причина, что и для версии 1: миграция должна
+                // пережить перезапуск сама по себе.
+                if let Err(e) = save(app, &cfg) {
+                    eprintln!("[config] не удалось сохранить перенесённый конфиг: {e}");
+                }
+                cfg
+            }
+            None => {
+                eprintln!(
+                    "[config] {} — не удалось перенести версию 2 (нет «games» или записи не соответствуют схеме), начинаю с чистого",
+                    path.display()
+                );
+                AppConfig::default()
+            }
+        };
+    }
+
     if version > CURRENT_VERSION {
         eprintln!(
             "[config] {} — версия файла ({version}) новее, чем понимает эта сборка (умеет до {CURRENT_VERSION}); читаю как есть, не понижаю версию",
@@ -231,6 +318,11 @@ pub fn load(app: &AppHandle) -> AppConfig {
             .get("lastPlayed")
             .and_then(|v| v.as_str())
             .map(str::to_string),
+        seeded: raw.get("seeded").and_then(|v| v.as_bool()).unwrap_or(false),
+        behaviour: raw
+            .get("behaviour")
+            .and_then(|v| serde_json::from_value(v.clone()).ok())
+            .unwrap_or_default(),
         games,
     }
 }
@@ -325,7 +417,7 @@ mod tests {
 
         let cfg = migrate_v1(&v1).expect("миграция должна пройти");
 
-        assert_eq!(cfg.version, 2);
+        assert_eq!(cfg.version, CURRENT_VERSION);
         assert_eq!(cfg.hub_url.as_deref(), Some("https://example.com/hub.json"));
         assert_eq!(cfg.games.len(), 2);
 
@@ -389,6 +481,8 @@ mod tests {
             version: 2,
             hub_url: None,
             last_played: None,
+            seeded: false,
+            behaviour: Behaviour::default(),
             games: vec![
                 Game::manual("b".into(), "Второй".into()),
                 Game::manual("a".into(), "Первый".into()),
@@ -398,5 +492,110 @@ mod tests {
         let back: AppConfig = serde_json::from_str(&json).unwrap();
         assert_eq!(back.games[0].id, "b");
         assert_eq!(back.games[1].id, "a");
+    }
+
+    const V2_SAMPLE: &str = r#"{
+      "version": 2,
+      "hubUrl": null,
+      "lastPlayed": "genshin",
+      "games": [
+        {
+          "id": "genshin",
+          "title": "Genshin Impact",
+          "contentId": "genshin",
+          "launch": { "kind": "epic", "namespace": "n", "catalogItemId": "c", "appName": "a" },
+          "installPath": "C:\\Games\\Genshin",
+          "exePath": "C:\\Games\\Genshin\\launcher.exe",
+          "args": "",
+          "background": null
+        },
+        {
+          "id": "wuthering",
+          "title": "Wuthering Waves",
+          "contentId": "wuthering",
+          "launch": { "kind": "steam", "appid": 3513350 },
+          "installPath": "D:\\Steam\\WW",
+          "exePath": null,
+          "args": "-window",
+          "background": "C:\\my\\art.png"
+        }
+      ]
+    }"#;
+
+    #[test]
+    fn migration_keeps_every_game_untouched() {
+        // Это самая важная проверка этапа: у человека настроенные игры с
+        // вручную выверенными путями, и потерять их нельзя.
+        let raw: serde_json::Value = serde_json::from_str(V2_SAMPLE).unwrap();
+        let cfg = migrate_v2(&raw).expect("миграция не должна проваливаться");
+
+        assert_eq!(cfg.version, 3);
+        assert_eq!(cfg.games.len(), 2);
+
+        let g = &cfg.games[0];
+        assert_eq!(g.id, "genshin");
+        assert_eq!(g.title, "Genshin Impact");
+        assert_eq!(g.content_id.as_deref(), Some("genshin"));
+        assert_eq!(g.exe_path, Some(std::path::PathBuf::from(r"C:\Games\Genshin\launcher.exe")));
+
+        let w = &cfg.games[1];
+        assert_eq!(w.launch, Launch::Steam { appid: 3513350 });
+        assert_eq!(w.args, "-window");
+        assert_eq!(w.background, Some(std::path::PathBuf::from(r"C:\my\art.png")));
+    }
+
+    #[test]
+    fn migration_marks_an_existing_config_as_already_seeded() {
+        // У человека уже есть игры — первый запуск для него состоялся.
+        // Показать ему экран с галочками после обновления было бы враньём.
+        let raw: serde_json::Value = serde_json::from_str(V2_SAMPLE).unwrap();
+        let cfg = migrate_v2(&raw).unwrap();
+        assert!(cfg.seeded);
+    }
+
+    #[test]
+    fn migration_defaults_behaviour_to_how_the_app_already_behaved() {
+        // Обе настройки по умолчанию true — это ровно то, как приложение
+        // вело себя до появления переключателей. Обновление не должно
+        // менять поведение под человеком.
+        let raw: serde_json::Value = serde_json::from_str(V2_SAMPLE).unwrap();
+        let cfg = migrate_v2(&raw).unwrap();
+        assert!(cfg.behaviour.close_to_tray);
+        assert!(cfg.behaviour.tray_on_launch);
+    }
+
+    #[test]
+    fn migration_preserves_last_played_and_hub_url() {
+        let raw: serde_json::Value = serde_json::from_str(V2_SAMPLE).unwrap();
+        let cfg = migrate_v2(&raw).unwrap();
+        assert_eq!(cfg.last_played.as_deref(), Some("genshin"));
+        assert_eq!(cfg.hub_url, None);
+    }
+
+    #[test]
+    fn a_v3_config_round_trips_without_loss() {
+        let cfg = AppConfig {
+            version: 3,
+            hub_url: Some("https://example.test/hub.json".into()),
+            last_played: Some("zzz".into()),
+            seeded: true,
+            behaviour: Behaviour { close_to_tray: false, tray_on_launch: true },
+            games: vec![],
+        };
+        let text = serde_json::to_string(&cfg).unwrap();
+        let back: AppConfig = serde_json::from_str(&text).unwrap();
+        assert_eq!(back.version, 3);
+        assert!(!back.behaviour.close_to_tray);
+        assert!(back.behaviour.tray_on_launch);
+        assert!(back.seeded);
+    }
+
+    #[test]
+    fn a_config_missing_the_new_fields_still_loads() {
+        // Файл, записанный до появления полей, не должен ронять разбор.
+        let json = r#"{"version":3,"games":[]}"#;
+        let cfg: AppConfig = serde_json::from_str(json).unwrap();
+        assert!(!cfg.seeded);
+        assert!(cfg.behaviour.close_to_tray);
     }
 }
