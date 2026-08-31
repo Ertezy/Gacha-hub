@@ -1,11 +1,32 @@
+/* Два акцента, разведённые по работе.
+ *
+ * Жёлтый — цвет ДЕЙСТВИЯ: то, что нажимают или на что надо среагировать.
+ * Розовый — цвет СОДЕРЖИМОГО: то, что просто читают.
+ *
+ * Разделение не украшение: жёлтый и розовый рядом дерутся за внимание и оба
+ * проигрывают. Пока они не встречаются на одном элементе, оба работают. */
 :root {
-  --ink: #f2f4fb;
-  --ink-dim: rgba(242, 244, 251, 0.62);
-  --ink-faint: rgba(242, 244, 251, 0.4);
-  --glass: rgba(10, 14, 28, 0.74);
-  --line: rgba(255, 255, 255, 0.14);
+  /* Основа. Почти чёрный фон, панель и карточки — синевато-серые поверх него. */
+  --bg: #070707;
+  --glass: rgba(64, 67, 78, 0.55);
+  --card: rgba(64, 67, 78, 0.4);
+  --line: rgba(194, 151, 184, 0.18);
+
+  /* Текст почти белый, но с еле заметным сиреневым уклоном: чистый серый
+     читается как «цвет не выбирали», подкрашенный — как выбрали. */
+  --ink: #f6eff5;
+  --ink-dim: rgba(246, 239, 245, 0.62);
+  --ink-faint: rgba(246, 239, 245, 0.42);
+
+  /* Действие. */
   --accent: #ffc531;
   --accent-ink: #20180a;
+
+  /* Содержимое. */
+  --content: #de89be;
+  --content-soft: #c297b8;
+  --label: #fdcff3;
+
   --danger: #ff8a76;
 }
 
@@ -23,9 +44,9 @@ body,
 }
 
 body {
-  font-family: system-ui, "Segoe UI", sans-serif;
+  font-family: "Golos Text Variable", "Segoe UI", system-ui, sans-serif;
   color: var(--ink);
-  background: #0f1117;
+  background: var(--bg);
 }
 
 .screen {
@@ -76,7 +97,9 @@ body {
   font-size: 10px;
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: var(--ink-faint);
+  /* Подписи секций — содержимое, а не действие: самый светлый розовый. */
+  color: var(--label);
+  opacity: 0.65;
   margin-bottom: 8px;
 }
 
@@ -86,8 +109,8 @@ body {
 }
 
 .code-card {
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: var(--card);
+  border: 1px solid var(--line);
   border-radius: 8px;
   padding: 7px 8px;
   margin-bottom: 6px;
@@ -186,7 +209,7 @@ body {
 .play {
   background: var(--accent);
   color: var(--accent-ink);
-  font: 700 21px/1 system-ui, sans-serif;
+  font: 700 21px/1 "Golos Text Variable", "Segoe UI", sans-serif;
   padding: 17px 52px;
   border: 0;
   border-radius: 40px;
@@ -252,7 +275,7 @@ body {
 
 .chip {
   flex: none;
-  font: 600 12px/1 system-ui, sans-serif;
+  font: 600 12px/1 "Golos Text Variable", "Segoe UI", sans-serif;
   padding: 8px 13px;
   border-radius: 8px;
   background: rgba(10, 14, 28, 0.62);
@@ -353,16 +376,22 @@ body {
   text-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
 }
 .banner-who { font-size: 14px; font-weight: 600; }
-.banner-rarity { font-size: 11px; color: var(--accent); }
+.banner-rarity { font-size: 11px; color: var(--content); }
 
-.banner-foot { padding: 8px 10px 9px; background: rgba(255, 255, 255, 0.05); }
+.banner-foot { padding: 8px 10px 9px; background: var(--card); }
 .banner-bar { height: 4px; border-radius: 2px; background: rgba(255, 255, 255, 0.14); overflow: hidden; }
-.banner-bar-fill { height: 100%; background: var(--accent); }
+.banner-bar-fill { height: 100%; background: var(--content); }
 .banner-line {
   display: flex; justify-content: space-between; gap: 8px;
   font-size: 11px; color: var(--ink-dim); margin-top: 6px;
 }
-.banner-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.banner-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  /* Название баннера — чистое содержимое, приглушённый розовый. */
+  color: var(--content-soft);
+}
 .banner-left { flex: none; }
 
 .carousel-dots { display: flex; justify-content: center; gap: 5px; margin-top: 8px; }
@@ -370,7 +399,7 @@ body {
   width: 5px; height: 5px; border-radius: 50%; padding: 0;
   border: 0; background: rgba(255, 255, 255, 0.25); cursor: pointer;
 }
-.carousel-dots .dot.active { background: var(--accent); }
+.carousel-dots .dot.active { background: var(--content); }
 
 /* Видео */
 .video-card { margin-bottom: 9px; cursor: pointer; }
