@@ -6,9 +6,11 @@ mod images;
 mod launch;
 mod library;
 mod stores;
+mod tray;
 mod vdf;
 
 use config::Game;
+use tauri::Manager;
 
 /// При первом запуске список игр пуст — заполняем его тем, что нашли в
 /// манифестах магазинов, чтобы человек сразу увидел свои игры, а не пустоту.
@@ -103,7 +105,26 @@ pub fn run() {
                     log::info!("[images] убрано из кеша: {removed}");
                 }
             }
+            // Провал трея не должен мешать запуску: без значка крестик просто
+            // закроет приложение вместо того, чтобы прятать его (см. tray.rs
+            // и обработчик CloseRequested ниже).
+            if let Err(e) = tray::setup(&app.handle().clone()) {
+                log::error!("[tray] не удалось создать значок в трее: {e}");
+            }
             Ok(())
+        })
+        .on_window_event(|window, event| {
+            if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                // Крестик прячет окно, а не закрывает приложение — но только
+                // если значок в трее на месте. Иначе спрятанное окно стало бы
+                // нечем вернуть.
+                let has_tray = window.app_handle().tray_by_id("main").is_some();
+                let cfg = crate::config::load(window.app_handle());
+                if has_tray && cfg.behaviour.close_to_tray {
+                    api.prevent_close();
+                    let _ = window.hide();
+                }
+            }
         })
         .invoke_handler(tauri::generate_handler![
             commands::get_games,

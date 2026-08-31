@@ -14,7 +14,8 @@ tauri-build = { version = "2", features = [] }
 [dependencies]
 # protocol-asset: обслуживает файлы кеша картинок по схеме asset:// (см.
 # assetProtocol в tauri.conf.json и src/images.rs).
-tauri = { version = "2", features = ["protocol-asset"] }
+# tray-icon: значок в области уведомлений (см. src/tray.rs).
+tauri = { version = "2", features = ["protocol-asset", "tray-icon"] }
 tauri-plugin-dialog = "2"
 tauri-plugin-opener = "2"
 # Запоминает размер и положение окна между запусками.
