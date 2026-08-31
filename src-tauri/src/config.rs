@@ -242,7 +242,10 @@ pub fn migrate_v2(raw: &serde_json::Value) -> Option<AppConfig> {
 
 /// Чтение настроек. Терпимое к поломкам: битая запись по одной игре
 /// отбрасывается с записью в лог, остальной конфиг живёт. В `.broken`
-/// уезжает только синтаксически сломанный файл.
+/// уезжает файл, который либо не читается с диска, либо читается, но не
+/// является JSON — в обоих случаях разобрать его как есть невозможно, и
+/// оставлять нечитаемый файл под именем `config.json` означает, что
+/// следующий запуск снова получит пустой конфиг вместо предупреждения.
 ///
 /// Файл версии выше `CURRENT_VERSION` (например, записанный более новой
 /// сборкой) читается как есть, без понижения `version` до `CURRENT_VERSION`:
@@ -256,8 +259,13 @@ pub fn load(app: &AppHandle) -> AppConfig {
     if !path.exists() {
         return AppConfig::default();
     }
-    let Ok(text) = fs::read_to_string(&path) else {
-        return AppConfig::default();
+    let text = match fs::read_to_string(&path) {
+        Ok(t) => t,
+        Err(e) => {
+            log::error!("[config] {} — не читается ({e}), начинаю с чистого", path.display());
+            let _ = fs::rename(&path, path.with_file_name("config.json.broken"));
+            return AppConfig::default();
+        }
     };
     let Ok(raw) = serde_json::from_str::<serde_json::Value>(&text) else {
         log::error!("[config] {} — не JSON, начинаю с чистого", path.display());

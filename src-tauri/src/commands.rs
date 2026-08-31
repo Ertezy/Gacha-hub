@@ -146,6 +146,61 @@ pub async fn scan_installed(app: AppHandle) -> Vec<FoundGame> {
         .collect()
 }
 
+/// Добавить игру, найденную в магазинах, по её названию.
+///
+/// Отдельная команда, а не `add_game`: у найденной игры уже известны способ
+/// запуска и пути из манифеста, и терять их, сводя всё к `Launch::Exe`,
+/// нельзя — тогда игра из Steam перестала бы запускаться через Steam.
+#[tauri::command]
+pub async fn add_game_from_scan(app: AppHandle, title: String) -> Result<String, String> {
+    let hub_games = crate::hub::load_local(&app).games;
+    let found = crate::stores::installed()
+        .into_iter()
+        .find(|g| g.title == title)
+        .ok_or_else(|| format!("игра больше не найдена: {title}"))?;
+
+    let mut cfg = config::load(&app);
+    let content_id = crate::catalog::content_id_for(&found, &hub_games);
+    let base = content_id
+        .clone()
+        .unwrap_or_else(|| crate::catalog::normalize(&found.title));
+    let mut id = base.clone();
+    let mut n = 2;
+    while cfg.games.iter().any(|g| g.id == id) {
+        id = format!("{base}-{n}");
+        n += 1;
+    }
+
+    cfg.games.push(config::Game {
+        id: id.clone(),
+        title: found.title,
+        content_id,
+        launch: found.launch,
+        install_path: Some(found.install_path),
+        exe_path: found.exe_path,
+        args: String::new(),
+        background: None,
+    });
+    config::save(&app, &cfg)?;
+    Ok(id)
+}
+
+/// Пометить, что первый запуск состоялся — независимо от того, добавил ли
+/// человек что-то с экрана предложений или нажал «Пропустить». Пропуск это
+/// тоже осознанное решение, и повторно спрашивать нельзя.
+#[tauri::command]
+pub async fn mark_seeded(app: AppHandle) -> Result<(), String> {
+    let mut cfg = config::load(&app);
+    cfg.seeded = true;
+    config::save(&app, &cfg)
+}
+
+/// Нужно ли показать экран первого запуска вместо главного экрана.
+#[tauri::command]
+pub async fn needs_first_run(app: AppHandle) -> bool {
+    !config::load(&app).seeded
+}
+
 /// Общий помощник: прочитать конфиг, изменить, записать.
 fn with_config<F>(app: &AppHandle, f: F) -> Result<(), String>
 where

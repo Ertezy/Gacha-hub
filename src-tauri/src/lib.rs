@@ -9,48 +9,13 @@ mod stores;
 mod tray;
 mod vdf;
 
-use config::Game;
 use tauri::Manager;
 
-/// При первом запуске список игр пуст — заполняем его тем, что нашли в
-/// манифестах магазинов, чтобы человек сразу увидел свои игры, а не пустоту.
-/// Экран с галочками появится на этапе 3 и заменит это автозаполнение.
-fn seed_games(cfg: &mut config::AppConfig, installed: &[stores::InstalledGame], hub_games: &[hub::HubGame]) {
-    let mut used_ids = std::collections::HashSet::new();
-    for found in installed {
-        let content_id = catalog::content_id_for(found, hub_games);
-        let base = content_id
-            .clone()
-            .unwrap_or_else(|| catalog::normalize(&found.title));
-        let mut id = base.clone();
-        let mut n = 2;
-        while !used_ids.insert(id.clone()) {
-            id = format!("{base}-{n}");
-            n += 1;
-        }
-
-        cfg.games.push(Game {
-            id,
-            title: found.title.clone(),
-            content_id,
-            launch: found.launch.clone(),
-            install_path: Some(found.install_path.clone()),
-            exe_path: found.exe_path.clone(),
-            args: String::new(),
-            background: None,
-        });
-    }
-
-    // Знакомые игры вперёд: ради них лаунчер и открывают.
-    cfg.games.sort_by_key(|g| g.content_id.is_none());
-    cfg.last_played = cfg.games.first().map(|g| g.id.clone());
-}
-
-/// Синхронизирует конфиг со списком установленного: на первом запуске
-/// заполняет список игр, на последующих — дополняет уже существующие записи
-/// (важно для тех, что перенеслись из v1 без данных о запуске: см.
-/// `catalog::enrich_from_stores`). `stores::installed()` вызывается ровно
-/// один раз, поэтому оба сценария собраны в одну функцию.
+/// Дополняет уже существующие записи данными из манифестов магазинов (важно
+/// для тех, что перенеслись из v1 без данных о запуске: см.
+/// `catalog::enrich_from_stores`). Список игр больше не заполняется здесь
+/// автоматически — на первом запуске это делает экран с галочками, и
+/// человек сам решает, что добавить.
 fn sync_games_with_stores(app: &tauri::AppHandle) {
     let mut cfg = config::load(app);
     let installed = stores::installed();
@@ -58,14 +23,7 @@ fn sync_games_with_stores(app: &tauri::AppHandle) {
     // и сетевой запрос отсюда заставил бы окно ждать сеть (спека §3.4).
     let hub_games = hub::load_local(app).games;
 
-    let changed = if cfg.games.is_empty() {
-        seed_games(&mut cfg, &installed, &hub_games);
-        true
-    } else {
-        catalog::enrich_from_stores(&mut cfg.games, &installed, &hub_games)
-    };
-
-    if changed {
+    if catalog::enrich_from_stores(&mut cfg.games, &installed, &hub_games) {
         if let Err(e) = config::save(app, &cfg) {
             log::error!("[setup] не удалось сохранить конфиг: {e}");
         }
@@ -136,6 +94,9 @@ pub fn run() {
             commands::cache_image,
             commands::scan_installed,
             commands::add_game,
+            commands::add_game_from_scan,
+            commands::mark_seeded,
+            commands::needs_first_run,
             commands::update_game,
             commands::remove_game,
             commands::reorder_games,

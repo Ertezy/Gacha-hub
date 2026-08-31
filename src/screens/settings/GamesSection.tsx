@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "../../lib/api";
 import GameRow from "./GameRow";
 import GameEditor from "./GameEditor";
+import FirstRunView from "./FirstRunView";
 import type { GameView, HubGame } from "../../types";
 
 export default function GamesSection() {
@@ -9,6 +10,9 @@ export default function GamesSection() {
   const [hubGames, setHubGames] = useState<HubGame[]>([]);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [error, setError] = useState("");
+  // Тот же экран с галочками, что и при первом запуске: список установленного
+  // мог обновиться, а человеку — захотеться пересмотреть, что добавить.
+  const [scanning, setScanning] = useState(false);
   const dragFrom = useRef<number | null>(null);
   const dragTo = useRef<number | null>(null);
 
@@ -54,6 +58,17 @@ export default function GamesSection() {
       void reload();
     }
   }, [games, reload]);
+
+  if (scanning) {
+    return (
+      <FirstRunView
+        onDone={() => {
+          setScanning(false);
+          void reload();
+        }}
+      />
+    );
+  }
 
   return (
     <div>
@@ -101,6 +116,10 @@ export default function GamesSection() {
         }
       >
         + Добавить игру вручную
+      </button>
+
+      <button type="button" className="settings-add" onClick={() => setScanning(true)}>
+        Найти установленные игры
       </button>
     </div>
   );

@@ -1,0 +1,106 @@
+import { useEffect, useState } from "react";
+import { api } from "../../lib/api";
+import type { FoundGame } from "../../types";
+
+interface Props {
+  onDone: () => void;
+}
+
+export default function FirstRunView({ onDone }: Props) {
+  const [found, setFound] = useState<FoundGame[]>([]);
+  const [checked, setChecked] = useState<Set<string>>(new Set());
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    void (async () => {
+      const list = await api.scanInstalled();
+      setFound(list);
+      // По умолчанию отмечены только игры, про которые у нас есть контент,
+      // и только те, которых ещё нет в списке (§6.3 общей спеки).
+      setChecked(
+        new Set(
+          list.filter((g) => g.contentId !== null && !g.alreadyAdded).map((g) => g.title),
+        ),
+      );
+    })();
+  }, []);
+
+  const known = found.filter((g) => g.contentId !== null);
+  const rest = found.filter((g) => g.contentId === null);
+
+  const toggle = (title: string) =>
+    setChecked((prev) => {
+      const next = new Set(prev);
+      if (next.has(title)) next.delete(title);
+      else next.add(title);
+      return next;
+    });
+
+  // Первый запуск считается состоявшимся после любого решения — и когда
+  // добавили отмеченные, и когда нажали «Пропустить». Пропуск это тоже
+  // осознанный выбор, и повторно спрашивать нельзя.
+  const finish = () =>
+    void (async () => {
+      await api.markSeeded();
+      onDone();
+    })();
+
+  const rows = (list: FoundGame[]) =>
+    list.map((g) => (
+      <label key={g.title} className="found-row">
+        <input
+          type="checkbox"
+          checked={checked.has(g.title)}
+          disabled={g.alreadyAdded}
+          onChange={() => toggle(g.title)}
+        />
+        <span className="found-title">{g.title}</span>
+        <span className="found-source">{g.sourceLabel}</span>
+        {g.alreadyAdded && <span className="found-note">уже добавлена</span>}
+      </label>
+    ));
+
+  return (
+    <div>
+      <h2 className="settings-section-title">Что нашлось на компьютере</h2>
+
+      <p className="settings-hint">По этим играм есть коды, баннеры и видео.</p>
+      {rows(known)}
+
+      {rest.length > 0 && (
+        <>
+          <p className="settings-hint">
+            Остальное установленное. Эти игры запустятся, но новостей и кодов
+            по ним не будет.
+          </p>
+          {rows(rest)}
+        </>
+      )}
+
+      <div className="field-row">
+        <button
+          type="button"
+          className="accent"
+          disabled={busy}
+          onClick={() =>
+            void (async () => {
+              setBusy(true);
+              for (const g of found) {
+                if (!checked.has(g.title) || g.alreadyAdded) continue;
+                // Путь берётся из того же поиска, что заполнил список.
+                await api.addGameFromScan(g.title);
+              }
+              setBusy(false);
+              finish();
+            })()
+          }
+        >
+          Добавить отмеченные
+        </button>
+        <button type="button" disabled={busy} onClick={finish}>
+          Пропустить
+        </button>
+      </div>
+    </div>
+  );
+}
