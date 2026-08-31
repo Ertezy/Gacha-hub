@@ -66,3 +66,20 @@ export interface LaunchResult {
   ok: boolean;
   msg: string;
 }
+
+export interface Behaviour {
+  closeToTray: boolean;
+  trayOnLaunch: boolean;
+}
+
+export interface FoundGame {
+  title: string;
+  contentId: string | null;
+  sourceLabel: string;
+  alreadyAdded: boolean;
+}
+
+export interface About {
+  version: string;
+  logPath: string;
+}

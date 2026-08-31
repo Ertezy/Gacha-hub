@@ -5,6 +5,7 @@ import GameArt from "./components/GameArt";
 import GameHeader from "./components/GameHeader";
 import PlayButton from "./components/PlayButton";
 import GameShelf from "./components/GameShelf";
+import Settings from "./screens/Settings";
 import type { GameView, HubData, LaunchResult } from "./types";
 
 export default function App() {
@@ -12,6 +13,7 @@ export default function App() {
   const [hub, setHub] = useState<HubData | null>(null);
   const [error, setError] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [screen, setScreen] = useState<"main" | "settings">("main");
 
   const load = useCallback(async () => {
     try {
@@ -51,12 +53,24 @@ export default function App() {
     }
   }, [selected]);
 
+  // Возврат из настроек обязан перечитать список игр: человек мог там всё
+  // поменять (добавить, убрать, переименовать, отвязать от хаба).
+  const closeSettings = useCallback(() => {
+    setScreen("main");
+    void load();
+  }, [load]);
+
+  if (screen === "settings") {
+    return <Settings onClose={closeSettings} />;
+  }
+
   return (
     <div className="screen">
       <SidePanel
         hub={hub}
         contentIds={contentIds}
         selectedContentId={selected?.contentId ?? null}
+        onOpenSettings={() => setScreen("settings")}
       />
       <main className="stage">
         <GameArt game={selected} />

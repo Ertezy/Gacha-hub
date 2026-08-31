@@ -10,6 +10,8 @@ interface Props {
   contentIds: string[];
   /** Игра, выбранная на полке. Баннеры и видео — только по ней. */
   selectedContentId: string | null;
+  /** Открыть экран настроек — вызывается по клику на шестерёнку. */
+  onOpenSettings: () => void;
 }
 
 const DAY = 86400;
@@ -17,7 +19,7 @@ const DAY = 86400;
 /** Как часто пересчитывается «сейчас». */
 const TICK_MS = 30_000;
 
-export default function SidePanel({ hub, contentIds, selectedContentId }: Props) {
+export default function SidePanel({ hub, contentIds, selectedContentId, onOpenSettings }: Props) {
   // Часы держатся в состоянии, а не вычисляются при отрисовке.
   //
   // Иначе таймеры замерзают: «сгорит через 3 ч 52 мин» висит неизменным, пока
@@ -80,7 +82,9 @@ export default function SidePanel({ hub, contentIds, selectedContentId }: Props)
       </div>
 
       <div className="panel-foot">
-        <div className="panel-foot-row">⚙ Настройки и игры</div>
+        <button type="button" className="panel-foot-row" onClick={onOpenSettings}>
+          ⚙ Настройки и игры
+        </button>
         {hub && (
           <div className="panel-stale">
             {stale ? `данные от ${updated}` : "данные свежие"}

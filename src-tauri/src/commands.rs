@@ -179,7 +179,9 @@ pub async fn update_game(
     title: Option<String>,
     exe: Option<String>,
     background: Option<String>,
-    content_id: Option<Option<String>>,
+    // Пустая строка означает «стереть привязку»: null для этого не годится,
+    // потому что при переходе из JSON он неотличим от «поле не передали».
+    content_id: Option<String>,
 ) -> Result<(), String> {
     let exe_path = match exe {
         Some(p) => {
@@ -195,7 +197,7 @@ pub async fn update_game(
         title,
         exe_path,
         background: background.map(std::path::PathBuf::from),
-        content_id,
+        content_id: content_id.map(|s| (!s.is_empty()).then_some(s)),
     };
     with_config(&app, |cfg| crate::library::update(cfg, &game_id, patch))
 }
