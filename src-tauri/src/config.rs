@@ -202,8 +202,26 @@ pub fn migrate_v1(raw: &serde_json::Value) -> Option<AppConfig> {
 /// Игры переносятся дословно — это главное требование этапа. Прибавляются
 /// только два поля уровня приложения, и оба получают значения, при которых
 /// приложение ведёт себя так же, как до обновления.
+///
+/// Разбор по одной записи, а не всем массивом.
+///
+/// `from_value::<Vec<Game>>` провалил бы всю миграцию из-за одной битой
+/// записи, а дальше цепочка необратима: `load` вернул бы пустой конфиг,
+/// `sync_games_with_stores` увидел бы пустой список и безусловно сохранил
+/// его поверх файла человека. Пять настроенных игр исчезли бы молча.
+///
+/// Так же устроены соседи в этом файле — `migrate_v1` и ветка текущей
+/// версии в `load`: битую запись пропускаем с записью в журнал, остальные
+/// сохраняем.
 pub fn migrate_v2(raw: &serde_json::Value) -> Option<AppConfig> {
-    let games: Vec<Game> = serde_json::from_value(raw.get("games")?.clone()).ok()?;
+    let raw_games = raw.get("games")?.as_array()?;
+    let mut games = Vec::with_capacity(raw_games.len());
+    for item in raw_games {
+        match serde_json::from_value::<Game>(item.clone()) {
+            Ok(game) => games.push(game),
+            Err(e) => eprintln!("[config] пропускаю игру при переносе на v3: {e}"),
+        }
+    }
 
     Some(AppConfig {
         version: CURRENT_VERSION,
@@ -420,6 +438,8 @@ mod tests {
         assert_eq!(cfg.version, CURRENT_VERSION);
         assert_eq!(cfg.hub_url.as_deref(), Some("https://example.com/hub.json"));
         assert_eq!(cfg.games.len(), 2);
+        assert!(cfg.seeded);
+        assert!(cfg.behaviour.close_to_tray);
 
         let hsr = cfg.games.iter().find(|g| g.id == "hsr").unwrap();
         assert_eq!(hsr.content_id.as_deref(), Some("hsr"));
@@ -537,11 +557,13 @@ mod tests {
         assert_eq!(g.title, "Genshin Impact");
         assert_eq!(g.content_id.as_deref(), Some("genshin"));
         assert_eq!(g.exe_path, Some(std::path::PathBuf::from(r"C:\Games\Genshin\launcher.exe")));
+        assert_eq!(g.install_path, Some(std::path::PathBuf::from(r"C:\Games\Genshin")));
 
         let w = &cfg.games[1];
         assert_eq!(w.launch, Launch::Steam { appid: 3513350 });
         assert_eq!(w.args, "-window");
         assert_eq!(w.background, Some(std::path::PathBuf::from(r"C:\my\art.png")));
+        assert_eq!(w.install_path, Some(std::path::PathBuf::from(r"D:\Steam\WW")));
     }
 
     #[test]
@@ -570,6 +592,30 @@ mod tests {
         let cfg = migrate_v2(&raw).unwrap();
         assert_eq!(cfg.last_played.as_deref(), Some("genshin"));
         assert_eq!(cfg.hub_url, None);
+    }
+
+    #[test]
+    fn migration_v2_drops_a_broken_game_but_keeps_the_rest() {
+        // Одна испорченная запись не имеет права унести с собой остальные:
+        // дальше по цепочке пустой список молча перезапишет файл человека.
+        let json = r#"{
+          "version": 2,
+          "games": [
+            {"id":"a","title":"A","launch":{"kind":"exe"},"args":"","background":null},
+            {"это":"не игра"},
+            {"id":"b","title":"B","launch":{"kind":"exe"},"args":"","background":null}
+          ]
+        }"#;
+        let raw: serde_json::Value = serde_json::from_str(json).unwrap();
+        let cfg = migrate_v2(&raw).expect("миграция не должна проваливаться целиком");
+        let ids: Vec<&str> = cfg.games.iter().map(|g| g.id.as_str()).collect();
+        assert_eq!(ids, vec!["a", "b"]);
+    }
+
+    #[test]
+    fn migration_refuses_a_file_whose_games_are_not_a_list() {
+        let raw: serde_json::Value = serde_json::from_str(r#"{"version":2,"games":42}"#).unwrap();
+        assert!(migrate_v2(&raw).is_none());
     }
 
     #[test]
