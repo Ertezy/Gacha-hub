@@ -549,3 +549,50 @@ body {
   font-size: 12.5px;
   margin-bottom: 12px;
 }
+
+.field {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12.5px;
+}
+
+.field > span { width: 190px; flex: none; color: var(--ink-dim); }
+
+.field input,
+.field select {
+  flex: 1;
+  min-width: 0;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--ink);
+  padding: 6px 8px;
+  font: inherit;
+}
+
+.field button,
+.field-row button,
+.settings-add {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--ink);
+  padding: 6px 12px;
+  cursor: pointer;
+  font: inherit;
+  font-size: 12.5px;
+}
+
+.field-row { display: flex; gap: 8px; }
+.field-row button.danger { color: var(--danger); border-color: var(--danger); }
+.settings-add { margin-top: 12px; }
+
+/* Жёлтый — только на подтверждающих действиях: сохранить правку и
+   добавить новую игру. Остальные кнопки раздела остаются тихими. */
+.field button.accent,
+.settings-add.accent {
+  background: var(--accent);
+  color: var(--accent-ink);
+  border-color: var(--accent);
+}

@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "../../lib/api";
 import GameRow from "./GameRow";
-import type { GameView } from "../../types";
+import GameEditor from "./GameEditor";
+import type { GameView, HubGame } from "../../types";
 
 export default function GamesSection() {
   const [games, setGames] = useState<GameView[]>([]);
+  const [hubGames, setHubGames] = useState<HubGame[]>([]);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [error, setError] = useState("");
   const dragFrom = useRef<number | null>(null);
@@ -21,6 +23,16 @@ export default function GamesSection() {
 
   useEffect(() => {
     void reload();
+    // Каталог для привязки контента — грузим один раз, он не меняется
+    // действиями этого экрана.
+    void (async () => {
+      try {
+        setHubGames((await api.getHub()).games);
+      } catch {
+        // Хаб мог быть недоступен — привязка контента просто не предложит
+        // вариантов, это не мешает править остальные поля игры.
+      }
+    })();
   }, [reload]);
 
   const commitOrder = useCallback(async () => {
@@ -67,9 +79,29 @@ export default function GamesSection() {
           }}
           onDrop={() => void commitOrder()}
         >
-          {/* Правку добавляет задача 10. */}
+          <GameEditor game={g} hubGames={hubGames} onChanged={() => void reload()} />
         </GameRow>
       ))}
+
+      <button
+        type="button"
+        className="settings-add accent"
+        onClick={() =>
+          void (async () => {
+            const exe = await api.pickExe();
+            if (!exe) return;
+            const guessed = exe.split(/[\\/]/).pop()?.replace(/\.exe$/i, "") ?? "Игра";
+            try {
+              await api.addGame(guessed, exe);
+              await reload();
+            } catch (e) {
+              setError(String(e));
+            }
+          })()
+        }
+      >
+        + Добавить игру вручную
+      </button>
     </div>
   );
 }
