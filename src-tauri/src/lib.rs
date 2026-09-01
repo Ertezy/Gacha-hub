@@ -5,6 +5,7 @@ mod hub;
 mod images;
 mod launch;
 mod library;
+pub mod pe;
 mod stores;
 mod tray;
 mod vdf;
