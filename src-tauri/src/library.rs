@@ -22,6 +22,16 @@ pub struct GamePatch {
     pub content_id: Option<Option<String>>,
 }
 
+/// Проверяет, что названий игры не пусто. Пустым считается пустая строка
+/// и строка из одних пробелов.
+pub fn validate_title(title: &str) -> Result<(), String> {
+    if title.trim().is_empty() {
+        Err("название не может быть пустым".to_string())
+    } else {
+        Ok(())
+    }
+}
+
 /// Идентификатор, которого ещё нет в конфиге.
 ///
 /// Принимает готовую основу, а не название: у игры, добавленной вручную,
@@ -251,5 +261,17 @@ mod tests {
         // Список остался прежним.
         let ids: Vec<&str> = cfg.games.iter().map(|g| g.id.as_str()).collect();
         assert_eq!(ids, vec!["a", "b", "c"]);
+    }
+
+    #[test]
+    fn validate_title_rejects_empty_and_whitespace() {
+        // Пустое названий не должно попадать в конфиг — иначе в списке
+        // будет пустая строка, которая рисуется без подписи.
+        assert!(validate_title("").is_err());
+        assert!(validate_title("   ").is_err());
+        assert!(validate_title("\t\n").is_err());
+        // Названий с хоть каким-то текстом проходят.
+        assert!(validate_title("Мой тест").is_ok());
+        assert!(validate_title("  Полезная игра  ").is_ok());
     }
 }

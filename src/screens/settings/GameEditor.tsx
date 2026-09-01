@@ -38,7 +38,7 @@ export default function GameEditor({ game, hubGames, onChanged }: Props) {
         <button
           type="button"
           className="accent"
-          disabled={busy || title === game.title}
+          disabled={busy || title.trim() === "" || title === game.title}
           onClick={() => void run(() => api.updateGame({ gameId: game.id, title }))}
         >
           Сохранить

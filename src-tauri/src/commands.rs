@@ -221,6 +221,8 @@ pub async fn add_game(app: AppHandle, title: String, exe: String) -> Result<Stri
     if !exe.is_file() {
         return Err(format!("файла нет: {}", exe.display()));
     }
+    // Название тоже вводит человек — проверяем перед записью в конфиг.
+    crate::library::validate_title(&title)?;
     let mut cfg = config::load(&app);
     let id = crate::library::add(&mut cfg, title, exe);
     config::save(&app, &cfg)?;
@@ -248,6 +250,10 @@ pub async fn update_game(
         }
         None => None,
     };
+    // Название вводит человек — проверяем перед записью в конфиг.
+    if let Some(title_val) = &title {
+        crate::library::validate_title(title_val)?;
+    }
     let patch = crate::library::GamePatch {
         title,
         exe_path,
