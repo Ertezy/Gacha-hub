@@ -20,11 +20,21 @@ pub struct GameView {
     pub content_id: Option<String>,
     /// Подпись «запустится через …».
     pub source_label: String,
+    /// Путь к файлу иконки на диске. `None` — рисуется заглушка с буквой.
+    pub icon_path: Option<String>,
+    /// Аргументы запуска. Нужны редактору игры в задаче 6.
+    pub args: String,
     /// Файл или папка игры пропали с диска.
     pub missing: bool,
 }
 
-pub fn view_of(game: &Game) -> GameView {
+/// Часть представления игры, не требующая `AppHandle`.
+///
+/// Выделена отдельной функцией, чтобы её можно было проверять в модульных
+/// тестах напрямую: `AppHandle` там взять неоткуда (тот же приём, что и у
+/// `is_fresh` в `icons.rs` или `reject_if_newer_than_current` в `config.rs`).
+/// `icon_path` здесь всегда `None` — его выставляет только `view_of`.
+fn view_of_without_icon(game: &Game) -> GameView {
     let source_label = match game.launch {
         Launch::Steam { .. } => "Steam",
         Launch::Epic { .. } => "Epic Games",
@@ -37,13 +47,22 @@ pub fn view_of(game: &Game) -> GameView {
         title: game.title.clone(),
         content_id: game.content_id.clone(),
         source_label,
+        icon_path: None,
+        args: game.args.clone(),
         missing: !config::is_present(game),
+    }
+}
+
+pub fn view_of(app: &AppHandle, game: &Game) -> GameView {
+    GameView {
+        icon_path: crate::icons::ensure(app, game).map(|p| p.to_string_lossy().into_owned()),
+        ..view_of_without_icon(game)
     }
 }
 
 #[tauri::command]
 pub async fn get_games(app: AppHandle) -> Vec<GameView> {
-    config::load(&app).games.iter().map(view_of).collect()
+    config::load(&app).games.iter().map(|g| view_of(&app, g)).collect()
 }
 
 #[tauri::command]
@@ -229,6 +248,9 @@ pub async fn update_game(
     title: Option<String>,
     exe: Option<String>,
     background: Option<String>,
+    // Пустая строка означает «убрать свою картинку»: null при переходе из
+    // JSON неотличим от «поле не передали».
+    icon: Option<String>,
     // Пустая строка означает «стереть привязку»: null для этого не годится,
     // потому что при переходе из JSON он неотличим от «поле не передали».
     content_id: Option<String>,
@@ -251,6 +273,7 @@ pub async fn update_game(
         title,
         exe_path,
         background: background.map(std::path::PathBuf::from),
+        icon: icon.map(|s| (!s.is_empty()).then(|| std::path::PathBuf::from(s))),
         content_id: content_id.map(|s| (!s.is_empty()).then_some(s)),
     };
     with_config(&app, |cfg| crate::library::update(cfg, &game_id, patch))
@@ -396,23 +419,24 @@ mod tests {
             exe_path: None,
             args: String::new(),
             background: None,
+            icon: None,
         }
     }
 
     #[test]
     fn view_labels_the_store_a_game_starts_through() {
-        assert_eq!(view_of(&steam_game()).source_label, "Steam");
+        assert_eq!(view_of_without_icon(&steam_game()).source_label, "Steam");
     }
 
     #[test]
     fn view_marks_a_game_whose_folder_disappeared() {
-        assert!(view_of(&steam_game()).missing);
+        assert!(view_of_without_icon(&steam_game()).missing);
     }
 
     #[test]
     fn exe_games_are_labelled_as_direct() {
         let mut g = steam_game();
         g.launch = Launch::Exe;
-        assert_eq!(view_of(&g).source_label, "напрямую");
+        assert_eq!(view_of_without_icon(&g).source_label, "напрямую");
     }
 }

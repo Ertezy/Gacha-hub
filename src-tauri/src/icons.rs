@@ -80,21 +80,20 @@ fn file_name_for(exe: &Path) -> String {
 ///
 /// Порядок источников — спека §4. Своя картинка человека выигрывает у всего
 /// остального: это осознанный выбор, и автоматика не имеет права его
-/// переписать. **Эта часть подключится в задаче 3**, когда у `Game` появится
-/// поле `icon`: добавлять его здесь преждевременно — оно тянет за собой
-/// изменения во всех местах, где `Game` собирается литералом (`catalog.rs`,
-/// `commands.rs`, `library.rs`), а это территория задачи 3. До тех пор
-/// источник ровно один — исполняемый файл.
+/// переписать. Только если её нет — берём картинку из исполняемого файла.
 ///
 /// **Возвращаемый путь всегда лежит в папке кеша, и это обязательно.** Окну
 /// разрешено читать файлы только из перечисленных папок (`assetProtocol.scope`
 /// в `tauri.conf.json`). Своя картинка человека лежит где угодно на диске, и
 /// сослаться на неё напрямую нельзя — она просто не отобразилась бы, причём
-/// молча. Поэтому её копия будет класться в кеш, а в конфиге — храниться
-/// **исходный путь**: он говорит, что человек выбрал, и переживает очистку
-/// кеша.
+/// молча. Поэтому её копия кладётся в кеш, а в конфиге хранится **исходный
+/// путь**: он говорит, что человек выбрал, и переживает очистку кеша.
 pub fn ensure(app: &AppHandle, game: &Game) -> Option<PathBuf> {
     let dir = cache_dir(app).ok()?;
+
+    if let Some(path) = own_icon(&dir, game) {
+        return Some(path);
+    }
 
     let exe = source_exe(game)?;
     let cached = dir.join(file_name_for(&exe));
@@ -110,6 +109,31 @@ pub fn ensure(app: &AppHandle, game: &Game) -> Option<PathBuf> {
         return None;
     }
     Some(cached)
+}
+
+/// Своя картинка человека, скопированная в кеш — или `None`, если её нет,
+/// файл на диске пропал, или копирование не удалось.
+///
+/// Принимает уже готовую папку кеша, а не `AppHandle`, по той же причине,
+/// что и `is_fresh` ниже: `AppHandle` неоткуда взять в модульных тестах.
+fn own_icon(dir: &Path, game: &Game) -> Option<PathBuf> {
+    let own = game.icon.as_ref()?;
+    if !own.is_file() {
+        log::warn!("[icons] своя картинка не найдена: {}", own.display());
+        return None;
+    }
+
+    let copy = dir.join(format!("custom-{}.png", game.id));
+    if is_fresh(&copy, own) {
+        return Some(copy);
+    }
+    match std::fs::copy(own, &copy) {
+        Ok(_) => Some(copy),
+        Err(e) => {
+            log::warn!("[icons] не скопировать свою картинку в кеш: {e}");
+            None
+        }
+    }
 }
 
 /// Кеш годен, если он не старше исходного файла. Игра обновилась — файл
@@ -139,6 +163,7 @@ mod tests {
             exe_path: None,
             args: String::new(),
             background: None,
+            icon: None,
         }
     }
 
@@ -192,6 +217,34 @@ mod tests {
         write(&dir, "readme.txt", 10);
         let g = steam_game(Some(dir.to_str().unwrap()));
         assert_eq!(source_exe(&g), None);
+    }
+
+    #[test]
+    fn a_custom_icon_that_exists_is_copied_into_the_cache() {
+        // Своя картинка человека выигрывает у всего остального (спека §4), но
+        // окну разрешено читать файлы только из папки кеша — сослаться на
+        // исходный файл напрямую нельзя, поэтому путь должен указывать внутрь
+        // кеша, а не совпадать с исходным.
+        let cache = tempdir();
+        let own_dir = tempdir();
+        write(&own_dir, "art.png", 42);
+        let own = own_dir.join("art.png");
+
+        let mut g = steam_game(None);
+        g.icon = Some(own.clone());
+
+        let result = own_icon(&cache, &g).expect("своя картинка должна победить");
+        assert_ne!(result, own, "путь должен указывать в кеш, а не на исходный файл");
+        assert!(result.starts_with(&cache));
+        assert!(result.is_file());
+    }
+
+    #[test]
+    fn a_missing_custom_icon_falls_back_to_none() {
+        let cache = tempdir();
+        let mut g = steam_game(None);
+        g.icon = Some(PathBuf::from(r"C:\nope\never\icon.png"));
+        assert_eq!(own_icon(&cache, &g), None);
     }
 
     fn tempdir() -> PathBuf {

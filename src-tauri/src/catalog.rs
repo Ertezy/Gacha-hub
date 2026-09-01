@@ -251,6 +251,7 @@ mod tests {
             exe_path: None,
             args: String::new(),
             background: None,
+            icon: None,
         }];
         let installed = vec![InstalledGame {
             title: "Honkai: Star Rail".into(),
@@ -289,6 +290,7 @@ mod tests {
             exe_path: Some(PathBuf::from(r"D:\Games\WutheringWaves\launcher_epic.exe")),
             args: String::new(),
             background: None,
+            icon: None,
         }];
         let installed = vec![InstalledGame {
             title: "Wuthering Waves".into(),
@@ -323,6 +325,7 @@ mod tests {
             exe_path: None,
             args: String::new(),
             background: None,
+            icon: None,
         }];
         let installed: Vec<InstalledGame> = Vec::new();
 
@@ -345,6 +348,7 @@ mod tests {
             exe_path: None,
             args: String::new(),
             background: None,
+            icon: None,
         }];
         let installed = vec![InstalledGame {
             title: "Wuthering Waves".into(),
@@ -371,6 +375,7 @@ mod tests {
             exe_path: Some(std::path::PathBuf::from(r"C:\Games\WW\game.exe")),
             args: String::new(),
             background: None,
+            icon: None,
         }];
         let found = vec![installed("Wuthering Waves", Launch::Steam { appid: 3513350 })];
 
@@ -393,6 +398,7 @@ mod tests {
             exe_path: Some(std::path::PathBuf::from(r"C:\Games\WW\game.exe")),
             args: String::new(),
             background: None,
+            icon: None,
         }];
         let found = vec![installed("Wuthering Waves", Launch::Steam { appid: 3513350 })];
 
@@ -488,6 +494,7 @@ mod tests {
             exe_path: Some(std::path::PathBuf::from(r"C:\СТАРЫЙ\путь\game.exe")),
             args: String::new(),
             background: None,
+            icon: None,
         };
         let found = vec![installed("Wuthering Waves", Launch::Steam { appid: 3513350 })];
 
@@ -509,6 +516,7 @@ mod tests {
             exe_path: Some(std::path::PathBuf::from(r"C:\своё\game.exe")),
             args: String::new(),
             background: None,
+            icon: None,
         };
         let found = vec![installed("Wuthering Waves", Launch::Steam { appid: 3513350 })];
 
@@ -531,6 +539,7 @@ mod tests {
             exe_path: Some(std::path::PathBuf::from(r"C:\старое\game.exe")),
             args: String::new(),
             background: None,
+            icon: None,
         };
         let found = vec![installed("Wuthering Waves", Launch::Steam { appid: 3513350 })];
 
@@ -555,6 +564,7 @@ mod tests {
             exe_path: None,
             args: String::new(),
             background: None,
+            icon: None,
         }];
         let found = installed("Wuthering Waves", Launch::Steam { appid: 3513350 });
 

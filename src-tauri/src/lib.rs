@@ -2,7 +2,7 @@ mod catalog;
 mod commands;
 mod config;
 mod hub;
-pub mod icons;
+mod icons;
 mod images;
 mod launch;
 mod library;

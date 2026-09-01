@@ -19,6 +19,9 @@ pub struct GamePatch {
     pub title: Option<String>,
     pub exe_path: Option<PathBuf>,
     pub background: Option<PathBuf>,
+    /// Два уровня, как у `content_id`: внешний `None` — не трогать,
+    /// внутренний `None` — убрать свою картинку и вернуться к добытой.
+    pub icon: Option<Option<PathBuf>>,
     pub content_id: Option<Option<String>>,
 }
 
@@ -66,6 +69,7 @@ pub fn add(cfg: &mut AppConfig, title: String, exe: PathBuf) -> String {
         exe_path: Some(exe),
         args: String::new(),
         background: None,
+        icon: None,
     });
     id
 }
@@ -106,6 +110,7 @@ pub fn add_found(
         exe_path,
         args: String::new(),
         background: None,
+        icon: None,
     });
     Ok(id)
 }
@@ -133,6 +138,9 @@ pub fn update(cfg: &mut AppConfig, id: &str, patch: GamePatch) -> bool {
     }
     if let Some(bg) = patch.background {
         game.background = Some(bg);
+    }
+    if let Some(icon) = patch.icon {
+        game.icon = icon;
     }
     if let Some(content) = patch.content_id {
         game.content_id = content;
@@ -209,6 +217,7 @@ mod tests {
                     exe_path: Some(PathBuf::from(format!(r"C:\g\{id}.exe"))),
                     args: String::new(),
                     background: None,
+                    icon: None,
                 })
                 .collect(),
         }
@@ -310,6 +319,7 @@ mod tests {
                 title: Some("Новое имя".into()),
                 exe_path: None,
                 background: None,
+                icon: None,
                 content_id: None,
             },
         );
@@ -339,6 +349,7 @@ mod tests {
                 title: None,
                 exe_path: Some(new_exe.clone()),
                 background: None,
+                icon: None,
                 content_id: None,
             },
         );
@@ -356,14 +367,25 @@ mod tests {
         // «Нет привязки» — осмысленное значение, а не отсутствие правки.
         let mut cfg = cfg_with(&["a"]);
         cfg.games[0].content_id = Some("genshin".into());
-        update(&mut cfg, "a", GamePatch { title: None, exe_path: None, background: None, content_id: Some(None) });
+        update(&mut cfg, "a", GamePatch { title: None, exe_path: None, background: None, icon: None, content_id: Some(None) });
         assert_eq!(cfg.games[0].content_id, None);
+    }
+
+    #[test]
+    fn update_can_clear_a_custom_icon() {
+        let mut cfg = AppConfig::default();
+        let mut g = Game::manual("a".into(), "A".into());
+        g.icon = Some(PathBuf::from(r"C:\my\icon.png"));
+        cfg.games.push(g);
+        let patch = GamePatch { icon: Some(None), ..Default::default() };
+        assert!(update(&mut cfg, "a", patch));
+        assert_eq!(cfg.games[0].icon, None);
     }
 
     #[test]
     fn update_reports_false_for_an_unknown_game() {
         let mut cfg = cfg_with(&["a"]);
-        let ok = update(&mut cfg, "нет-такой", GamePatch { title: Some("x".into()), exe_path: None, background: None, content_id: None });
+        let ok = update(&mut cfg, "нет-такой", GamePatch { title: Some("x".into()), exe_path: None, background: None, icon: None, content_id: None });
         assert!(!ok);
     }
 

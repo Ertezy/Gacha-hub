@@ -42,6 +42,10 @@ pub struct Game {
     /// Картинка фона, подставленная пользователем.
     #[serde(default)]
     pub background: Option<PathBuf>,
+    /// Картинка иконки, подставленная человеком. Перекрывает добытую из файла
+    /// игры: это осознанный выбор, и автоматика его не трогает.
+    #[serde(default)]
+    pub icon: Option<PathBuf>,
 }
 
 impl Game {
@@ -59,6 +63,7 @@ impl Game {
             exe_path: None,
             args: String::new(),
             background: None,
+            icon: None,
         }
     }
 }
@@ -178,6 +183,7 @@ pub fn migrate_v1(raw: &serde_json::Value) -> Option<AppConfig> {
             exe_path,
             args,
             background: None,
+            icon: None,
         });
     }
 
@@ -693,5 +699,27 @@ mod tests {
         let cfg: AppConfig = serde_json::from_str(json).unwrap();
         assert!(!cfg.seeded);
         assert!(cfg.behaviour.close_to_tray);
+    }
+
+    #[test]
+    fn a_config_without_the_icon_field_still_loads() {
+        // Поле необязательное, и версия конфига ради него не поднимается
+        // (спека §11): старые файлы должны читаться без миграции.
+        let json = r#"{"version":3,"games":[
+          {"id":"a","title":"A","launch":{"kind":"exe"},"args":"","background":null}
+        ]}"#;
+        let cfg: AppConfig = serde_json::from_str(json).unwrap();
+        assert_eq!(cfg.games[0].icon, None);
+    }
+
+    #[test]
+    fn an_icon_path_survives_a_save_round_trip() {
+        let mut cfg = AppConfig::default();
+        let mut g = Game::manual("a".into(), "A".into());
+        g.icon = Some(std::path::PathBuf::from(r"C:\my\icon.png"));
+        cfg.games.push(g);
+        let text = serde_json::to_string(&cfg).unwrap();
+        let back: AppConfig = serde_json::from_str(&text).unwrap();
+        assert_eq!(back.games[0].icon, Some(std::path::PathBuf::from(r"C:\my\icon.png")));
     }
 }
