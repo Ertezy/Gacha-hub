@@ -48,6 +48,10 @@ function Behaviours() {
 
 function Data() {
   const [url, setUrl] = useState("");
+  // Последнее сохранённое значение — по нему решаем, можно ли жать
+  // «Сохранить». Без него нетронутое (и потому пустое до загрузки) поле
+  // могло бы стереть уже настроенный адрес одним нажатием вслепую.
+  const [savedUrl, setSavedUrl] = useState("");
   const [hub, setHub] = useState<HubData | null>(null);
   const [size, setSize] = useState(0);
   const [error, setError] = useState("");
@@ -57,7 +61,13 @@ function Data() {
     void api.imageCacheSize().then(setSize);
   };
 
-  useEffect(reload, []);
+  useEffect(() => {
+    reload();
+    void api.getConfig().then((cfg) => {
+      setUrl(cfg.hubUrl ?? "");
+      setSavedUrl(cfg.hubUrl ?? "");
+    });
+  }, []);
 
   const source =
     { remote: "из сети", override: "из локальной подмены", cache: "из кеша", bundled: "из комплекта" }[
@@ -78,11 +88,13 @@ function Data() {
         <button
           type="button"
           className="accent"
+          disabled={url === savedUrl}
           onClick={() =>
             void api
               .setHubUrl(url)
               .then(() => {
                 setError("");
+                setSavedUrl(url);
                 reload();
               })
               .catch((e) => setError(String(e)))

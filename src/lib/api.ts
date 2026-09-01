@@ -2,7 +2,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
 import { writeText } from "@tauri-apps/plugin-clipboard-manager";
 import { openUrl } from "@tauri-apps/plugin-opener";
-import type { About, Behaviour, FoundGame, GameView, HubData } from "../types";
+import type { About, AppConfig, Behaviour, FoundGame, GameView, HubData } from "../types";
 
 /**
  * Типизированные обёртки над мостом Tauri.
@@ -10,6 +10,9 @@ import type { About, Behaviour, FoundGame, GameView, HubData } from "../types";
  */
 export const api = {
   getGames: () => invoke<GameView[]>("get_games"),
+  /** Весь конфиг целиком. Использовать только ради конкретного поля —
+   *  показывать его содержимое на экране нельзя. */
+  getConfig: () => invoke<AppConfig>("get_config"),
   getHub: () => invoke<HubData>("get_hub"),
   getLastPlayed: () => invoke<string | null>("get_last_played"),
   launchGame: (gameId: string) => invoke<string>("launch_game", { gameId }),

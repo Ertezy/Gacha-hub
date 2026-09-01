@@ -83,3 +83,17 @@ export interface About {
   version: string;
   logPath: string;
 }
+
+/**
+ * Полный конфиг пользователя, как его отдаёт `get_config`. Список игр здесь —
+ * сырые записи конфига, а не `GameView`; экрану «Данные» из всего этого нужен
+ * только `hubUrl`, поэтому остальная форма намеренно не расписана подробнее.
+ */
+export interface AppConfig {
+  version: number;
+  hubUrl: string | null;
+  lastPlayed: string | null;
+  seeded: boolean;
+  behaviour: Behaviour;
+  games: unknown[];
+}
