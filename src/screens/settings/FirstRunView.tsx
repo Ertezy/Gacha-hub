@@ -10,6 +10,7 @@ export default function FirstRunView({ onDone }: Props) {
   const [found, setFound] = useState<FoundGame[]>([]);
   const [checked, setChecked] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     void (async () => {
@@ -64,6 +65,8 @@ export default function FirstRunView({ onDone }: Props) {
     <div>
       <h2 className="settings-section-title">Что нашлось на компьютере</h2>
 
+      {error && <div className="settings-error">{error}</div>}
+
       <p className="settings-hint">По этим играм есть коды, баннеры и видео.</p>
       {rows(known)}
 
@@ -85,13 +88,22 @@ export default function FirstRunView({ onDone }: Props) {
           onClick={() =>
             void (async () => {
               setBusy(true);
-              for (const g of found) {
-                if (!checked.has(g.title) || g.alreadyAdded) continue;
-                // Путь берётся из того же поиска, что заполнил список.
-                await api.addGameFromScan(g.title);
+              setError("");
+              try {
+                for (const g of found) {
+                  if (!checked.has(g.title) || g.alreadyAdded) continue;
+                  // Путь берётся из того же поиска, что заполнил список.
+                  await api.addGameFromScan(g.title);
+                }
+                finish();
+              } catch (e) {
+                setError(String(e));
+              } finally {
+                // Разблокировать кнопки при любом исходе: иначе провал
+                // на середине списка запирает экран первого запуска
+                // без кнопки «назад» и без иного способа выйти.
+                setBusy(false);
               }
-              setBusy(false);
-              finish();
             })()
           }
         >

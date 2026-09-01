@@ -124,11 +124,6 @@ pub struct FoundGame {
 pub async fn scan_installed(app: AppHandle) -> Vec<FoundGame> {
     let cfg = config::load(&app);
     let hub_games = crate::hub::load_local(&app).games;
-    let known: std::collections::HashSet<_> = cfg
-        .games
-        .iter()
-        .filter_map(|g| g.exe_path.clone())
-        .collect();
 
     crate::stores::installed()
         .into_iter()
@@ -140,11 +135,12 @@ pub async fn scan_installed(app: AppHandle) -> Vec<FoundGame> {
                 Launch::Exe => "напрямую",
             }
             .to_string();
-            let already_added = found
-                .exe_path
-                .as_ref()
-                .map(|p| known.contains(p))
-                .unwrap_or(false);
+            // То же сравнение, что решает, какую запись пользователя
+            // дополнить данными установки (`catalog::already_configured`
+            // переиспользует его же) — а не отдельное по exePath: у игр
+            // Steam он всегда `None` (см. `stores::steam`), и такое
+            // сравнение никогда не находило бы совпадение.
+            let already_added = crate::catalog::already_configured(&found, &cfg.games, &hub_games);
             FoundGame {
                 title: found.title,
                 content_id,

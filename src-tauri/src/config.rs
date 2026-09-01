@@ -334,6 +334,8 @@ pub fn load(app: &AppHandle) -> AppConfig {
         }
     }
 
+    let seeded = raw.get("seeded").and_then(|v| v.as_bool()).unwrap_or(false);
+
     AppConfig {
         version,
         hub_url: raw
@@ -344,13 +346,30 @@ pub fn load(app: &AppHandle) -> AppConfig {
             .get("lastPlayed")
             .and_then(|v| v.as_str())
             .map(str::to_string),
-        seeded: raw.get("seeded").and_then(|v| v.as_bool()).unwrap_or(false),
+        seeded: recover_seeded(seeded, &games),
         behaviour: raw
             .get("behaviour")
             .and_then(|v| serde_json::from_value(v.clone()).ok())
             .unwrap_or_default(),
         games,
     }
+}
+
+/// Восстанавливает `seeded` для конфигов версии 3, заполненных старым
+/// автопосевом до появления этого поля: `seeded` тогда ещё ничего не
+/// выставляла, так что на диске мог осесть файл с непустым списком игр и
+/// `seeded: false`. Непустой список сам по себе означает, что настройка уже
+/// происходила — без этой поправки такой человек увидел бы экран первого
+/// запуска поверх уже готового списка.
+///
+/// Намеренно очищенный человеком список это не ломает: у него `seeded` уже
+/// `true`, выставленный при завершении первичной настройки, и пустой список
+/// остаётся пустым.
+///
+/// Выделена отдельной чистой функцией, чтобы проверять её без `AppHandle` —
+/// как и `reject_if_newer_than_current` ниже.
+fn recover_seeded(seeded: bool, games: &[Game]) -> bool {
+    seeded || !games.is_empty()
 }
 
 /// Выделена из `save` отдельной чистой функцией, чтобы проверять её без
@@ -501,6 +520,29 @@ mod tests {
         );
 
         assert!(reject_if_newer_than_current(CURRENT_VERSION).is_ok());
+    }
+
+    #[test]
+    fn recover_seeded_marks_a_pre_seeded_field_config_as_already_seeded() {
+        // `seed_games` появилась раньше поля `seeded` и никогда его не
+        // выставляла — на диске мог осесть конфиг версии 3 с непустым
+        // списком игр и `seeded: false`. Непустой список сам по себе
+        // значит, что настройка уже прошла.
+        let games = vec![Game::manual("a".into(), "Игра".into())];
+        assert!(recover_seeded(false, &games));
+    }
+
+    #[test]
+    fn recover_seeded_leaves_an_intentionally_emptied_list_alone() {
+        // Человек, удаливший всё намеренно, уже получил `seeded: true` при
+        // завершении первичной настройки — пустой список не должен снова
+        // включать экран первого запуска.
+        assert!(recover_seeded(true, &[]));
+    }
+
+    #[test]
+    fn recover_seeded_keeps_a_genuinely_fresh_install_unseeded() {
+        assert!(!recover_seeded(false, &[]));
     }
 
     #[test]

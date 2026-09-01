@@ -69,6 +69,23 @@ fn find_installed<'a>(
         .find(|ig| normalize(&ig.title) == normalized)
 }
 
+/// Есть ли в конфиге пользователя запись, уже соответствующая этой найденной
+/// игре — по тому же сравнению, что и `find_installed` (сначала по
+/// идентификатору содержимого, потом по нормализованному названию).
+///
+/// `scan_installed` раньше сравнивал только `exePath`, а у игр Steam он
+/// всегда `None` (см. `stores::steam`) — совпадение никогда не находилось,
+/// и нажатие «Найти установленные игры» заводило вторую запись для уже
+/// настроенной игры Steam. Два независимых сравнения «это та же игра»
+/// расходятся быстро, поэтому здесь переиспользуется то же самое сравнение,
+/// а не пишется второе.
+pub fn already_configured(found: &InstalledGame, games: &[Game], hub_games: &[HubGame]) -> bool {
+    let found_alone = std::slice::from_ref(found);
+    games
+        .iter()
+        .any(|g| find_installed(g, found_alone, hub_games).is_some())
+}
+
 /// Дополняет игры пользователя данными из манифестов магазинов.
 /// Возвращает true, если что-то изменилось.
 ///
@@ -514,5 +531,35 @@ mod tests {
         relocate(&mut game, &found, &hub_games());
 
         assert_eq!(game.title, "Моё название");
+    }
+
+    #[test]
+    fn a_steam_game_already_in_the_config_is_marked_already_added() {
+        // Это ровно тот баг, который чинит эта правка: раньше сравнение
+        // в scan_installed шло по exePath, а у игр Steam он всегда None
+        // (см. stores::steam), так что уже добавленная игра Steam никогда
+        // не находилась, и кнопка «Найти установленные игры» завела бы
+        // вторую запись для того же Wuthering Waves.
+        let games = vec![Game {
+            id: "wuthering".into(),
+            title: "Wuthering Waves".into(),
+            content_id: Some("wuthering".into()),
+            launch: Launch::Steam { appid: 3513350 },
+            install_path: Some(PathBuf::from(r"C:\SteamLibrary\WutheringWaves")),
+            exe_path: None,
+            args: String::new(),
+            background: None,
+        }];
+        let found = installed("Wuthering Waves", Launch::Steam { appid: 3513350 });
+
+        assert!(already_configured(&found, &games, &hub_games()));
+    }
+
+    #[test]
+    fn an_installed_game_not_in_the_config_is_not_marked_already_added() {
+        let games: Vec<Game> = Vec::new();
+        let found = installed("Wuthering Waves", Launch::Steam { appid: 3513350 });
+
+        assert!(!already_configured(&found, &games, &hub_games()));
     }
 }
