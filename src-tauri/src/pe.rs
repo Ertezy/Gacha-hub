@@ -116,6 +116,16 @@ fn rva_to_file(sections: &[Section], rva: u32) -> Option<usize> {
 /// Тип ресурса «картинка иконки».
 const RT_ICON: u32 = 3;
 
+/// Общий предел числа шагов на весь обход дерева ресурсов, а не на один
+/// узел. Ограничение в `children` — только на одну запись; но записи трёх
+/// уровней (тип, номер, язык) могут все указывать на один и тот же узел
+/// следующего уровня, и тогда работа перемножается, а не складывается: три
+/// уровня по 4096 записей — это уже около семидесяти миллиардов шагов при
+/// файле в сотню килобайт. У настоящих программ иконок единицы, у самых
+/// богатых — десятки, так что несколько сотен шагов на весь обход — предел
+/// с большим запасом.
+const MAX_RESOURCE_STEPS: usize = 512;
+
 /// Собирает адреса и размеры всех картинок иконок.
 ///
 /// Ресурсы лежат деревом ровно из трёх уровней: тип, номер, язык. У каждого
@@ -127,12 +137,17 @@ fn collect_icons(b: &[u8], sections: &[Section], resource_rva: u32) -> Vec<(u32,
         return found;
     };
 
-    for (type_id, type_off) in children(b, root, root) {
+    // Бюджет общий на весь обход и передаётся во все вызовы `children`, а не
+    // заводится заново на каждом уровне — иначе повторно используемый узел
+    // обошёл бы поштучный предел, размножая работу через уровни дерева.
+    let mut budget = MAX_RESOURCE_STEPS;
+
+    for (type_id, type_off) in children(b, root, root, &mut budget) {
         if type_id != RT_ICON {
             continue;
         }
-        for (_, name_off) in children(b, root, type_off) {
-            for (_, lang_off) in children(b, root, name_off) {
+        for (_, name_off) in children(b, root, type_off, &mut budget) {
+            for (_, lang_off) in children(b, root, name_off, &mut budget) {
                 // Лист: адрес данных и их размер.
                 let (Some(rva), Some(size)) = (u32_at(b, lang_off), u32_at(b, lang_off + 4)) else {
                     continue;
@@ -149,7 +164,12 @@ fn collect_icons(b: &[u8], sections: &[Section], resource_rva: u32) -> Vec<(u32,
 /// Для узла отдаётся смещение следующего узла, для листа — смещение записи с
 /// данными. Различаются они старшим битом, и вызывающий знает по уровню, что
 /// именно получил.
-fn children(b: &[u8], root: usize, node: usize) -> Vec<(u32, usize)> {
+///
+/// `budget` общий на весь обход (см. `MAX_RESOURCE_STEPS`): каждая
+/// рассмотренная запись стоит одну единицу, и как только он заканчивается,
+/// узел возвращает уже собранное и дальше не читает — независимо от того,
+/// сколько раз до этого узла уже добирались с других ветвей дерева.
+fn children(b: &[u8], root: usize, node: usize, budget: &mut usize) -> Vec<(u32, usize)> {
     let mut out = Vec::new();
     let Some(named) = u16_at(b, node.saturating_add(12)) else {
         return out;
@@ -161,6 +181,10 @@ fn children(b: &[u8], root: usize, node: usize) -> Vec<(u32, usize)> {
     // запредельному смещению всё равно вернёт None и цикл прервётся.
     let total = named as usize + by_id as usize;
     for i in 0..total.min(4096) {
+        if *budget == 0 {
+            break;
+        }
+        *budget -= 1;
         let entry = node.saturating_add(16).saturating_add(i.saturating_mul(8));
         let Some(id) = u32_at(b, entry) else { break };
         let Some(offset) = u32_at(b, entry.saturating_add(4)) else { break };
@@ -261,5 +285,56 @@ mod tests {
             v
         };
         assert_eq!(icon_png_256(&almost), None);
+    }
+
+    /// Строит один узел дерева ресурсов: 16 байт заголовка (важно только
+    /// число записей по смещению 14) и `count` одинаковых записей по 8 байт
+    /// — пара «номер, смещение», где смещение уже отсчитано от корня.
+    fn resource_node(count: u16, id: u32, offset: u32) -> Vec<u8> {
+        let mut node = vec![0u8; 16];
+        node[14..16].copy_from_slice(&count.to_le_bytes());
+        for _ in 0..count {
+            node.extend_from_slice(&id.to_le_bytes());
+            node.extend_from_slice(&offset.to_le_bytes());
+        }
+        node
+    }
+
+    #[test]
+    fn collect_icons_bounds_total_work_even_when_the_tree_reuses_nodes() {
+        // Подлог: записи каждого уровня ссылаются не на разные узлы, а на
+        // один и тот же. Дерево из трёх уровней по 32 записи разворачивается
+        // не в 96 действий, а в 32*32*32 = 32768 — множитель, а не сумма.
+        // У настоящих файлов такого повторного использования не бывает, но
+        // формат этого не запрещает, а обход не имел общего предела.
+        const N: u16 = 32;
+
+        let root_len = 16 + N as u32 * 8;
+        let name_off = root_len;
+        let name_len = 16 + N as u32 * 8;
+        let lang_off = name_off + name_len;
+        let lang_len = 16 + N as u32 * 8;
+        let leaf_off = lang_off + lang_len;
+
+        let mut b = resource_node(N, RT_ICON, name_off);
+        b.extend(resource_node(N, 0, lang_off));
+        b.extend(resource_node(N, 0, leaf_off));
+        b.extend_from_slice(&0u32.to_le_bytes()); // rva листа
+        b.extend_from_slice(&8u32.to_le_bytes()); // размер листа
+
+        let sections = [Section {
+            virtual_address: 0,
+            virtual_size: b.len() as u32,
+            raw_offset: 0,
+            raw_size: b.len() as u32,
+        }];
+
+        let found = collect_icons(&b, &sections, 0);
+        assert!(
+            found.len() < MAX_RESOURCE_STEPS,
+            "обход должен быть ограничен общим бюджетом на весь разбор, а не \
+             размножаться по числу совпавших узлов: получено {} записей",
+            found.len()
+        );
     }
 }
