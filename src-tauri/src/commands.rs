@@ -74,7 +74,9 @@ pub async fn launch_game(app: AppHandle, game_id: String) -> Result<String, Stri
         log::error!("[config] не удалось сохранить lastPlayed: {e}");
     }
 
-    if cfg.behaviour.tray_on_launch {
+    // Прячем окно, только если значок в трее на месте: иначе спрятанное окно
+    // стало бы нечем вернуть.
+    if cfg.behaviour.tray_on_launch && app.tray_by_id("main").is_some() {
         if let Some(window) = app.get_webview_window("main") {
             let _ = window.hide();
         }
