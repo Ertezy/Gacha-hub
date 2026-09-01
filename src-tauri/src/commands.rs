@@ -164,28 +164,16 @@ pub async fn add_game_from_scan(app: AppHandle, title: String) -> Result<String,
         .find(|g| g.title == title)
         .ok_or_else(|| format!("игра больше не найдена: {title}"))?;
 
-    let mut cfg = config::load(&app);
     let content_id = crate::catalog::content_id_for(&found, &hub_games);
-    let base = content_id
-        .clone()
-        .unwrap_or_else(|| crate::catalog::normalize(&found.title));
-    let mut id = base.clone();
-    let mut n = 2;
-    while cfg.games.iter().any(|g| g.id == id) {
-        id = format!("{base}-{n}");
-        n += 1;
-    }
-
-    cfg.games.push(config::Game {
-        id: id.clone(),
-        title: found.title,
+    let mut cfg = config::load(&app);
+    let id = crate::library::add_found(
+        &mut cfg,
+        found.title,
         content_id,
-        launch: found.launch,
-        install_path: Some(found.install_path),
-        exe_path: found.exe_path,
-        args: String::new(),
-        background: None,
-    });
+        found.launch,
+        found.install_path,
+        found.exe_path,
+    )?;
     config::save(&app, &cfg)?;
     Ok(id)
 }

@@ -70,7 +70,55 @@ pub fn add(cfg: &mut AppConfig, title: String, exe: PathBuf) -> String {
     id
 }
 
+/// Добавляет игру, найденную сканированием магазинов, сохраняя способ запуска
+/// и пути из манифеста как есть. Возвращает идентификатор новой записи.
+///
+/// Проверяет название и подбирает идентификатор теми же `validate_title` и
+/// `free_id`, что и остальные дороги добавления игры — раньше
+/// `commands::add_game_from_scan` вела собственный цикл подбора идентификатора
+/// и вовсе не проверяла название. Из-за этого была достижима запись с пустым
+/// названием и идентификатором: манифест Steam пишет пустое название, пока
+/// игра ещё качается, а разбор манифестов такие пустые значения намеренно
+/// сохраняет (см. `stores`).
+///
+/// Отдельная от `add`: у найденной игры уже известны способ запуска и пути из
+/// манифеста, и сводить их к `Launch::Exe` нельзя — тогда игра из Steam
+/// перестала бы запускаться через Steam.
+pub fn add_found(
+    cfg: &mut AppConfig,
+    title: String,
+    content_id: Option<String>,
+    launch: Launch,
+    install_path: PathBuf,
+    exe_path: Option<PathBuf>,
+) -> Result<String, String> {
+    validate_title(&title)?;
+    let base = content_id
+        .clone()
+        .unwrap_or_else(|| crate::catalog::normalize(&title));
+    let id = free_id(cfg, &base);
+    cfg.games.push(Game {
+        id: id.clone(),
+        title,
+        content_id,
+        launch,
+        install_path: Some(install_path),
+        exe_path,
+        args: String::new(),
+        background: None,
+    });
+    Ok(id)
+}
+
 /// Меняет названные поля одной игры. `false` — игры с таким идентификатором нет.
+///
+/// Указанный человеком `exe_path` переключает игру на `Launch::Exe`: раз он
+/// сам назвал исполняемый файл, это и значит «запускать через него», а не
+/// через прежний способ (Steam, Epic). Без этого переключения кнопка запуска
+/// продолжала бы идти через старый магазин: у Steam-игры без установленного
+/// клиента `steam://` тихо не срабатывает, а `install_path` и «файл нашёлся»
+/// вводят в заблуждение, будто всё в порядке (см. `catalog::relocate`,
+/// который переключает способ запуска по той же причине).
 pub fn update(cfg: &mut AppConfig, id: &str, patch: GamePatch) -> bool {
     let Some(game) = cfg.games.iter_mut().find(|g| g.id == id) else {
         return false;
@@ -81,6 +129,7 @@ pub fn update(cfg: &mut AppConfig, id: &str, patch: GamePatch) -> bool {
     if let Some(exe) = patch.exe_path {
         game.install_path = exe.parent().map(PathBuf::from);
         game.exe_path = Some(exe);
+        game.launch = Launch::Exe;
     }
     if let Some(bg) = patch.background {
         game.background = Some(bg);
@@ -188,6 +237,70 @@ mod tests {
     }
 
     #[test]
+    fn add_found_keeps_the_launch_and_paths_from_the_manifest() {
+        // В отличие от `add`, найденная игра не должна свестись к
+        // Launch::Exe — иначе игра из Steam перестала бы запускаться через
+        // Steam.
+        let mut cfg = cfg_with(&[]);
+        let id = add_found(
+            &mut cfg,
+            "Wuthering Waves".into(),
+            Some("wuthering".into()),
+            Launch::Steam { appid: 3513350 },
+            PathBuf::from(r"C:\SteamLibrary\WutheringWaves"),
+            None,
+        )
+        .expect("должно пройти");
+        assert_eq!(cfg.games.len(), 1);
+        assert_eq!(cfg.games[0].id, id);
+        assert_eq!(cfg.games[0].launch, Launch::Steam { appid: 3513350 });
+        assert_eq!(
+            cfg.games[0].install_path,
+            Some(PathBuf::from(r"C:\SteamLibrary\WutheringWaves"))
+        );
+        assert_eq!(cfg.games[0].content_id.as_deref(), Some("wuthering"));
+    }
+
+    #[test]
+    fn add_found_rejects_an_empty_title() {
+        // Это ровно тот баг, который чинит эта правка: манифест Steam пишет
+        // пустое название, пока игра ещё качается, разбор манифестов такие
+        // значения намеренно сохраняет, а собственный цикл подбора
+        // идентификатора, который раньше вела эта дорога, эту проверку не
+        // делал вовсе.
+        let mut cfg = cfg_with(&[]);
+        let err = add_found(
+            &mut cfg,
+            "   ".into(),
+            None,
+            Launch::Steam { appid: 3513350 },
+            PathBuf::from(r"C:\SteamLibrary\Unknown"),
+            None,
+        )
+        .expect_err("пустое название обязано отклоняться");
+        assert!(err.contains("пуст"));
+        assert!(cfg.games.is_empty(), "запись не должна попасть в конфиг");
+    }
+
+    #[test]
+    fn add_found_never_collides_with_an_existing_id() {
+        // Та же гарантия, что и у `add`: подбор идентификатора идёт через
+        // общий `free_id`, а не собственный цикл.
+        let mut cfg = cfg_with(&["wuthering"]);
+        let id = add_found(
+            &mut cfg,
+            "Wuthering Waves".into(),
+            Some("wuthering".into()),
+            Launch::Steam { appid: 3513350 },
+            PathBuf::from(r"C:\SteamLibrary\WutheringWaves"),
+            None,
+        )
+        .expect("должно пройти");
+        assert_ne!(id, "wuthering");
+        assert_eq!(cfg.games.len(), 2);
+    }
+
+    #[test]
     fn update_changes_only_the_named_fields() {
         let mut cfg = cfg_with(&["a", "b"]);
         let ok = update(
@@ -206,6 +319,36 @@ mod tests {
         assert_eq!(cfg.games[0].exe_path, Some(PathBuf::from(r"C:\g\a.exe")));
         // Соседняя игра не тронута вовсе.
         assert_eq!(cfg.games[1].title, "b");
+    }
+
+    #[test]
+    fn update_switches_a_steam_game_to_direct_launch_when_an_exe_is_given() {
+        // Человек нажал «Выбрать…» на игре из Steam, у которой пропал файл
+        // (её снесли из Steam и поставили заново на другой диск). Раньше
+        // `update` записывал только exe_path/install_path, а `launch`
+        // оставался Launch::Steam — кнопка запуска продолжала бы дергать
+        // steam://, «успешно» ничего не запуская. Указанный человеком exe
+        // обязан переключить игру на прямой запуск.
+        let mut cfg = cfg_with(&["a"]);
+        cfg.games[0].launch = Launch::Steam { appid: 3513350 };
+        let new_exe = PathBuf::from(r"D:\Games\WutheringWaves\Wuthering Waves.exe");
+        let ok = update(
+            &mut cfg,
+            "a",
+            GamePatch {
+                title: None,
+                exe_path: Some(new_exe.clone()),
+                background: None,
+                content_id: None,
+            },
+        );
+        assert!(ok);
+        assert_eq!(cfg.games[0].launch, Launch::Exe);
+        assert_eq!(cfg.games[0].exe_path, Some(new_exe));
+        assert_eq!(
+            cfg.games[0].install_path,
+            Some(PathBuf::from(r"D:\Games\WutheringWaves"))
+        );
     }
 
     #[test]

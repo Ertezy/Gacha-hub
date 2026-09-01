@@ -54,8 +54,34 @@ pub fn is_safe_https(url: &str) -> bool {
     url.as_bytes().get(8).is_some_and(|c| *c != b'/')
 }
 
+/// Правда, если прочитанный текст не влез в потолок размера.
+///
+/// Вынесена отдельно, как и `images::exceeds_ceiling`: читаем `MAX_HUB_BYTES
+/// + 1` байт и проверяем результат этой функции, а не наоборот — тогда
+/// граница проверяется без файла размером в потолок на диске у теста.
+fn exceeds_hub_ceiling(len: usize) -> bool {
+    len as u64 > MAX_HUB_BYTES as u64
+}
+
+/// Читает и разбирает местный файл хаба (`hub.json`, `hub_cache.json`).
+///
+/// Потолок размера тот же, что и у сетевой загрузки: это те же данные,
+/// разница только в источнике. Без потолка человек, подменивший `hub.json`
+/// огромным файлом (случайно или нет), заставил бы приложение вычитывать его
+/// целиком в память при каждом запуске.
 fn read_json_file(path: &Path) -> Option<HubData> {
-    let text = fs::read_to_string(path).ok()?;
+    let file = fs::File::open(path).ok()?;
+    let mut text = String::new();
+    file.take(MAX_HUB_BYTES as u64 + 1)
+        .read_to_string(&mut text)
+        .ok()?;
+    if exceeds_hub_ceiling(text.len()) {
+        log::error!(
+            "[hub] {} больше потолка в {MAX_HUB_BYTES} байт, файл пропущен",
+            path.display()
+        );
+        return None;
+    }
     serde_json::from_str(&text).ok()
 }
 
@@ -97,6 +123,25 @@ fn bundled(app: &AppHandle) -> Result<HubData, String> {
     Ok(data)
 }
 
+/// Местная цепочка без сети: сначала `override_path` (ручная подмена),
+/// затем `cache_path` (последняя удачная загрузка). `None` — ни один файл не
+/// прочитался, и вызывающему коду пора переходить на встроенный запасной
+/// вариант.
+///
+/// Не берёт `AppHandle` и не решает, что делать при `None` — вынесена именно
+/// поэтому: обе стороны цепочки, зависящие от `AppHandle` (сборка путей,
+/// встроенный файл из комплекта), проверить обычным тестом нельзя, а саму
+/// логику выбора источника — можно, на временных файлах.
+fn read_local_chain(override_path: &Path, cache_path: &Path) -> Option<HubData> {
+    for (path, label) in [(override_path, "override"), (cache_path, "cache")] {
+        if let Some(mut data) = read_json_file(path) {
+            data.source = Some(label.to_string());
+            return Some(data);
+        }
+    }
+    None
+}
+
 /// Данные хаба без единого сетевого запроса.
 ///
 /// Нужна в `setup()`: каталог для сопоставления игр лежит в этом же файле, а
@@ -104,11 +149,10 @@ fn bundled(app: &AppHandle) -> Result<HubData, String> {
 /// окно ждать сеть там, где сейчас оно не ждёт.
 pub fn load_local(app: &AppHandle) -> HubData {
     if let Ok(cfg_dir) = app.path().app_config_dir() {
-        for (name, label) in [("hub.json", "override"), ("hub_cache.json", "cache")] {
-            if let Some(mut data) = read_json_file(&cfg_dir.join(name)) {
-                data.source = Some(label.to_string());
-                return data;
-            }
+        let override_path = cfg_dir.join("hub.json");
+        let cache_path = cfg_dir.join("hub_cache.json");
+        if let Some(data) = read_local_chain(&override_path, &cache_path) {
+            return data;
         }
     }
     match bundled(app) {
@@ -141,12 +185,7 @@ pub fn load(app: &AppHandle, hub_url: Option<&str>) -> Result<HubData, String> {
             data.source = Some("remote".to_string());
             return Ok(data);
         }
-        if let Some(mut data) = read_json_file(&override_path) {
-            data.source = Some("override".to_string());
-            return Ok(data);
-        }
-        if let Some(mut data) = read_json_file(&cache_path) {
-            data.source = Some("cache".to_string());
+        if let Some(data) = read_local_chain(&override_path, &cache_path) {
             return Ok(data);
         }
     } else if let Some(mut data) = read_json_file(&override_path) {
@@ -207,5 +246,112 @@ mod tests {
         assert!(!is_safe_https("https:///etc/passwd"));
         assert!(!is_safe_https("https://"));
         assert!(is_safe_https("https://a"));
+    }
+
+    #[test]
+    fn a_hub_file_exactly_at_the_ceiling_is_accepted() {
+        // Проверяет ровно ту границу, на которой легко ошибиться на один
+        // байт: `read_json_file` читает `MAX_HUB_BYTES + 1` байт и передаёт
+        // длину сюда, а не наоборот. Ровно потолок обязан пройти.
+        assert!(!exceeds_hub_ceiling(MAX_HUB_BYTES));
+    }
+
+    #[test]
+    fn a_hub_file_one_byte_over_the_ceiling_is_rejected() {
+        assert!(exceeds_hub_ceiling(MAX_HUB_BYTES + 1));
+    }
+
+    fn hub_json(version: u32) -> String {
+        format!(r#"{{"version":{version}}}"#)
+    }
+
+    /// Отдельная временная папка на тест: тесты в этом файле пишут местные
+    /// файлы на диск и выполняются в одном процессе параллельно, общий путь
+    /// привёл бы к тому, что один тест читал бы файл, оставленный другим.
+    fn temp_hub_dir(tag: &str) -> std::path::PathBuf {
+        let dir = std::env::temp_dir().join(format!("gh-hub-{tag}-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
+    #[test]
+    fn read_json_file_refuses_a_local_file_larger_than_the_ceiling() {
+        // До этой правки потолок применялся только к сетевой загрузке:
+        // `hub.json`/`hub_cache.json` читались целиком, без ограничения.
+        let dir = temp_hub_dir("oversized");
+        let path = dir.join("hub.json");
+        std::fs::write(&path, "0".repeat(MAX_HUB_BYTES + 1)).unwrap();
+
+        assert!(read_json_file(&path).is_none());
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn read_json_file_accepts_a_local_file_within_the_ceiling() {
+        let dir = temp_hub_dir("within-cap");
+        let path = dir.join("hub.json");
+        std::fs::write(&path, hub_json(7)).unwrap();
+
+        let data = read_json_file(&path).expect("файл в пределах потолка обязан прочитаться");
+        assert_eq!(data.version, 7);
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn local_chain_prefers_the_override_file_over_the_cache() {
+        let dir = temp_hub_dir("override-over-cache");
+        let override_path = dir.join("hub.json");
+        let cache_path = dir.join("hub_cache.json");
+        std::fs::write(&override_path, hub_json(11)).unwrap();
+        std::fs::write(&cache_path, hub_json(22)).unwrap();
+
+        let data =
+            read_local_chain(&override_path, &cache_path).expect("должен найтись override");
+        assert_eq!(data.version, 11);
+        assert_eq!(data.source.as_deref(), Some("override"));
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn local_chain_falls_back_to_the_cache_when_there_is_no_override() {
+        let dir = temp_hub_dir("cache-fallback");
+        let override_path = dir.join("hub.json");
+        let cache_path = dir.join("hub_cache.json");
+        std::fs::write(&cache_path, hub_json(22)).unwrap();
+
+        let data = read_local_chain(&override_path, &cache_path).expect("должен найтись cache");
+        assert_eq!(data.version, 22);
+        assert_eq!(data.source.as_deref(), Some("cache"));
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn local_chain_skips_a_broken_override_and_falls_back_to_the_cache() {
+        // Подмена может оказаться не JSON (человек редактировал руками и
+        // ошибся) — это не повод остаться совсем без данных, пока рабочий
+        // кеш есть.
+        let dir = temp_hub_dir("broken-override");
+        let override_path = dir.join("hub.json");
+        let cache_path = dir.join("hub_cache.json");
+        std::fs::write(&override_path, "это не json").unwrap();
+        std::fs::write(&cache_path, hub_json(5)).unwrap();
+
+        let data = read_local_chain(&override_path, &cache_path).expect("должен найтись cache");
+        assert_eq!(data.version, 5);
+        assert_eq!(data.source.as_deref(), Some("cache"));
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn local_chain_is_none_when_neither_file_exists() {
+        // `None` — сигнал вызывающему коду перейти на встроенный запасной
+        // вариант из комплекта. Ни один местный файл не обязан существовать:
+        // это обычное состояние на свежей установке.
+        let dir = temp_hub_dir("neither-exists");
+        let override_path = dir.join("hub.json");
+        let cache_path = dir.join("hub_cache.json");
+
+        assert!(read_local_chain(&override_path, &cache_path).is_none());
+        std::fs::remove_dir_all(&dir).ok();
     }
 }
