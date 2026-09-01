@@ -4,7 +4,7 @@ import SidePanel from "./components/SidePanel";
 import GameArt from "./components/GameArt";
 import GameHeader from "./components/GameHeader";
 import PlayButton from "./components/PlayButton";
-import GameShelf from "./components/GameShelf";
+import GameDock from "./components/GameDock";
 import Settings from "./screens/Settings";
 import FirstRunView from "./screens/settings/FirstRunView";
 import type { GameView, HubData, LaunchResult } from "./types";
@@ -111,7 +111,7 @@ export default function App() {
         {selected && <GameHeader game={selected} />}
         {selected && <PlayButton gameId={selected.id} onLaunch={launch} onFixed={load} />}
         {error && <div className="banner">Не удалось загрузить: {error}</div>}
-        <GameShelf games={games} selectedId={selected?.id ?? null} onSelect={select} />
+        <GameDock games={games} selectedId={selected?.id ?? null} onSelect={select} />
       </main>
     </div>
   );

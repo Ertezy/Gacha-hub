@@ -8,6 +8,10 @@ export interface GameView {
   contentId: string | null;
   /** Подпись «запустится через …». */
   sourceLabel: string;
+  /** Путь к файлу иконки. `null` — рисуется заглушка с буквой. */
+  iconPath: string | null;
+  /** Аргументы запуска. Нужны редактору игры в задаче 6. */
+  args: string;
   /** Файл или папка игры пропали с диска. */
   missing: boolean;
 }
