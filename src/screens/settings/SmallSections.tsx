@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { api } from "../../lib/api";
+import { hubFreshness } from "../../lib/time";
 import type { About, Behaviour, HubData } from "../../types";
 
 interface Props {
@@ -8,6 +9,7 @@ interface Props {
 
 function Behaviours() {
   const [b, setB] = useState<Behaviour | null>(null);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     void api.getBehaviour().then(setB);
@@ -15,14 +17,25 @@ function Behaviours() {
 
   if (!b) return null;
 
+  // Галочка переключается сразу, для отзывчивости. Но если запись в конфиг
+  // не прошла (папка только на чтение, файл занят), об этом нужно сказать и
+  // вернуть галочку назад — иначе экран покажет состояние, которого на самом
+  // деле нет, и человек, например, снимет «крестик прячет окно», закроет его
+  // и получит сворачивание в трей вместо выхода.
   const save = (next: Behaviour) => {
+    const prev = b;
     setB(next);
-    void api.setBehaviour(next);
+    setError("");
+    void api.setBehaviour(next).catch((e) => {
+      setError(String(e));
+      setB(prev);
+    });
   };
 
   return (
     <div>
       <h2 className="settings-section-title">Поведение</h2>
+      {error && <div className="settings-error">{error}</div>}
       <label className="field">
         <span>Крестик прячет окно в трей</span>
         <input
@@ -74,6 +87,12 @@ function Data() {
       hub?._source ?? ""
     ] ?? "неизвестно";
 
+  // Свежесть — тем же способом, что и в подвале панели (§5 спеки требует
+  // показывать «откуда и когда»; словами это должно звучать одинаково
+  // в обоих местах).
+  const nowSec = Math.floor(Date.now() / 1000);
+  const freshness = hub ? hubFreshness(hub.updatedAt, nowSec) : "";
+
   return (
     <div>
       <h2 className="settings-section-title">Данные</h2>
@@ -106,7 +125,8 @@ function Data() {
       {error && <div className="settings-error">{error}</div>}
 
       <p className="settings-hint">
-        Данные приехали {source}. Кеш картинок занимает{" "}
+        Источник — {source}
+        {freshness && `, ${freshness}`}. Кеш картинок занимает{" "}
         {(size / 1024 / 1024).toFixed(1)} МБ.
       </p>
 
@@ -116,7 +136,12 @@ function Data() {
         </button>
         <button
           type="button"
-          onClick={() => void api.clearImageCache().then(reload)}
+          onClick={() =>
+            void api
+              .clearImageCache()
+              .then(reload)
+              .catch((e) => setError(String(e)))
+          }
         >
           Очистить кеш картинок
         </button>
@@ -127,6 +152,7 @@ function Data() {
 
 function AboutSection() {
   const [about, setAbout] = useState<About | null>(null);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     void api.getAbout().then(setAbout);
@@ -135,6 +161,7 @@ function AboutSection() {
   return (
     <div>
       <h2 className="settings-section-title">О программе</h2>
+      {error && <div className="settings-error">{error}</div>}
       <p className="settings-hint">Версия {about?.version ?? "…"}</p>
       <div className="field-row">
         <button
@@ -145,7 +172,7 @@ function AboutSection() {
         </button>
         <button
           type="button"
-          onClick={() => void api.openLogFolder()}
+          onClick={() => void api.openLogFolder().catch((e) => setError(String(e)))}
         >
           Показать журнал
         </button>

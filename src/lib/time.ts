@@ -70,3 +70,18 @@ export function progress(startSec: number, endSec: number, nowSec: number): numb
   const passed = (nowSec - startSec) / total;
   return Math.min(1, Math.max(0, passed));
 }
+
+/**
+ * «данные свежие» или «данные от 1 сентября» — единая формулировка
+ * свежести данных хаба. Используется и в подвале панели, и в разделе
+ * «Данные» настроек: два места не должны разойтись в словах.
+ */
+export function hubFreshness(updatedAt: number, nowSec: number): string {
+  const age = nowSec - updatedAt;
+  if (age <= DAY) return "данные свежие";
+  const date = new Date(updatedAt * 1000).toLocaleDateString("ru-RU", {
+    day: "numeric",
+    month: "long",
+  });
+  return `данные от ${date}`;
+}

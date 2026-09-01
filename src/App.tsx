@@ -109,7 +109,7 @@ export default function App() {
       <main className="stage">
         <GameArt game={selected} />
         {selected && <GameHeader game={selected} />}
-        {selected && <PlayButton onLaunch={launch} />}
+        {selected && <PlayButton gameId={selected.id} onLaunch={launch} onFixed={load} />}
         {error && <div className="banner">Не удалось загрузить: {error}</div>}
         <GameShelf games={games} selectedId={selected?.id ?? null} onSelect={select} />
       </main>

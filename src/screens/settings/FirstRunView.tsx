@@ -40,10 +40,25 @@ export default function FirstRunView({ onDone }: Props) {
   // Первый запуск считается состоявшимся после любого решения — и когда
   // добавили отмеченные, и когда нажали «Пропустить». Пропуск это тоже
   // осознанный выбор, и повторно спрашивать нельзя.
-  const finish = () =>
+  const markSeededAndClose = async () => {
+    await api.markSeeded();
+    onDone();
+  };
+
+  // Отметка пишется в конфиг, а на этом экране нет ни кнопки «назад», ни
+  // вкладок — если запись не удастся, об этом обязательно нужно сказать,
+  // иначе «Пропустить» молча перестанет что-либо делать.
+  const skip = () =>
     void (async () => {
-      await api.markSeeded();
-      onDone();
+      setBusy(true);
+      setError("");
+      try {
+        await markSeededAndClose();
+      } catch (e) {
+        setError(String(e));
+      } finally {
+        setBusy(false);
+      }
     })();
 
   const rows = (list: FoundGame[]) =>
@@ -95,7 +110,7 @@ export default function FirstRunView({ onDone }: Props) {
                   // Путь берётся из того же поиска, что заполнил список.
                   await api.addGameFromScan(g.title);
                 }
-                finish();
+                await markSeededAndClose();
               } catch (e) {
                 setError(String(e));
               } finally {
@@ -109,7 +124,7 @@ export default function FirstRunView({ onDone }: Props) {
         >
           Добавить отмеченные
         </button>
-        <button type="button" disabled={busy} onClick={finish}>
+        <button type="button" disabled={busy} onClick={skip}>
           Пропустить
         </button>
       </div>

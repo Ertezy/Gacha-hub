@@ -103,11 +103,6 @@ body {
   margin-bottom: 8px;
 }
 
-.panel-empty {
-  font-size: 12px;
-  color: var(--ink-faint);
-}
-
 .code-card {
   background: var(--card);
   border: 1px solid var(--line);
@@ -230,6 +225,29 @@ body {
   padding: 9px 12px;
   font-size: 12.5px;
   text-align: left;
+}
+
+/* Выходы из ошибки запуска — тихие, как и в правке игры в настройках.
+   Жёлтый тут не идёт: на этом экране акцент уже занят кнопкой PLAY. */
+.play-fix {
+  display: flex;
+  gap: 8px;
+}
+
+.play-fix button {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--ink);
+  padding: 6px 12px;
+  cursor: pointer;
+  font: inherit;
+  font-size: 12.5px;
+}
+
+.play-fix button:disabled {
+  opacity: 0.65;
+  cursor: default;
 }
 
 .shelf-zone {

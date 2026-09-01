@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import PromoCodes from "./panel/PromoCodes";
 import Banners from "./panel/Banners";
 import Videos from "./panel/Videos";
+import { hubFreshness } from "../lib/time";
 import type { HubData } from "../types";
 
 interface Props {
@@ -42,7 +43,6 @@ export default function SidePanel({ hub, contentIds, selectedContentId, onOpenSe
   // сгорел, и баннер, который наверняка кончился, хуже, чем их отсутствие:
   // таймер на протухших данных — это враньё в лицо (спека §6).
   const tooOld = hub !== null && age > 7 * DAY;
-  const stale = hub !== null && age > DAY;
 
   const mine = (gameId: string) => contentIds.includes(gameId);
   const selected = (gameId: string) => gameId === selectedContentId;
@@ -52,13 +52,6 @@ export default function SidePanel({ hub, contentIds, selectedContentId, onOpenSe
   // Видео остаются даже на протухших данных: устаревший список роликов
   // просто устаревший, он никого не обманывает.
   const videos = !hub ? [] : hub.videos.filter((v) => selected(v.gameId));
-
-  const updated = hub
-    ? new Date(hub.updatedAt * 1000).toLocaleDateString("ru-RU", {
-        day: "numeric",
-        month: "long",
-      })
-    : "";
 
   // Источник данных виден в интерфейсе — требование общей спеки §9.4.
   // Без него невозможно отличить «сеть отвалилась, показываю прошлогодний
@@ -87,7 +80,7 @@ export default function SidePanel({ hub, contentIds, selectedContentId, onOpenSe
         </button>
         {hub && (
           <div className="panel-stale">
-            {stale ? `данные от ${updated}` : "данные свежие"}
+            {hubFreshness(hub.updatedAt, nowSec)}
             {origin && ` · ${origin}`}
           </div>
         )}

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { plural, timeLeft, timeAgo, burnsToday, progress } from "./time";
+import { plural, timeLeft, timeAgo, burnsToday, progress, hubFreshness } from "./time";
 
 const HOUR = 3600;
 const DAY = 86400;
@@ -57,6 +57,15 @@ describe("burnsToday", () => {
   it("сгорает через три часа", () => expect(burnsToday(NOW + 3 * HOUR, NOW)).toBe(true));
   it("сгорает через три дня", () => expect(burnsToday(NOW + 3 * DAY, NOW)).toBe(false));
   it("уже сгорел", () => expect(burnsToday(NOW - HOUR, NOW)).toBe(false));
+});
+
+describe("hubFreshness", () => {
+  it("данные внутри суток считаются свежими", () => {
+    expect(hubFreshness(NOW - HOUR, NOW)).toBe("данные свежие");
+  });
+  it("данные старше суток показывают дату", () => {
+    expect(hubFreshness(NOW - 2 * DAY, NOW)).toBe("данные от 28 августа");
+  });
 });
 
 describe("progress", () => {
