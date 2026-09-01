@@ -73,6 +73,13 @@ pub async fn launch_game(app: AppHandle, game_id: String) -> Result<String, Stri
     if let Err(e) = config::save(&app, &cfg) {
         log::error!("[config] не удалось сохранить lastPlayed: {e}");
     }
+
+    if cfg.behaviour.tray_on_launch {
+        if let Some(window) = app.get_webview_window("main") {
+            let _ = window.hide();
+        }
+    }
+
     Ok(game_id)
 }
 
@@ -370,6 +377,22 @@ pub async fn get_about(app: AppHandle) -> About {
         version: app.package_info().version.to_string(),
         log_path,
     }
+}
+
+/// Открыть папку журнала в проводнике.
+#[tauri::command]
+pub async fn open_log_folder(app: AppHandle) -> Result<(), String> {
+    // `open_path` — метод на `Opener`, а не свободная функция; добраться до
+    // него можно только через расширение `OpenerExt`.
+    use tauri_plugin_opener::OpenerExt;
+
+    let dir = app
+        .path()
+        .app_log_dir()
+        .map_err(|e| format!("не найдена папка журнала: {e}"))?;
+    app.opener()
+        .open_path(dir.to_string_lossy(), None::<&str>)
+        .map_err(|e| format!("не удалось открыть папку: {e}"))
 }
 
 #[cfg(test)]

@@ -62,6 +62,7 @@ export const api = {
   imageCacheSize: () => invoke<number>("image_cache_size"),
   clearImageCache: () => invoke<number>("clear_image_cache"),
   getAbout: () => invoke<About>("get_about"),
+  openLogFolder: () => invoke<void>("open_log_folder"),
 
   /** Выбрать исполняемый файл игры. `null` — человек отменил. */
   pickExe: async () => {

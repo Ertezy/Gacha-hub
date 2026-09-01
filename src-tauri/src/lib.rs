@@ -106,7 +106,8 @@ pub fn run() {
             commands::set_hub_url,
             commands::image_cache_size,
             commands::clear_image_cache,
-            commands::get_about
+            commands::get_about,
+            commands::open_log_folder
         ])
         .run(tauri::generate_context!())
         .expect("ошибка при запуске приложения");
