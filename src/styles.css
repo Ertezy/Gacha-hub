@@ -293,18 +293,6 @@ body {
   transition: transform 0.09s ease-out;
 }
 
-/* Системная настройка «уменьшить движение» уважается: это первое такое место
-   в проекте, и начинать стоит с самого заметного движения в приложении. */
-@media (prefers-reduced-motion: reduce) {
-  .dock-icon {
-    transition: none;
-    transform: none !important;
-  }
-  .dock-name {
-    transition: none;
-  }
-}
-
 .dock-letter {
   display: flex;
   align-items: center;
@@ -351,6 +339,21 @@ body {
 .dock-item:hover .dock-name,
 .dock-item:focus-visible .dock-name {
   opacity: 1;
+}
+
+/* Системная настройка «уменьшить движение» уважается: это первое такое место
+   в проекте, и начинать стоит с самого заметного движения в приложении.
+   Блок стоит последним в группе стилей дока, чтобы его переопределения
+   побеждали в каскаде правила выше — при равной весомости выигрывает то,
+   что встречается в файле позже. */
+@media (prefers-reduced-motion: reduce) {
+  .dock-icon {
+    transition: none;
+    transform: none !important;
+  }
+  .dock-name {
+    transition: none;
+  }
 }
 
 /* Коробка кодов: потолок и своя прокрутка. Коды показываются по всем играм
