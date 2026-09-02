@@ -191,7 +191,7 @@ body {
   letter-spacing: 0.05em;
 }
 
-/* Полка снизу доходит верхней панелью до кнопки PLAY по дизайну; кнопка должна быть на переднем плане. */
+/* Док снизу доходит верхней панелью до кнопки PLAY по дизайну; кнопка должна быть на переднем плане. */
 .play-area {
   position: absolute;
   right: 48px;
@@ -289,6 +289,20 @@ body {
   height: 44px;
   border-radius: 11px;
   object-fit: cover;
+  transform-origin: bottom center;
+  transition: transform 0.09s ease-out;
+}
+
+/* Системная настройка «уменьшить движение» уважается: это первое такое место
+   в проекте, и начинать стоит с самого заметного движения в приложении. */
+@media (prefers-reduced-motion: reduce) {
+  .dock-icon {
+    transition: none;
+    transform: none !important;
+  }
+  .dock-name {
+    transition: none;
+  }
 }
 
 .dock-letter {
