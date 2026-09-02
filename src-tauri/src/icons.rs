@@ -116,6 +116,13 @@ pub fn ensure(app: &AppHandle, game: &Game) -> Option<PathBuf> {
 ///
 /// Принимает уже готовую папку кеша, а не `AppHandle`, по той же причине,
 /// что и `is_fresh` ниже: `AppHandle` неоткуда взять в модульных тестах.
+///
+/// Имя копии в кеше зависит от **исходного пути** (`file_name_for`), а не от
+/// идентификатора игры. Иначе смена картинки на файл старше уже лежащей
+/// копии заставила бы `is_fresh` посчитать копию свежей и молча отдать
+/// прежнюю картинку — то самое, что этот выбор человека переписывать не
+/// имеет права. Ключ по пути даёт новой картинке новое имя в кеше, и подмены
+/// произойти не может — так же, как у иконки из exe.
 fn own_icon(dir: &Path, game: &Game) -> Option<PathBuf> {
     let own = game.icon.as_ref()?;
     if !own.is_file() {
@@ -123,7 +130,7 @@ fn own_icon(dir: &Path, game: &Game) -> Option<PathBuf> {
         return None;
     }
 
-    let copy = dir.join(format!("custom-{}.png", game.id));
+    let copy = dir.join(format!("custom-{}", file_name_for(own)));
     if is_fresh(&copy, own) {
         return Some(copy);
     }
@@ -245,6 +252,41 @@ mod tests {
         let mut g = steam_game(None);
         g.icon = Some(PathBuf::from(r"C:\nope\never\icon.png"));
         assert_eq!(own_icon(&cache, &g), None);
+    }
+
+    #[test]
+    fn switching_the_custom_icon_to_an_older_file_still_gets_copied() {
+        // Покрывает ветку "уже закешировано" — и именно там прячется дефект:
+        // если копия кешируется по идентификатору игры, а не по исходному
+        // пути, смена картинки на файл старше уже лежащей копии заставляет
+        // is_fresh считать копию свежей и молча отдавать прежнюю картинку.
+        // Обычный случай: человек возвращается к файлу, который скачал
+        // давно, — и это ровно то, что "автоматика не имеет права
+        // переписать".
+        let cache = tempdir();
+        let own_dir = tempdir();
+
+        // "b" старше "a": обычный случай — файл скачан раньше.
+        write(&own_dir, "b.png", 2);
+        let b = own_dir.join("b.png");
+        let long_ago = std::time::SystemTime::now() - std::time::Duration::from_secs(3600);
+        filetime::set_file_mtime(&b, filetime::FileTime::from_system_time(long_ago)).unwrap();
+
+        write(&own_dir, "a.png", 1);
+        let a = own_dir.join("a.png");
+
+        let mut g = steam_game(None);
+        g.icon = Some(a.clone());
+        let first = own_icon(&cache, &g).expect("должно скопировать a");
+        let first_len = std::fs::metadata(&first).unwrap().len();
+
+        // Человек выбирает другой файл — b, который старше уже лежащей копии.
+        g.icon = Some(b.clone());
+        let second =
+            own_icon(&cache, &g).expect("должно скопировать b, а не отдать старую копию a");
+        let second_len = std::fs::metadata(&second).unwrap().len();
+
+        assert_ne!(second_len, first_len, "должно вернуться содержимое b, а не кеш от a");
     }
 
     fn tempdir() -> PathBuf {
