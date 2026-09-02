@@ -12,6 +12,7 @@ interface Props {
 
 export default function GameEditor({ game, hubGames, onChanged }: Props) {
   const [title, setTitle] = useState(game.title);
+  const [args, setArgs] = useState(game.args);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
@@ -78,6 +79,35 @@ export default function GameEditor({ game, hubGames, onChanged }: Props) {
       </label>
 
       <label className="field">
+        <span>Иконка</span>
+        <div className="field-row">
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() =>
+              void (async () => {
+                const picked = await api.pickImage();
+                if (!picked) return;
+                await run(() => api.updateGame({ gameId: game.id, icon: picked }));
+              })()
+            }
+          >
+            Выбрать…
+          </button>
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => void run(() => api.updateGame({ gameId: game.id, icon: "" }))}
+          >
+            Сбросить
+          </button>
+        </div>
+        <p className="settings-hint">
+          Пусто — иконка берётся из файла игры.
+        </p>
+      </label>
+
+      <label className="field">
         <span>Показывать контент как</span>
         <select
           value={game.contentId ?? ""}
@@ -129,6 +159,28 @@ export default function GameEditor({ game, hubGames, onChanged }: Props) {
           Удалить игру
         </button>
       </div>
+
+      <details className="field-extra">
+        <summary>Дополнительно</summary>
+        <label className="field">
+          <span>Аргументы запуска</span>
+          <input
+            value={args}
+            onChange={(e) => setArgs(e.target.value)}
+            placeholder="например, -window"
+          />
+          <button
+            type="button"
+            disabled={busy || args === game.args}
+            onClick={() => void run(() => api.updateGame({ gameId: game.id, args }))}
+          >
+            Сохранить
+          </button>
+        </label>
+        <p className="settings-hint">
+          Передаются игре как есть. Неверное значение может помешать ей запуститься.
+        </p>
+      </details>
     </>
   );
 }

@@ -254,6 +254,10 @@ pub async fn update_game(
     // Пустая строка означает «стереть привязку»: null для этого не годится,
     // потому что при переходе из JSON он неотличим от «поле не передали».
     content_id: Option<String>,
+    // Один уровень, как у `title`: `None` — не трогать, `Some` — заменить
+    // целиком. Пустая строка здесь не признак стирания, а обычное значение
+    // «нет аргументов».
+    args: Option<String>,
 ) -> Result<(), String> {
     let exe_path = match exe {
         Some(p) => {
@@ -275,6 +279,7 @@ pub async fn update_game(
         background: background.map(std::path::PathBuf::from),
         icon: icon.map(|s| (!s.is_empty()).then(|| std::path::PathBuf::from(s))),
         content_id: content_id.map(|s| (!s.is_empty()).then_some(s)),
+        args,
     };
     with_config(&app, |cfg| crate::library::update(cfg, &game_id, patch))
 }

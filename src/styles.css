@@ -657,6 +657,18 @@ body {
   border-color: var(--accent);
 }
 
+.field-extra {
+  margin-top: 14px;
+  border-top: 1px solid var(--line);
+  padding-top: 12px;
+}
+
+.field-extra summary {
+  cursor: pointer;
+  font-size: 12.5px;
+  color: var(--ink-dim);
+}
+
 .found-row {
   display: flex;
   align-items: center;

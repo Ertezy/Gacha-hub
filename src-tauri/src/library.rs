@@ -23,6 +23,11 @@ pub struct GamePatch {
     /// внутренний `None` — убрать свою картинку и вернуться к добытой.
     pub icon: Option<Option<PathBuf>>,
     pub content_id: Option<Option<String>>,
+    /// Аргументы запуска. Один уровень, как у `title`: внешний `None` — не
+    /// трогать, `Some` — заменить целиком. Пустая строка здесь не признак
+    /// «стереть», а такое же осмысленное значение, как и любое другое —
+    /// «запускать без аргументов».
+    pub args: Option<String>,
 }
 
 /// Проверяет, что названий игры не пусто. Пустым считается пустая строка
@@ -144,6 +149,9 @@ pub fn update(cfg: &mut AppConfig, id: &str, patch: GamePatch) -> bool {
     }
     if let Some(content) = patch.content_id {
         game.content_id = content;
+    }
+    if let Some(args) = patch.args {
+        game.args = args;
     }
     true
 }
@@ -321,6 +329,7 @@ mod tests {
                 background: None,
                 icon: None,
                 content_id: None,
+                args: None,
             },
         );
         assert!(ok);
@@ -329,6 +338,20 @@ mod tests {
         assert_eq!(cfg.games[0].exe_path, Some(PathBuf::from(r"C:\g\a.exe")));
         // Соседняя игра не тронута вовсе.
         assert_eq!(cfg.games[1].title, "b");
+    }
+
+    #[test]
+    fn update_can_set_launch_arguments() {
+        // Пустая строка в фикстуре — не «не трогать», а «нет аргументов»:
+        // `Some(String::new())` обязана записаться так же, как и непустая.
+        let mut cfg = cfg_with(&["a"]);
+        let ok = update(
+            &mut cfg,
+            "a",
+            GamePatch { args: Some("-window -dx12".into()), ..Default::default() },
+        );
+        assert!(ok);
+        assert_eq!(cfg.games[0].args, "-window -dx12");
     }
 
     #[test]
@@ -351,6 +374,7 @@ mod tests {
                 background: None,
                 icon: None,
                 content_id: None,
+                args: None,
             },
         );
         assert!(ok);
@@ -367,7 +391,11 @@ mod tests {
         // «Нет привязки» — осмысленное значение, а не отсутствие правки.
         let mut cfg = cfg_with(&["a"]);
         cfg.games[0].content_id = Some("genshin".into());
-        update(&mut cfg, "a", GamePatch { title: None, exe_path: None, background: None, icon: None, content_id: Some(None) });
+        update(
+            &mut cfg,
+            "a",
+            GamePatch { content_id: Some(None), ..Default::default() },
+        );
         assert_eq!(cfg.games[0].content_id, None);
     }
 
@@ -385,7 +413,11 @@ mod tests {
     #[test]
     fn update_reports_false_for_an_unknown_game() {
         let mut cfg = cfg_with(&["a"]);
-        let ok = update(&mut cfg, "нет-такой", GamePatch { title: Some("x".into()), exe_path: None, background: None, icon: None, content_id: None });
+        let ok = update(
+            &mut cfg,
+            "нет-такой",
+            GamePatch { title: Some("x".into()), ..Default::default() },
+        );
         assert!(!ok);
     }
 

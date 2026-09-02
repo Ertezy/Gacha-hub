@@ -45,6 +45,13 @@ export const api = {
     // `null` здесь не годится — при переходе через JSON он неотличим от
     // отсутствующего поля, и стереть привязку было бы невозможно.
     contentId?: string;
+    // Пустая строка стирает свою картинку иконки; отсутствие поля её не
+    // трогает. Та же причина, что и у `contentId` — `null` неотличим от
+    // отсутствующего поля при переходе через JSON.
+    icon?: string;
+    // Заменяет аргументы запуска целиком. Пустая строка здесь не стирание,
+    // а обычное значение — «запускать без аргументов».
+    args?: string;
   }) => invoke<void>("update_game", args),
   removeGame: (gameId: string) => invoke<void>("remove_game", { gameId }),
   reorderGames: (ids: string[]) => invoke<void>("reorder_games", { ids }),
