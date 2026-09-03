@@ -102,10 +102,10 @@ export default function GameEditor({ game, hubGames, onChanged }: Props) {
             Сбросить
           </button>
         </div>
-        <p className="settings-hint">
-          Пусто — иконка берётся из файла игры.
-        </p>
       </label>
+      <p className="settings-hint">
+        Пусто — иконка берётся из файла игры.
+      </p>
 
       <label className="field">
         <span>Показывать контент как</span>
@@ -162,24 +162,33 @@ export default function GameEditor({ game, hubGames, onChanged }: Props) {
 
       <details className="field-extra">
         <summary>Дополнительно</summary>
-        <label className="field">
-          <span>Аргументы запуска</span>
-          <input
-            value={args}
-            onChange={(e) => setArgs(e.target.value)}
-            placeholder="например, -window"
-          />
-          <button
-            type="button"
-            disabled={busy || args === game.args}
-            onClick={() => void run(() => api.updateGame({ gameId: game.id, args }))}
-          >
-            Сохранить
-          </button>
-        </label>
-        <p className="settings-hint">
-          Передаются игре как есть. Неверное значение может помешать ей запуститься.
-        </p>
+        {game.sourceLabel === "напрямую" ? (
+          <>
+            <label className="field">
+              <span>Аргументы запуска</span>
+              <input
+                value={args}
+                onChange={(e) => setArgs(e.target.value)}
+                placeholder="например, -window"
+              />
+              <button
+                type="button"
+                disabled={busy || args === game.args}
+                onClick={() => void run(() => api.updateGame({ gameId: game.id, args }))}
+              >
+                Сохранить
+              </button>
+            </label>
+            <p className="settings-hint">
+              Передаются игре как есть. Неверное значение может помешать ей запуститься.
+            </p>
+          </>
+        ) : (
+          <p className="settings-hint">
+            Аргументы запуска здесь недоступны: игру открывает {game.sourceLabel} по
+            собственной ссылке, и передать ей что-то дополнительное нельзя.
+          </p>
+        )}
       </details>
     </>
   );

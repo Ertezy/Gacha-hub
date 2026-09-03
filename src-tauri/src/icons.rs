@@ -3,11 +3,40 @@
 //! Знает про игры и про файловую систему, но не знает, как устроен
 //! исполняемый файл: этим занимается `pe`.
 
+use std::io::Read;
 use std::path::{Path, PathBuf};
 
 use tauri::{AppHandle, Manager};
 
 use crate::config::Game;
+
+/// Потолок чтения исполняемого файла — тот же приём, что у `hub::read_json_file`
+/// и `images::fetch`: читаем не больше этой границы, а не файл целиком.
+/// `exe_in_root` по правилу спеки §4 берёт самый крупный файл в корне, когда
+/// имя не совпало с названием игры, и это может оказаться распакованным
+/// бинарником на сотни мегабайт без нужной картинки внутри — грузить его в
+/// память целиком незачем.
+const MAX_EXE_BYTES: u64 = 100 * 1024 * 1024;
+
+/// Правда, если прочитанное не влезло в потолок размера. Вынесена отдельно,
+/// как `hub::exceeds_hub_ceiling`: границу проверяем числом, без файла на
+/// сто мегабайт на диске у теста.
+fn exceeds_exe_ceiling(len: usize) -> bool {
+    len as u64 > MAX_EXE_BYTES
+}
+
+/// Читает файл с потолком. `None`, если файл не открылся или не влез в
+/// `MAX_EXE_BYTES` — сам по себе большой размер такого файла уже причина не
+/// держать его в памяти целиком.
+fn read_capped(path: &Path) -> Option<Vec<u8>> {
+    let file = std::fs::File::open(path).ok()?;
+    let mut bytes = Vec::new();
+    file.take(MAX_EXE_BYTES + 1).read_to_end(&mut bytes).ok()?;
+    if exceeds_exe_ceiling(bytes.len()) {
+        return None;
+    }
+    Some(bytes)
+}
 
 /// Исполняемый файл, из которого берём иконку.
 ///
@@ -65,15 +94,29 @@ pub fn cache_dir(app: &AppHandle) -> Result<PathBuf, String> {
     Ok(dir)
 }
 
-/// Имя файла в кеше: устойчивая свёртка пути. Пути содержат двоеточия и
-/// обратные косые, именем файла они быть не могут.
-fn file_name_for(exe: &Path) -> String {
+/// Устойчивая свёртка пути. Пути содержат двоеточия и обратные косые, именем
+/// файла они быть не могут.
+fn hash_of(path: &Path) -> u64 {
     let mut hash: u64 = 0xcbf2_9ce4_8422_2325;
-    for byte in exe.to_string_lossy().as_bytes() {
+    for byte in path.to_string_lossy().as_bytes() {
         hash ^= *byte as u64;
         hash = hash.wrapping_mul(0x1000_0000_01b3);
     }
-    format!("{hash:016x}.png")
+    hash
+}
+
+/// Имя файла в кеше.
+fn file_name_for(exe: &Path) -> String {
+    format!("{:016x}.png", hash_of(exe))
+}
+
+/// Имя метки «иконки нет, и добывать заново незачем, пока файл не изменился».
+///
+/// Отдельное расширение, а не пустой `.png`: раздать интерфейсу путь к пустой
+/// картинке значило бы показать сломанную картинку вместо буквы-заглушки —
+/// `ensure` эту метку наружу не отдаёт, только проверяет её наличие.
+fn miss_marker_for(exe: &Path) -> String {
+    format!("{:016x}.miss", hash_of(exe))
 }
 
 /// Путь к иконке игры, добывая её при необходимости.
@@ -90,20 +133,41 @@ fn file_name_for(exe: &Path) -> String {
 /// путь**: он говорит, что человек выбрал, и переживает очистку кеша.
 pub fn ensure(app: &AppHandle, game: &Game) -> Option<PathBuf> {
     let dir = cache_dir(app).ok()?;
+    ensure_in(&dir, game)
+}
 
-    if let Some(path) = own_icon(&dir, game) {
+/// Логика добычи без части, которой нужен `AppHandle`: готовая папка кеша
+/// передаётся явным параметром — тот же приём, что у `own_icon` и `is_fresh`,
+/// ради модульных тестов.
+///
+/// **Неудача тоже запоминается.** Без метки-«промаха» список игр читал бы
+/// исполняемый файл заново при каждом обращении — при запуске, при возврате
+/// из настроек, при каждой правке любой игры, — хотя ответ для того же файла
+/// не изменится, пока он сам не изменится.
+fn ensure_in(dir: &Path, game: &Game) -> Option<PathBuf> {
+    if let Some(path) = own_icon(dir, game) {
         return Some(path);
     }
 
     let exe = source_exe(game)?;
     let cached = dir.join(file_name_for(&exe));
+    let miss = dir.join(miss_marker_for(&exe));
 
     if is_fresh(&cached, &exe) {
         return Some(cached);
     }
+    if is_fresh(&miss, &exe) {
+        return None;
+    }
 
-    let bytes = std::fs::read(&exe).ok()?;
-    let png = crate::pe::icon_png_256(&bytes)?;
+    let Some(bytes) = read_capped(&exe) else {
+        let _ = std::fs::write(&miss, []);
+        return None;
+    };
+    let Some(png) = crate::pe::icon_png_256(&bytes) else {
+        let _ = std::fs::write(&miss, []);
+        return None;
+    };
     if let Err(e) = std::fs::write(&cached, &png) {
         log::warn!("[icons] не записать иконку в кеш: {e}");
         return None;
@@ -190,20 +254,22 @@ mod tests {
     fn a_matching_name_wins_over_a_bigger_file() {
         // Правило спеки §4: в корне побеждает файл, чьё имя совпадает с
         // названием игры, а не самый крупный.
-        let dir = tempdir();
+        let dir = tempdir("matching-name-wins");
         write(&dir, "Wuthering Waves.exe", 1_000);
         write(&dir, "Redist.exe", 50_000);
         let g = steam_game(Some(dir.to_str().unwrap()));
         assert_eq!(source_exe(&g), Some(dir.join("Wuthering Waves.exe")));
+        std::fs::remove_dir_all(&dir).ok();
     }
 
     #[test]
     fn without_a_matching_name_the_biggest_file_wins() {
-        let dir = tempdir();
+        let dir = tempdir("biggest-file-wins");
         write(&dir, "aaa.exe", 1_000);
         write(&dir, "bbb.exe", 50_000);
         let g = steam_game(Some(dir.to_str().unwrap()));
         assert_eq!(source_exe(&g), Some(dir.join("bbb.exe")));
+        std::fs::remove_dir_all(&dir).ok();
     }
 
     #[test]
@@ -211,19 +277,21 @@ mod tests {
         // Вглубь искать нельзя: в папке Wuthering Waves так находится
         // Client-Win64-Shipping.exe на 930 МБ, установщик античита и
         // служебные программы стороннего набора.
-        let dir = tempdir();
+        let dir = tempdir("no-deeper-than-root");
         std::fs::create_dir_all(dir.join("Binaries")).unwrap();
         write(&dir.join("Binaries"), "Client-Win64-Shipping.exe", 900_000);
         let g = steam_game(Some(dir.to_str().unwrap()));
         assert_eq!(source_exe(&g), None);
+        std::fs::remove_dir_all(&dir).ok();
     }
 
     #[test]
     fn a_folder_without_executables_has_no_source() {
-        let dir = tempdir();
+        let dir = tempdir("no-executables");
         write(&dir, "readme.txt", 10);
         let g = steam_game(Some(dir.to_str().unwrap()));
         assert_eq!(source_exe(&g), None);
+        std::fs::remove_dir_all(&dir).ok();
     }
 
     #[test]
@@ -232,8 +300,8 @@ mod tests {
         // окну разрешено читать файлы только из папки кеша — сослаться на
         // исходный файл напрямую нельзя, поэтому путь должен указывать внутрь
         // кеша, а не совпадать с исходным.
-        let cache = tempdir();
-        let own_dir = tempdir();
+        let cache = tempdir("custom-icon-cache");
+        let own_dir = tempdir("custom-icon-own");
         write(&own_dir, "art.png", 42);
         let own = own_dir.join("art.png");
 
@@ -244,14 +312,17 @@ mod tests {
         assert_ne!(result, own, "путь должен указывать в кеш, а не на исходный файл");
         assert!(result.starts_with(&cache));
         assert!(result.is_file());
+        std::fs::remove_dir_all(&cache).ok();
+        std::fs::remove_dir_all(&own_dir).ok();
     }
 
     #[test]
     fn a_missing_custom_icon_falls_back_to_none() {
-        let cache = tempdir();
+        let cache = tempdir("missing-custom-icon");
         let mut g = steam_game(None);
         g.icon = Some(PathBuf::from(r"C:\nope\never\icon.png"));
         assert_eq!(own_icon(&cache, &g), None);
+        std::fs::remove_dir_all(&cache).ok();
     }
 
     #[test]
@@ -263,8 +334,8 @@ mod tests {
         // Обычный случай: человек возвращается к файлу, который скачал
         // давно, — и это ровно то, что "автоматика не имеет права
         // переписать".
-        let cache = tempdir();
-        let own_dir = tempdir();
+        let cache = tempdir("switching-custom-icon-cache");
+        let own_dir = tempdir("switching-custom-icon-own");
 
         // "b" старше "a": обычный случай — файл скачан раньше.
         write(&own_dir, "b.png", 2);
@@ -287,16 +358,74 @@ mod tests {
         let second_len = std::fs::metadata(&second).unwrap().len();
 
         assert_ne!(second_len, first_len, "должно вернуться содержимое b, а не кеш от a");
+        std::fs::remove_dir_all(&cache).ok();
+        std::fs::remove_dir_all(&own_dir).ok();
     }
 
-    fn tempdir() -> PathBuf {
-        let p = std::env::temp_dir().join(format!(
-            "gh-icons-{}",
-            std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap()
-                .as_nanos()
-        ));
+    #[test]
+    fn a_file_exactly_at_the_exe_ceiling_is_accepted() {
+        assert!(!exceeds_exe_ceiling(MAX_EXE_BYTES as usize));
+    }
+
+    #[test]
+    fn a_file_one_byte_over_the_exe_ceiling_is_rejected() {
+        assert!(exceeds_exe_ceiling(MAX_EXE_BYTES as usize + 1));
+    }
+
+    #[test]
+    fn read_capped_reads_a_small_file_fully() {
+        let dir = tempdir("read-capped-small");
+        write(&dir, "small.exe", 128);
+        assert_eq!(read_capped(&dir.join("small.exe")).map(|b| b.len()), Some(128));
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn read_capped_returns_none_for_a_missing_file() {
+        assert_eq!(read_capped(Path::new(r"C:\nope\never\missing.exe")), None);
+    }
+
+    #[test]
+    fn a_failed_extraction_leaves_a_marker_so_the_result_is_remembered() {
+        // До этой правки неудача ничего не оставляла в кеше, и список игр
+        // читал файл заново при каждом обращении — при запуске, при
+        // возврате из настроек, при каждой правке любой игры.
+        let cache = tempdir("miss-marker-cache");
+        let exe_dir = tempdir("miss-marker-exe");
+        write(&exe_dir, "game.exe", 16); // заведомо не PE-файл
+        let exe = exe_dir.join("game.exe");
+
+        let mut g = steam_game(None);
+        g.exe_path = Some(exe.clone());
+
+        assert_eq!(ensure_in(&cache, &g), None, "случайные байты — не PE, иконки нет");
+
+        let left: Vec<_> = std::fs::read_dir(&cache).unwrap().flatten().collect();
+        assert_eq!(
+            left.len(),
+            1,
+            "неудача обязана оставить метку в кеше, а не ничего"
+        );
+        assert!(
+            left[0].path().extension().and_then(|e| e.to_str()) == Some("miss"),
+            "метка должна отличаться от файла иконки расширением"
+        );
+
+        // Тот же файл, тот же результат — метка не мешает повторному вызову
+        // отвечать так же честно.
+        assert_eq!(ensure_in(&cache, &g), None);
+
+        std::fs::remove_dir_all(&cache).ok();
+        std::fs::remove_dir_all(&exe_dir).ok();
+    }
+
+    fn tempdir(tag: &str) -> PathBuf {
+        // Имя — от идентификатора процесса, а не от наносекундной метки
+        // времени: так же, как в `images.rs` и `hub/mod.rs`. Один запуск
+        // тестов — одна папка на тег, и она удаляется явно в конце каждого
+        // теста (см. `remove_dir_all` выше), а не копится в системной
+        // временной папке до следующей перезагрузки.
+        let p = std::env::temp_dir().join(format!("gh-icons-{tag}-{}", std::process::id()));
         std::fs::create_dir_all(&p).unwrap();
         p
     }

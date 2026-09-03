@@ -22,7 +22,8 @@ pub struct GameView {
     pub source_label: String,
     /// Путь к файлу иконки на диске. `None` — рисуется заглушка с буквой.
     pub icon_path: Option<String>,
-    /// Аргументы запуска. Нужны редактору игры в задаче 6.
+    /// Аргументы запуска. Действуют только при прямом запуске — Steam и Epic
+    /// открывают ссылку магазина и передать их игре не могут (`launch.rs`).
     pub args: String,
     /// Файл или папка игры пропали с диска.
     pub missing: bool,
@@ -340,12 +341,12 @@ pub async fn set_hub_url(app: AppHandle, url: Option<String>) -> Result<(), Stri
     config::save(&app, &cfg)
 }
 
-/// Размер кеша картинок в байтах — чтобы показать его рядом с кнопкой очистки.
-#[tauri::command]
-pub async fn image_cache_size(app: AppHandle) -> u64 {
-    let Ok(dir) = crate::images::cache_dir(&app) else {
-        return 0;
-    };
+/// Размер файлов в одной папке кеша, в байтах. Общая часть для картинок хаба
+/// и добытых иконок — они лежат в разных папках (`icons::cache_dir`
+/// отдельно от `images::cache_dir` намеренно, см. комментарий там), но с
+/// точки зрения человека это один кеш с одной кнопкой очистки и одним
+/// показанным размером.
+fn dir_size(dir: &std::path::Path) -> u64 {
     let Ok(entries) = std::fs::read_dir(dir) else {
         return 0;
     };
@@ -357,10 +358,9 @@ pub async fn image_cache_size(app: AppHandle) -> u64 {
         .sum()
 }
 
-#[tauri::command]
-pub async fn clear_image_cache(app: AppHandle) -> Result<usize, String> {
-    let dir = crate::images::cache_dir(&app)?;
-    let entries = std::fs::read_dir(&dir).map_err(|e| format!("не читается кеш: {e}"))?;
+/// Удаляет файлы из одной папки кеша. Возвращает количество удалённых.
+fn clear_dir(dir: &std::path::Path) -> Result<usize, String> {
+    let entries = std::fs::read_dir(dir).map_err(|e| format!("не читается кеш: {e}"))?;
     let mut removed = 0;
     for entry in entries.flatten() {
         if entry.metadata().map(|m| m.is_file()).unwrap_or(false)
@@ -368,6 +368,32 @@ pub async fn clear_image_cache(app: AppHandle) -> Result<usize, String> {
         {
             removed += 1;
         }
+    }
+    Ok(removed)
+}
+
+/// Размер кеша картинок в байтах — чтобы показать его рядом с кнопкой очистки.
+/// Считает и картинки хаба, и добытые иконки: иначе смена своей иконки
+/// оставляла бы прежнюю копию на диске навсегда, и её никто бы не увидел и
+/// не удалил.
+#[tauri::command]
+pub async fn image_cache_size(app: AppHandle) -> u64 {
+    [crate::images::cache_dir(&app), crate::icons::cache_dir(&app)]
+        .into_iter()
+        .filter_map(Result::ok)
+        .map(|dir| dir_size(&dir))
+        .sum()
+}
+
+/// Очищает кеш картинок хаба и кеш добытых иконок. После очистки иконки
+/// добываются заново сами при следующем обращении к списку игр —
+/// `icons::ensure` каждый раз проверяет, что файл в кеше есть и свеж, и
+/// пересоздаёт его, если нет.
+#[tauri::command]
+pub async fn clear_image_cache(app: AppHandle) -> Result<usize, String> {
+    let mut removed = 0;
+    for dir in [crate::images::cache_dir(&app)?, crate::icons::cache_dir(&app)?] {
+        removed += clear_dir(&dir)?;
     }
     Ok(removed)
 }
@@ -443,5 +469,45 @@ mod tests {
         let mut g = steam_game();
         g.launch = Launch::Exe;
         assert_eq!(view_of_without_icon(&g).source_label, "напрямую");
+    }
+
+    /// Отдельная папка на тег теста, а не общий путь: тесты этого файла пишут
+    /// на диск и выполняются в одном процессе параллельно.
+    fn temp_dir(tag: &str) -> std::path::PathBuf {
+        let dir = std::env::temp_dir().join(format!("gh-cmd-{tag}-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
+    #[test]
+    fn dir_size_sums_the_files_in_a_folder() {
+        // Ровно то, что раньше не считало иконки: если бы папка иконок не
+        // попадала в подсчёт, эта сумма не изменилась бы от файлов внутри.
+        let dir = temp_dir("dirsize");
+        std::fs::write(dir.join("a.png"), vec![0u8; 10]).unwrap();
+        std::fs::write(dir.join("b.png"), vec![0u8; 5]).unwrap();
+        assert_eq!(dir_size(&dir), 15);
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn dir_size_of_a_missing_folder_is_zero() {
+        assert_eq!(dir_size(std::path::Path::new(r"C:\nope\never\missing")), 0);
+    }
+
+    #[test]
+    fn clear_dir_removes_files_and_reports_the_count() {
+        let dir = temp_dir("cleardir");
+        std::fs::write(dir.join("a.png"), b"x").unwrap();
+        std::fs::write(dir.join("b.png"), b"y").unwrap();
+        assert_eq!(clear_dir(&dir).unwrap(), 2);
+        assert_eq!(std::fs::read_dir(&dir).unwrap().count(), 0);
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn clear_dir_on_a_missing_folder_is_an_error_not_a_panic() {
+        let err = clear_dir(std::path::Path::new(r"C:\nope\never\missing"));
+        assert!(err.is_err());
     }
 }

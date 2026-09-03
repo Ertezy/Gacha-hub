@@ -74,7 +74,7 @@ export default function GamesSection() {
     <div>
       <h2 className="settings-section-title">Игры</h2>
       <p className="settings-hint">
-        Порядок в списке — это порядок на полке внизу главного экрана.
+        Порядок в списке — это порядок в доке внизу главного экрана.
         Перетащите строку, чтобы поменять.
       </p>
 

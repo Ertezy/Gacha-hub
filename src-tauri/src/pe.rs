@@ -101,7 +101,13 @@ fn sections_and_resources(b: &[u8]) -> Option<(Vec<Section>, u32)> {
 /// которую адрес попадает, и сдвигаемся на столько же от её начала в файле.
 fn rva_to_file(sections: &[Section], rva: u32) -> Option<usize> {
     for s in sections {
-        let end = s.virtual_address.checked_add(s.virtual_size)?;
+        // `continue`, а не `?`: переполнение здесь испорчено именно у этой
+        // секции, а не у файла целиком. Нужный адрес может лежать в одной из
+        // следующих секций, и она вполне может оказаться исправной — выходить
+        // из всего поиска из-за одной плохой записи нельзя.
+        let Some(end) = s.virtual_address.checked_add(s.virtual_size) else {
+            continue;
+        };
         if rva >= s.virtual_address && rva < end {
             let inside = rva.checked_sub(s.virtual_address)?;
             if inside >= s.raw_size {
@@ -148,8 +154,13 @@ fn collect_icons(b: &[u8], sections: &[Section], resource_rva: u32) -> Vec<(u32,
         }
         for (_, name_off) in children(b, root, type_off, &mut budget) {
             for (_, lang_off) in children(b, root, name_off, &mut budget) {
-                // Лист: адрес данных и их размер.
-                let (Some(rva), Some(size)) = (u32_at(b, lang_off), u32_at(b, lang_off + 4)) else {
+                // Лист: адрес данных и их размер. `checked_add`, как и везде
+                // в модуле — единственное место, где раньше складывали
+                // смещение напрямую (правило заявлено в заголовке файла).
+                let Some(size_off) = lang_off.checked_add(4) else {
+                    continue;
+                };
+                let (Some(rva), Some(size)) = (u32_at(b, lang_off), u32_at(b, size_off)) else {
                     continue;
                 };
                 found.push((rva, size));
@@ -268,6 +279,29 @@ mod tests {
     fn png_size_refuses_a_truncated_header() {
         let b = [0x89, b'P', b'N', b'G', 0x0D, 0x0A, 0x1A, 0x0A];
         assert_eq!(png_size(&b), None);
+    }
+
+    #[test]
+    fn rva_to_file_skips_a_section_with_overflowing_bounds_and_keeps_looking() {
+        // Первая секция испорчена: адрес плюс размер переполняют u32. Раньше
+        // `?` в `rva_to_file` прерывал весь поиск на этом месте, и вторая,
+        // исправная секция даже не проверялась — хотя искомый адрес лежит
+        // именно в ней.
+        let sections = [
+            Section {
+                virtual_address: u32::MAX - 10,
+                virtual_size: 1000,
+                raw_offset: 0,
+                raw_size: 100,
+            },
+            Section {
+                virtual_address: 0x1000,
+                virtual_size: 0x100,
+                raw_offset: 0x400,
+                raw_size: 0x100,
+            },
+        ];
+        assert_eq!(rva_to_file(&sections, 0x1010), Some(0x410));
     }
 
     #[test]

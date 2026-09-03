@@ -44,31 +44,34 @@ export default function GameDock({ games, selectedId, onSelect }: Props) {
   if (games.length === 0) return null;
 
   return (
-    <div className="dock" ref={dockRef} onMouseMove={onMove} onMouseLeave={onLeave}>
-      {games.map((g, i) => {
-        const zoom = { transform: `scale(${scales[i] ?? 1})` };
-        return (
-          <button
-            key={g.id}
-            className={`dock-item${g.missing ? " missing" : ""}`}
-            onClick={() => onSelect(g.id)}
-            title={g.missing ? `${g.title} — файл игры не найден` : g.title}
-          >
-            <span className="dock-name">{g.title}</span>
-            {g.iconPath ? (
-              <img className="dock-icon" style={zoom} src={convertFileSrc(g.iconPath)} alt="" />
-            ) : (
-              <span
-                className="dock-icon dock-letter"
-                style={{ ...zoom, background: tintOf(g.title) }}
-              >
-                {g.title.slice(0, 1).toUpperCase()}
-              </span>
-            )}
-            {g.id === selectedId && <span className="dock-dot" />}
-          </button>
-        );
-      })}
+    <div className="dock-wrap">
+      <div className="dock-bg" aria-hidden="true" />
+      <div className="dock" ref={dockRef} onMouseMove={onMove} onMouseLeave={onLeave}>
+        {games.map((g, i) => {
+          const zoom = { transform: `scale(${scales[i] ?? 1})` };
+          return (
+            <button
+              key={g.id}
+              className={`dock-item${g.missing ? " missing" : ""}`}
+              onClick={() => onSelect(g.id)}
+              title={g.missing ? `${g.title} — файл игры не найден` : g.title}
+            >
+              <span className="dock-name">{g.title}</span>
+              {g.iconPath ? (
+                <img className="dock-icon" style={zoom} src={convertFileSrc(g.iconPath)} alt="" />
+              ) : (
+                <span
+                  className="dock-icon dock-letter"
+                  style={{ ...zoom, background: tintOf(g.title) }}
+                >
+                  {g.title.slice(0, 1).toUpperCase()}
+                </span>
+              )}
+              {g.id === selectedId && <span className="dock-dot" />}
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
 }
