@@ -214,6 +214,7 @@ mod tests {
             last_played: None,
             seeded: true,
             behaviour: Behaviour::default(),
+            look: crate::config::Look::default(),
             games: ids
                 .iter()
                 .map(|id| Game {

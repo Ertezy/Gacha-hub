@@ -91,6 +91,34 @@ impl Default for Behaviour {
     }
 }
 
+/// Настройки внешнего вида.
+///
+/// Отсутствие блока намеренно означает ровно нынешний вид: подбор действует
+/// только при наличии фоновой картинки у игры, а её до этого этапа никто не
+/// показывал. Поэтому версия конфига здесь не поднимается — в отличие от
+/// `behaviour`, где отсутствие блока меняло поведение крестика.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Look {
+    /// Оттенок акцента в градусах, заданный человеком вручную.
+    /// `None` — вручную не задан.
+    #[serde(default)]
+    pub accent_hue: Option<u16>,
+    /// Подбирать ли оттенок из фоновой картинки игры.
+    #[serde(default = "yes")]
+    pub adapt_from_art: bool,
+}
+
+fn yes() -> bool {
+    true
+}
+
+impl Default for Look {
+    fn default() -> Self {
+        Self { accent_hue: None, adapt_from_art: true }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AppConfig {
@@ -108,6 +136,8 @@ pub struct AppConfig {
     #[serde(default)]
     pub behaviour: Behaviour,
     #[serde(default)]
+    pub look: Look,
+    #[serde(default)]
     pub games: Vec<Game>,
 }
 
@@ -120,6 +150,7 @@ impl Default for AppConfig {
             // Свежая установка: первого запуска ещё не было.
             seeded: false,
             behaviour: Behaviour::default(),
+            look: Look::default(),
             games: Vec::new(),
         }
     }
@@ -199,6 +230,7 @@ pub fn migrate_v1(raw: &serde_json::Value) -> Option<AppConfig> {
         // У человека уже есть игры — первый запуск для него состоялся.
         seeded: true,
         behaviour: Behaviour::default(),
+        look: Look::default(),
         games,
     })
 }
@@ -242,6 +274,7 @@ pub fn migrate_v2(raw: &serde_json::Value) -> Option<AppConfig> {
         // У человека уже есть игры — первый запуск для него состоялся.
         seeded: true,
         behaviour: Behaviour::default(),
+        look: Look::default(),
         games,
     })
 }
@@ -355,6 +388,13 @@ pub fn load(app: &AppHandle) -> AppConfig {
         seeded: recover_seeded(seeded, &games),
         behaviour: raw
             .get("behaviour")
+            .and_then(|v| serde_json::from_value(v.clone()).ok())
+            .unwrap_or_default(),
+        // Версия конфига ради этого блока не поднимается (спека §6), так что
+        // тот же путь чтения обслуживает и файлы без него, и файлы, где он
+        // уже был сохранён — как и `behaviour` выше.
+        look: raw
+            .get("look")
             .and_then(|v| serde_json::from_value(v.clone()).ok())
             .unwrap_or_default(),
         games,
@@ -559,6 +599,7 @@ mod tests {
             last_played: None,
             seeded: false,
             behaviour: Behaviour::default(),
+            look: Look::default(),
             games: vec![
                 Game::manual("b".into(), "Второй".into()),
                 Game::manual("a".into(), "Первый".into()),
@@ -682,6 +723,7 @@ mod tests {
             last_played: Some("zzz".into()),
             seeded: true,
             behaviour: Behaviour { close_to_tray: false, tray_on_launch: true },
+            look: Look::default(),
             games: vec![],
         };
         let text = serde_json::to_string(&cfg).unwrap();
@@ -721,5 +763,26 @@ mod tests {
         let text = serde_json::to_string(&cfg).unwrap();
         let back: AppConfig = serde_json::from_str(&text).unwrap();
         assert_eq!(back.games[0].icon, Some(std::path::PathBuf::from(r"C:\my\icon.png")));
+    }
+
+    #[test]
+    fn a_config_without_the_look_block_still_loads() {
+        // Версия конфига ради этого блока не поднимается (спека §6): старый файл
+        // должен читаться без миграции и выглядеть в точности как раньше.
+        let json = r#"{"version":3,"games":[]}"#;
+        let cfg: AppConfig = serde_json::from_str(json).unwrap();
+        assert_eq!(cfg.look.accent_hue, None);
+        assert!(cfg.look.adapt_from_art);
+    }
+
+    #[test]
+    fn a_look_block_survives_a_save_round_trip() {
+        let mut cfg = AppConfig::default();
+        cfg.look.accent_hue = Some(200);
+        cfg.look.adapt_from_art = false;
+        let text = serde_json::to_string(&cfg).unwrap();
+        let back: AppConfig = serde_json::from_str(&text).unwrap();
+        assert_eq!(back.look.accent_hue, Some(200));
+        assert!(!back.look.adapt_from_art);
     }
 }
