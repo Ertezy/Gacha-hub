@@ -373,6 +373,19 @@ pub fn load(app: &AppHandle) -> AppConfig {
         }
     }
 
+    assemble_current(&raw, version, games)
+}
+
+/// Собирает `AppConfig` текущей версии из уже разобранного JSON.
+///
+/// Каждое поле читается из `raw` по отдельности, а не десериализуется целиком
+/// через `serde`, — как и в миграциях выше, одна битая часть файла не должна
+/// ронять остальной конфиг. Список игр разобран заранее вызывающей стороной
+/// (`load`), тем же терпимым к поломкам способом.
+///
+/// Выделена отдельной чистой функцией, чтобы проверять её без `AppHandle` —
+/// как и `recover_seeded` и `reject_if_newer_than_current` рядом.
+fn assemble_current(raw: &serde_json::Value, version: u32, games: Vec<Game>) -> AppConfig {
     let seeded = raw.get("seeded").and_then(|v| v.as_bool()).unwrap_or(false);
 
     AppConfig {
@@ -784,5 +797,69 @@ mod tests {
         let back: AppConfig = serde_json::from_str(&text).unwrap();
         assert_eq!(back.look.accent_hue, Some(200));
         assert!(!back.look.adapt_from_art);
+    }
+
+    // Тесты ниже проверяют `assemble_current` напрямую — путь, которым
+    // `load` на самом деле читает файл текущей версии. Тесты выше идут через
+    // `serde_json::from_str::<AppConfig>`, то есть через выведенную
+    // реализацию `Deserialize` с её собственными умолчаниями; они ничего не
+    // говорят о ручной сборке структуры в `load`/`assemble_current`, где
+    // умолчание для `look` или `behaviour` может быть подставлено безусловно
+    // по ошибке — именно так, как это едва не произошло при добавлении блока
+    // `look` (см. отчёт по задаче 2).
+
+    #[test]
+    fn assemble_current_keeps_a_saved_look_block_instead_of_the_default() {
+        let raw = serde_json::json!({
+            "version": 3,
+            "games": [],
+            "look": { "accentHue": 210, "adaptFromArt": false }
+        });
+        let cfg = assemble_current(&raw, 3, Vec::new());
+        assert_eq!(cfg.look.accent_hue, Some(210));
+        assert!(!cfg.look.adapt_from_art);
+    }
+
+    #[test]
+    fn assemble_current_keeps_a_saved_behaviour_block_instead_of_the_default() {
+        let raw = serde_json::json!({
+            "version": 3,
+            "games": [],
+            "behaviour": { "closeToTray": false, "trayOnLaunch": false }
+        });
+        let cfg = assemble_current(&raw, 3, Vec::new());
+        assert!(!cfg.behaviour.close_to_tray);
+        assert!(!cfg.behaviour.tray_on_launch);
+    }
+
+    #[test]
+    fn assemble_current_defaults_look_and_behaviour_when_the_blocks_are_absent() {
+        let raw = serde_json::json!({ "version": 3, "games": [] });
+        let cfg = assemble_current(&raw, 3, Vec::new());
+        assert_eq!(cfg.look.accent_hue, None);
+        assert!(cfg.look.adapt_from_art);
+        assert!(cfg.behaviour.close_to_tray);
+        assert!(cfg.behaviour.tray_on_launch);
+    }
+
+    #[test]
+    fn assemble_current_reads_hub_url_and_last_played_when_present() {
+        let raw = serde_json::json!({
+            "version": 3,
+            "games": [],
+            "hubUrl": "https://example.test/hub.json",
+            "lastPlayed": "genshin"
+        });
+        let cfg = assemble_current(&raw, 3, Vec::new());
+        assert_eq!(cfg.hub_url.as_deref(), Some("https://example.test/hub.json"));
+        assert_eq!(cfg.last_played.as_deref(), Some("genshin"));
+    }
+
+    #[test]
+    fn assemble_current_leaves_hub_url_and_last_played_empty_when_absent() {
+        let raw = serde_json::json!({ "version": 3, "games": [] });
+        let cfg = assemble_current(&raw, 3, Vec::new());
+        assert_eq!(cfg.hub_url, None);
+        assert_eq!(cfg.last_played, None);
     }
 }
