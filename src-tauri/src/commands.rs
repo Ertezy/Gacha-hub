@@ -22,6 +22,8 @@ pub struct GameView {
     pub source_label: String,
     /// Путь к файлу иконки на диске. `None` — рисуется заглушка с буквой.
     pub icon_path: Option<String>,
+    /// Путь к фоновой картинке. `None` — рисуется сгенерированная заливка.
+    pub art_path: Option<String>,
     /// Аргументы запуска. Действуют только при прямом запуске — Steam и Epic
     /// открывают ссылку магазина и передать их игре не могут (`launch.rs`).
     pub args: String,
@@ -34,7 +36,8 @@ pub struct GameView {
 /// Выделена отдельной функцией, чтобы её можно было проверять в модульных
 /// тестах напрямую: `AppHandle` там взять неоткуда (тот же приём, что и у
 /// `is_fresh` в `icons.rs` или `reject_if_newer_than_current` в `config.rs`).
-/// `icon_path` здесь всегда `None` — его выставляет только `view_of`.
+/// `icon_path` и `art_path` здесь всегда `None` — их выставляет только
+/// `view_of`.
 fn view_of_without_icon(game: &Game) -> GameView {
     let source_label = match game.launch {
         Launch::Steam { .. } => "Steam",
@@ -49,6 +52,7 @@ fn view_of_without_icon(game: &Game) -> GameView {
         content_id: game.content_id.clone(),
         source_label,
         icon_path: None,
+        art_path: None,
         args: game.args.clone(),
         missing: !config::is_present(game),
     }
@@ -57,6 +61,7 @@ fn view_of_without_icon(game: &Game) -> GameView {
 pub fn view_of(app: &AppHandle, game: &Game) -> GameView {
     GameView {
         icon_path: crate::icons::ensure(app, game).map(|p| p.to_string_lossy().into_owned()),
+        art_path: crate::art::ensure(app, game).map(|p| p.to_string_lossy().into_owned()),
         ..view_of_without_icon(game)
     }
 }

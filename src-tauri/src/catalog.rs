@@ -201,7 +201,6 @@ mod tests {
         let hub_games = vec![HubGame {
             id: "hsr".into(),
             title: "Honkai: Star Rail".into(),
-            icon: None,
             redeem_url: None,
             matching: Default::default(),
         }];
@@ -238,7 +237,6 @@ mod tests {
         let hub_games = vec![HubGame {
             id: "hsr".into(),
             title: "Honkai: Star Rail".into(),
-            icon: None,
             redeem_url: None,
             matching: Default::default(),
         }];
@@ -414,7 +412,6 @@ mod tests {
             HubGame {
                 id: "wuthering".into(),
                 title: "Wuthering Waves".into(),
-                icon: None,
                 redeem_url: None,
                 matching: Match {
                     steam_app_ids: vec![3513350],
@@ -425,7 +422,6 @@ mod tests {
             HubGame {
                 id: "zzz".into(),
                 title: "Zenless Zone Zero".into(),
-                icon: None,
                 redeem_url: Some("https://zenless.hoyoverse.com/redemption?code={code}".into()),
                 matching: Match {
                     steam_app_ids: vec![],

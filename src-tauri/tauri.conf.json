@@ -24,7 +24,7 @@
       "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: asset: http://asset.localhost; font-src 'self' data:; connect-src 'self' ws: wss:",
       "assetProtocol": {
         "enable": true,
-        "scope": ["$APPCACHE/images/*", "$APPCACHE/icons/*"]
+        "scope": ["$APPCACHE/images/*", "$APPCACHE/icons/*", "$APPCACHE/art/*"]
       }
     }
   },

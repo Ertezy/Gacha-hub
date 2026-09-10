@@ -1,3 +1,4 @@
+mod art;
 mod catalog;
 mod commands;
 mod config;
@@ -6,6 +7,7 @@ mod icons;
 mod images;
 mod launch;
 mod library;
+mod localcopy;
 mod pe;
 mod stores;
 mod tray;

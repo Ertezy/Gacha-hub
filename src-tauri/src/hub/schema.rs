@@ -65,8 +65,6 @@ pub struct HubGame {
     pub id: String,
     #[serde(default)]
     pub title: String,
-    #[serde(default)]
-    pub icon: Option<String>,
     /// Шаблон адреса погашения с подстановкой `{code}`. Отсутствует у игр
     /// без веб-погашения — у Вувы и Эндфилда его нет, коды вводятся в игре.
     #[serde(default)]
