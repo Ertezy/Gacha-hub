@@ -7,7 +7,7 @@ import PlayButton from "./components/PlayButton";
 import GameDock from "./components/GameDock";
 import Settings from "./screens/Settings";
 import FirstRunView from "./screens/settings/FirstRunView";
-import type { GameView, HubData, LaunchResult } from "./types";
+import type { GameView, HubData, LaunchResult, Look } from "./types";
 
 type Screen = "loading" | "firstRun" | "main" | "settings";
 
@@ -19,6 +19,40 @@ export default function App() {
   // "loading" — пока не узнали, был ли уже первый запуск: не показывать
   // главный экран, чтобы не мигнуть им перед экраном первого запуска.
   const [screen, setScreen] = useState<Screen>("loading");
+  const [look, setLook] = useState<Look | null>(null);
+
+  useEffect(() => {
+    void api.getLook().then(setLook);
+  }, []);
+
+  /** Оттенок ставится переопределением переменной на корне документа. */
+  const applyAccent = useCallback((hue: number | null) => {
+    const root = document.documentElement;
+    if (hue === null) {
+      root.style.removeProperty("--accent");
+      root.style.removeProperty("--accent-ink");
+      return;
+    }
+    // Насыщенность и светлота взяты из объявленного в палитре --accent
+    // (#ffc531 = hsl(43 100% 60%)) и --accent-ink (#20180a = hsl(38 52% 8%))
+    // и НЕ меняются: подбирается только оттенок. Это и делает подбор
+    // безопасным — цвет можно лишь сдвинуть по кругу, а не испортить.
+    root.style.setProperty("--accent", `hsl(${hue} 100% 60%)`);
+    root.style.setProperty("--accent-ink", `hsl(${hue} 52% 8%)`);
+  }, []);
+
+  /** Заданный вручную оттенок побеждает подобранный из арта. */
+  const onHue = useCallback(
+    (artHue: number | null) => {
+      if (!look) return;
+      if (look.accentHue !== null) {
+        applyAccent(look.accentHue);
+        return;
+      }
+      applyAccent(look.adaptFromArt ? artHue : null);
+    },
+    [look, applyAccent],
+  );
 
   const load = useCallback(async () => {
     try {
@@ -107,7 +141,7 @@ export default function App() {
         onOpenSettings={() => setScreen("settings")}
       />
       <main className="stage">
-        <GameArt game={selected} />
+        <GameArt game={selected} onHue={onHue} />
         {selected && <GameHeader game={selected} />}
         {selected && <PlayButton gameId={selected.id} onLaunch={launch} onFixed={load} />}
         {error && <div className="banner">Не удалось загрузить: {error}</div>}
