@@ -181,16 +181,34 @@ body {
   inset: 0;
 }
 
-.art-caption {
+.art-photo {
   position: absolute;
-  left: 50%;
-  top: 50%;
-  transform: translate(-50%, -50%);
-  font-size: 34px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  color: rgba(255, 255, 255, 0.14);
-  white-space: nowrap;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  /* Перетекание при смене игры и медленный дрейф — вместе.
+     Дрейф намеренно очень медленный: экран не должен выглядеть мёртвым, но и
+     отвлекать от него нечему. */
+  animation: art-in var(--move) ease-out, art-drift 40s ease-in-out infinite alternate;
+}
+
+@keyframes art-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes art-drift {
+  from {
+    transform: scale(1.06) translate(-1%, -0.6%);
+  }
+  to {
+    transform: scale(1.06) translate(1%, 0.6%);
+  }
 }
 
 .game-header {
@@ -753,5 +771,12 @@ body {
 @media (prefers-reduced-motion: reduce) {
   :root {
     --move: 0s;
+  }
+
+  /* Обнуления --move мало: дрейф длится сорок секунд, и это число задано у
+     самой анимации, а не через переменную. Бесконечное движение — именно то,
+     от чего эта настройка защищает. */
+  .art-photo {
+    animation: none;
   }
 }

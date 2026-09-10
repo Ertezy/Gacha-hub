@@ -10,6 +10,8 @@ export interface GameView {
   sourceLabel: string;
   /** Путь к файлу иконки. `null` — рисуется заглушка с буквой. */
   iconPath: string | null;
+  /** Путь к фоновой картинке. `null` — рисуется сгенерированная заливка. */
+  artPath: string | null;
   /** Аргументы запуска. Действуют только при прямом запуске — Steam и Epic
    *  открывают ссылку магазина и передать их игре не могут. */
   args: string;
@@ -20,7 +22,6 @@ export interface GameView {
 export interface HubGame {
   id: string;
   title: string;
-  icon: string | null;
   /** Шаблон с подстановкой {code}. Отсутствует у игр без веб-погашения. */
   redeemUrl: string | null;
 }
