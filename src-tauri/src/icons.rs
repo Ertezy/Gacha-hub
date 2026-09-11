@@ -91,7 +91,36 @@ pub fn cache_dir(app: &AppHandle) -> Result<PathBuf, String> {
         .map_err(|e| format!("нет папки кеша: {e}"))?
         .join("icons");
     std::fs::create_dir_all(&dir).map_err(|e| format!("не создать папку кеша иконок: {e}"))?;
+    drop_cache_from_an_older_rule(&dir);
     Ok(dir)
+}
+
+/// Номер правила выбора картинки. Меняется вместе с самим правилом.
+const RULE: u32 = 2;
+
+/// Выбрасывает иконки, добытые по прежнему правилу.
+///
+/// **Без этого исправление правила не дошло бы до человека.** Годность кеша
+/// проверяется по дате исходного файла, а она у игры не менялась — значит
+/// прежняя картинка считалась бы свежей вечно, и Wuthering Waves так и
+/// показывала бы логотип движка. Метка с номером правила — признак того, что
+/// лежащее в папке добыто тем же способом, каким добывали бы сейчас.
+///
+/// Своих картинок человека потеря не касается: они копии, и `own_icon`
+/// положит их заново при первом же обращении.
+fn drop_cache_from_an_older_rule(dir: &Path) {
+    let marker = dir.join(format!("rule-{RULE}"));
+    if marker.exists() {
+        return;
+    }
+    if let Ok(entries) = std::fs::read_dir(dir) {
+        for entry in entries.flatten() {
+            let _ = std::fs::remove_file(entry.path());
+        }
+    }
+    if let Err(e) = std::fs::write(&marker, []) {
+        log::warn!("[icons] не записать метку правила в кеш: {e}");
+    }
 }
 
 /// Устойчивая свёртка пути. Пути содержат двоеточия и обратные косые, именем
@@ -164,7 +193,14 @@ fn ensure_in(dir: &Path, game: &Game) -> Option<PathBuf> {
         let _ = std::fs::write(&miss, []);
         return None;
     };
-    let Some(png) = crate::pe::icon_png_256(&bytes) else {
+    // Картинки пробуются по очереди, начиная с самой крупной: первая, которую
+    // удалось привести к PNG, и становится иконкой. Мелкие размеры лесенки
+    // бывают в видах, которые `ico` не разбирает, и пропустить их — правильный
+    // исход, а не отказ.
+    let png = crate::pe::icon_candidates(&bytes)
+        .into_iter()
+        .find_map(|picture| crate::ico::to_png(&picture));
+    let Some(png) = png else {
         let _ = std::fs::write(&miss, []);
         return None;
     };

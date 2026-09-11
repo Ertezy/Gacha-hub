@@ -22,26 +22,6 @@ fn u32_at(b: &[u8], off: usize) -> Option<u32> {
     Some(u32::from_le_bytes([s[0], s[1], s[2], s[3]]))
 }
 
-const PNG_MAGIC: [u8; 8] = [0x89, b'P', b'N', b'G', 0x0D, 0x0A, 0x1A, 0x0A];
-
-fn is_png(data: &[u8]) -> bool {
-    data.get(..8).is_some_and(|h| h == PNG_MAGIC)
-}
-
-/// Ширина и высота PNG из заголовка IHDR. В PNG числа записаны **старшим
-/// байтом вперёд**, в отличие от всего остального в этом файле.
-fn png_size(data: &[u8]) -> Option<(u32, u32)> {
-    if !is_png(data) {
-        return None;
-    }
-    let w = data.get(16..20)?;
-    let h = data.get(20..24)?;
-    Some((
-        u32::from_be_bytes([w[0], w[1], w[2], w[3]]),
-        u32::from_be_bytes([h[0], h[1], h[2], h[3]]),
-    ))
-}
-
 /// Секция файла: где она лежит в памяти и где в самом файле.
 struct Section {
     virtual_address: u32,
@@ -122,6 +102,10 @@ fn rva_to_file(sections: &[Section], rva: u32) -> Option<usize> {
 /// Тип ресурса «картинка иконки».
 const RT_ICON: u32 = 3;
 
+/// Тип ресурса «группа иконок». Группа — это оглавление: какие размеры есть и
+/// под какими номерами лежат их картинки.
+const RT_GROUP_ICON: u32 = 14;
+
 /// Общий предел числа шагов на весь обход дерева ресурсов, а не на один
 /// узел. Ограничение в `children` — только на одну запись; но записи трёх
 /// уровней (тип, номер, язык) могут все указывать на один и тот же узел
@@ -132,15 +116,31 @@ const RT_ICON: u32 = 3;
 /// с большим запасом.
 const MAX_RESOURCE_STEPS: usize = 512;
 
-/// Собирает адреса и размеры всех картинок иконок.
+/// Ресурс: под каким номером лежит и где искать его содержимое.
+struct Resource {
+    id: u32,
+    rva: u32,
+    size: u32,
+}
+
+/// Собирает картинки иконок и их оглавления **за один обход**.
 ///
 /// Ресурсы лежат деревом ровно из трёх уровней: тип, номер, язык. У каждого
 /// узла сначала шестнадцать байт заголовка, потом записи по восемь байт.
 /// Старший бит в записи означает «дальше ещё узел», иначе это лист.
-fn collect_icons(b: &[u8], sections: &[Section], resource_rva: u32) -> Vec<(u32, u32)> {
-    let mut found = Vec::new();
+///
+/// Обход один на оба типа, а не по обходу на каждый, потому что бюджет шагов
+/// общий (см. `MAX_RESOURCE_STEPS`). Два прохода дали бы по полному бюджету
+/// каждому — то есть тихо удвоили бы границу, ради которой он заведён.
+fn collect_resources(
+    b: &[u8],
+    sections: &[Section],
+    resource_rva: u32,
+) -> (Vec<Resource>, Vec<Resource>) {
+    let mut icons = Vec::new();
+    let mut groups = Vec::new();
     let Some(root) = rva_to_file(sections, resource_rva) else {
-        return found;
+        return (icons, groups);
     };
 
     // Бюджет общий на весь обход и передаётся во все вызовы `children`, а не
@@ -149,10 +149,12 @@ fn collect_icons(b: &[u8], sections: &[Section], resource_rva: u32) -> Vec<(u32,
     let mut budget = MAX_RESOURCE_STEPS;
 
     for (type_id, type_off) in children(b, root, root, &mut budget) {
-        if type_id != RT_ICON {
-            continue;
-        }
-        for (_, name_off) in children(b, root, type_off, &mut budget) {
+        let into = match type_id {
+            RT_ICON => &mut icons,
+            RT_GROUP_ICON => &mut groups,
+            _ => continue,
+        };
+        for (name_id, name_off) in children(b, root, type_off, &mut budget) {
             for (_, lang_off) in children(b, root, name_off, &mut budget) {
                 // Лист: адрес данных и их размер. `checked_add`, как и везде
                 // в модуле — единственное место, где раньше складывали
@@ -163,11 +165,44 @@ fn collect_icons(b: &[u8], sections: &[Section], resource_rva: u32) -> Vec<(u32,
                 let (Some(rva), Some(size)) = (u32_at(b, lang_off), u32_at(b, size_off)) else {
                     continue;
                 };
-                found.push((rva, size));
+                into.push(Resource { id: name_id, rva, size });
             }
         }
     }
-    found
+    (icons, groups)
+}
+
+/// Содержимое ресурса.
+fn resource_bytes<'a>(b: &'a [u8], sections: &[Section], res: &Resource) -> Option<&'a [u8]> {
+    let start = rva_to_file(sections, res.rva)?;
+    let end = start.checked_add(res.size as usize)?;
+    b.get(start..end)
+}
+
+/// Записи оглавления группы: ширина картинки и номер ресурса, в котором она
+/// лежит.
+///
+/// Оглавление устроено так: шесть байт заголовка, дальше записи по
+/// четырнадцать. Ширина занимает **один байт**, поэтому число 256 в него не
+/// помещается и записывается нулём.
+fn group_members(dir: &[u8]) -> Vec<(u32, u32)> {
+    let Some(count) = u16_at(dir, 4) else {
+        return Vec::new();
+    };
+    let mut out = Vec::new();
+    for i in 0..count as usize {
+        let Some(entry) = i.checked_mul(14).and_then(|o| o.checked_add(6)) else {
+            break;
+        };
+        let Some(width) = dir.get(entry).copied() else {
+            break;
+        };
+        let Some(id) = u16_at(dir, entry.saturating_add(12)) else {
+            break;
+        };
+        out.push((if width == 0 { 256 } else { width as u32 }, id as u32));
+    }
+    out
 }
 
 /// Записи одного узла дерева. Возвращает пары «номер, смещение».
@@ -204,30 +239,57 @@ fn children(b: &[u8], root: usize, node: usize, budget: &mut usize) -> Vec<(u32,
     out
 }
 
-/// Картинка размером 256×256 в формате PNG, если она есть внутри файла.
+/// Картинки иконки в том порядке, в каком их стоит пробовать: самая крупная
+/// первой. Пусто, если файл не разобрался или иконок в нём нет.
 ///
-/// **Правило «взять самый большой ресурс» неверно, и это проверено на живых
-/// играх.** У четырёх игр из пяти самый большой ресурс действительно оказался
-/// нужным PNG, а у Wuthering Waves самый большой — картинка в старом несжатом
-/// формате на 264 КБ, тогда как нужный PNG лежит отдельно и **меньше по
-/// размеру**. Поэтому ищем именно PNG именно нужного размера.
-pub fn icon_png_256(bytes: &[u8]) -> Option<Vec<u8>> {
-    let (sections, resource_rva) = sections_and_resources(bytes)?;
-    for (rva, size) in collect_icons(bytes, &sections, resource_rva) {
-        let Some(start) = rva_to_file(&sections, rva) else {
-            continue;
-        };
-        let Some(end) = start.checked_add(size as usize) else {
-            continue;
-        };
-        let Some(data) = bytes.get(start..end) else {
-            continue;
-        };
-        if png_size(data) == Some((256, 256)) {
-            return Some(data.to_vec());
-        }
-    }
-    None
+/// **Выбирается группа, а не отдельная картинка, и это главное здесь.** В
+/// одном файле групп может быть несколько, и Windows показывает ту, у которой
+/// наименьший номер. У Wuthering Waves групп ровно две: под номером 101 лежит
+/// настоящая иконка игры, под номером 123 — шаблонный логотип движка,
+/// оставшийся от сборки. Перебор картинок подряд, без оглядки на группы,
+/// приводил именно ко второй.
+///
+/// Заодно отпало правило «взять PNG размером 256»: нужная картинка Wuthering
+/// Waves записана в старом формате, и по этому правилу не подходила вовсе.
+/// Размер берётся из оглавления, разбирать саму картинку ради него не нужно.
+pub fn icon_candidates(bytes: &[u8]) -> Vec<Vec<u8>> {
+    let Some((sections, resource_rva)) = sections_and_resources(bytes) else {
+        return Vec::new();
+    };
+    candidates_in(bytes, &sections, resource_rva)
+}
+
+/// Выбор без разбора заголовков файла: секции и адрес таблицы уже найдены.
+/// Вынесено отдельно ради тестов — собрать дерево ресурсов в памяти куда
+/// проще, чем целый исполняемый файл.
+fn candidates_in(b: &[u8], sections: &[Section], resource_rva: u32) -> Vec<Vec<u8>> {
+    let (icons, groups) = collect_resources(b, sections, resource_rva);
+
+    // Оглавления нет вовсе — редкий случай, выбирать не из чего. Берём все
+    // картинки, начиная с самой тяжёлой: без оглавления размер картинки
+    // иначе как разбором её самой не узнать, а вес — приемлемая замена.
+    let Some(group) = groups.iter().min_by_key(|g| g.id) else {
+        let mut loose: Vec<&Resource> = icons.iter().collect();
+        loose.sort_by_key(|r| std::cmp::Reverse(r.size));
+        return loose
+            .into_iter()
+            .filter_map(|r| resource_bytes(b, sections, r).map(<[u8]>::to_vec))
+            .collect();
+    };
+
+    let Some(dir) = resource_bytes(b, sections, group) else {
+        return Vec::new();
+    };
+    let mut members = group_members(dir);
+    // Сортировка устойчивая: при равной ширине порядок остаётся тем, что задан
+    // в оглавлении. У Honkai: Star Rail две картинки по 256 подряд, и от этого
+    // зависит, какая из них станет иконкой.
+    members.sort_by_key(|(width, _)| std::cmp::Reverse(*width));
+    members
+        .into_iter()
+        .filter_map(|(_, id)| icons.iter().find(|r| r.id == id))
+        .filter_map(|r| resource_bytes(b, sections, r).map(<[u8]>::to_vec))
+        .collect()
 }
 
 #[cfg(test)]
@@ -256,32 +318,6 @@ mod tests {
     }
 
     #[test]
-    fn png_signature_is_recognised() {
-        let png = [0x89, b'P', b'N', b'G', 0x0D, 0x0A, 0x1A, 0x0A];
-        assert!(is_png(&png));
-        assert!(!is_png(&[0x28, 0x00, 0x00, 0x00]));
-        assert!(!is_png(&[]));
-    }
-
-    #[test]
-    fn png_size_reads_the_header() {
-        // Подпись PNG, длина куска, слово IHDR, затем ширина и высота
-        // четырьмя байтами каждая, старшим байтом вперёд.
-        let mut b = vec![0x89, b'P', b'N', b'G', 0x0D, 0x0A, 0x1A, 0x0A];
-        b.extend_from_slice(&[0, 0, 0, 13]);
-        b.extend_from_slice(b"IHDR");
-        b.extend_from_slice(&256u32.to_be_bytes());
-        b.extend_from_slice(&256u32.to_be_bytes());
-        assert_eq!(png_size(&b), Some((256, 256)));
-    }
-
-    #[test]
-    fn png_size_refuses_a_truncated_header() {
-        let b = [0x89, b'P', b'N', b'G', 0x0D, 0x0A, 0x1A, 0x0A];
-        assert_eq!(png_size(&b), None);
-    }
-
-    #[test]
     fn rva_to_file_skips_a_section_with_overflowing_bounds_and_keeps_looking() {
         // Первая секция испорчена: адрес плюс размер переполняют u32. Раньше
         // `?` в `rva_to_file` прерывал весь поиск на этом месте, и вторая,
@@ -307,10 +343,10 @@ mod tests {
     #[test]
     fn garbage_input_does_not_panic() {
         // Главное свойство модуля: что бы ни пришло на вход, ответ либо
-        // картинка, либо None, но никогда не паника.
-        assert_eq!(icon_png_256(&[]), None);
-        assert_eq!(icon_png_256(&[0u8; 3]), None);
-        assert_eq!(icon_png_256(&[0xFFu8; 1024]), None);
+        // картинки, либо пусто, но никогда не паника.
+        assert!(icon_candidates(&[]).is_empty());
+        assert!(icon_candidates(&[0u8; 3]).is_empty());
+        assert!(icon_candidates(&[0xFFu8; 1024]).is_empty());
         let almost = {
             let mut v = vec![0u8; 64];
             v[0] = b'M';
@@ -318,7 +354,7 @@ mod tests {
             v[0x3C] = 200; // указывает за пределы файла
             v
         };
-        assert_eq!(icon_png_256(&almost), None);
+        assert!(icon_candidates(&almost).is_empty());
     }
 
     /// Строит один узел дерева ресурсов: 16 байт заголовка (важно только
@@ -363,12 +399,128 @@ mod tests {
             raw_size: b.len() as u32,
         }];
 
-        let found = collect_icons(&b, &sections, 0);
+        let (found, _) = collect_resources(&b, &sections, 0);
         assert!(
             found.len() < MAX_RESOURCE_STEPS,
             "обход должен быть ограничен общим бюджетом на весь разбор, а не \
              размножаться по числу совпавших узлов: получено {} записей",
             found.len()
+        );
+    }
+
+    /// Узел дерева из перечисленных записей «номер, смещение от корня».
+    fn node(entries: &[(u32, u32)]) -> Vec<u8> {
+        let mut out = vec![0u8; 16];
+        out[14..16].copy_from_slice(&(entries.len() as u16).to_le_bytes());
+        for (id, offset) in entries {
+            out.extend_from_slice(&id.to_le_bytes());
+            out.extend_from_slice(&offset.to_le_bytes());
+        }
+        out
+    }
+
+    /// Лист: адрес содержимого и его длина.
+    fn leaf(rva: u32, size: u32) -> Vec<u8> {
+        let mut out = vec![0u8; 16];
+        out[0..4].copy_from_slice(&rva.to_le_bytes());
+        out[4..8].copy_from_slice(&size.to_le_bytes());
+        out
+    }
+
+    /// Оглавление группы из записей «ширина, номер картинки».
+    fn group_dir(members: &[(u8, u16)]) -> Vec<u8> {
+        let mut out = vec![0u8; 6];
+        out[2..4].copy_from_slice(&1u16.to_le_bytes()); // тип: иконка
+        out[4..6].copy_from_slice(&(members.len() as u16).to_le_bytes());
+        for (width, id) in members {
+            let mut entry = vec![0u8; 14];
+            entry[0] = *width;
+            entry[12..14].copy_from_slice(&id.to_le_bytes());
+            out.extend_from_slice(&entry);
+        }
+        out
+    }
+
+    /// Секция, отображающая адреса в файл один в один.
+    fn whole(b: &[u8]) -> [Section; 1] {
+        [Section {
+            virtual_address: 0,
+            virtual_size: b.len() as u32,
+            raw_offset: 0,
+            raw_size: b.len() as u32,
+        }]
+    }
+
+    /// Дерево ресурсов с двумя картинками (номера 1 и 2, содержимое `REAL` и
+    /// `LOGO`) и двумя группами. Группа 123 записана **первой**, группа 101
+    /// второй — как в файле Wuthering Waves, где порядок в дереве и порядок
+    /// по номеру расходятся.
+    fn tree(dir_123: &[(u8, u16)], dir_101: &[(u8, u16)]) -> Vec<u8> {
+        let (icon1, icon2) = (&b"REAL"[..], &b"LOGO"[..]);
+        let (d123, d101) = (group_dir(dir_123), group_dir(dir_101));
+        let p_icon1 = 256u32;
+        let p_icon2 = p_icon1 + icon1.len() as u32;
+        let p_123 = p_icon2 + icon2.len() as u32;
+        let p_101 = p_123 + d123.len() as u32;
+
+        let mut b = Vec::new();
+        b.extend(node(&[(RT_ICON, 32), (RT_GROUP_ICON, 112)])); // корень
+        b.extend(node(&[(1, 64), (2, 88)])); // тип «картинка»
+        b.extend(node(&[(0, 192)])); // имя картинки 1
+        b.extend(node(&[(0, 208)])); // имя картинки 2
+        b.extend(node(&[(123, 144), (101, 168)])); // тип «группа»
+        b.extend(node(&[(0, 224)])); // имя группы 123
+        b.extend(node(&[(0, 240)])); // имя группы 101
+        b.extend(leaf(p_icon1, icon1.len() as u32));
+        b.extend(leaf(p_icon2, icon2.len() as u32));
+        b.extend(leaf(p_123, d123.len() as u32));
+        b.extend(leaf(p_101, d101.len() as u32));
+        assert_eq!(b.len(), p_icon1 as usize, "узлы и листы должны занять ровно 256 байт");
+        b.extend_from_slice(icon1);
+        b.extend_from_slice(icon2);
+        b.extend_from_slice(&d123);
+        b.extend_from_slice(&d101);
+        b
+    }
+
+    #[test]
+    fn the_group_with_the_lowest_number_wins_over_the_one_listed_first() {
+        // Это и есть случай Wuthering Waves: в файле две группы, первой в
+        // дереве лежит 123 с логотипом движка, а показывать нужно 101 с
+        // иконкой игры. Перебор картинок подряд выбирал логотип.
+        let b = tree(&[(0, 2)], &[(0, 1)]);
+        assert_eq!(candidates_in(&b, &whole(&b), 0), vec![b"REAL".to_vec()]);
+    }
+
+    #[test]
+    fn inside_a_group_the_widest_picture_comes_first() {
+        // Ширина берётся из оглавления, а не из самой картинки: разбирать её
+        // ради размера не нужно, и для старого формата это важно — там размер
+        // лежит в другом месте, чем у PNG.
+        let b = tree(&[(0, 2)], &[(32, 2), (0, 1)]);
+        assert_eq!(
+            candidates_in(&b, &whole(&b), 0),
+            vec![b"REAL".to_vec(), b"LOGO".to_vec()],
+            "картинка на 256 точек должна опередить картинку на 32"
+        );
+    }
+
+    #[test]
+    fn without_any_group_the_heaviest_picture_comes_first() {
+        // Запасной путь: оглавления нет, размер узнать неоткуда, и вес
+        // остаётся единственным признаком.
+        let mut b = Vec::new();
+        b.extend(node(&[(RT_ICON, 24)])); // корень: только картинки
+        b.extend(node(&[(1, 56), (2, 80)])); // тип «картинка»
+        b.extend(node(&[(0, 104)])); // имя картинки 1
+        b.extend(node(&[(0, 120)])); // имя картинки 2
+        b.extend(leaf(136, 2)); // картинка 1 — два байта
+        b.extend(leaf(138, 6)); // картинка 2 — шесть байт
+        assert_eq!(b.len(), 136, "узлы и листы должны занять ровно 136 байт");
+        b.extend_from_slice(b"XXYYYYYY");
+        assert_eq!(
+            candidates_in(&b, &whole(&b), 0),
+            vec![b"YYYYYY".to_vec(), b"XX".to_vec()]
         );
     }
 }

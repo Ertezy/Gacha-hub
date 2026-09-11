@@ -3,6 +3,7 @@ mod catalog;
 mod commands;
 mod config;
 mod hub;
+mod ico;
 mod icons;
 mod images;
 mod launch;
