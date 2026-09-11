@@ -1,9 +1,17 @@
 import { useCallback, useEffect, useState } from "react";
 import { api } from "../../lib/api";
 
+/** Положение ползунка, пока оттенок вручную не задан: середина круга. */
+const UNSET_SLIDER_HUE = 180;
+
 export default function LookSection() {
+  // `hue` — то, что реально записано на диск (совпадает с настройками из
+  // конфига). `null` означает «не задан вручную».
   const [hue, setHue] = useState<number | null>(null);
   const [adapt, setAdapt] = useState(true);
+  // Локальное положение ползунка. Двигается сразу, на каждое событие
+  // перетаскивания — запись на диск слушает не его, а конец взаимодействия.
+  const [sliderHue, setSliderHue] = useState(UNSET_SLIDER_HUE);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -11,6 +19,7 @@ export default function LookSection() {
     void api.getLook().then((look) => {
       setHue(look.accentHue);
       setAdapt(look.adaptFromArt);
+      setSliderHue(look.accentHue ?? UNSET_SLIDER_HUE);
     });
   }, []);
 
@@ -29,6 +38,14 @@ export default function LookSection() {
     },
     [],
   );
+
+  // Запись на диск — только по завершении взаимодействия с ползунком: по
+  // отпусканию мыши или клавиши. Само перетаскивание диск не трогает,
+  // иначе быстрое перетаскивание — это десятки записей файла настроек в
+  // секунду, да ещё и с чтением всего конфига перед каждой.
+  const commitSlider = useCallback(() => {
+    save(sliderHue, adapt);
+  }, [save, sliderHue, adapt]);
 
   return (
     <div>
@@ -54,12 +71,19 @@ export default function LookSection() {
           type="range"
           min={0}
           max={359}
-          value={hue ?? 45}
+          value={sliderHue}
           disabled={busy}
-          onChange={(e) => save(Number(e.target.value), adapt)}
+          className={hue === null ? "range-unset" : undefined}
+          onChange={(e) => setSliderHue(Number(e.target.value))}
+          onMouseUp={commitSlider}
+          onTouchEnd={commitSlider}
+          onKeyUp={commitSlider}
         />
       </label>
       <p className="settings-hint">
+        {hue === null
+          ? "Сейчас не задан — цвет берётся из фона игры или из палитры."
+          : `Сейчас задан: ${hue}°.`}{" "}
         Заданный вручную оттенок побеждает подобранный из фона.
       </p>
 
