@@ -18,7 +18,10 @@ use crate::config::{AppConfig, Game, Launch};
 pub struct GamePatch {
     pub title: Option<String>,
     pub exe_path: Option<PathBuf>,
-    pub background: Option<PathBuf>,
+    /// Два уровня, как у `icon` и `content_id`: внешний `None` — не трогать,
+    /// внутренний `None` — убрать свой фон и вернуться к сгенерированной
+    /// заливке.
+    pub background: Option<Option<PathBuf>>,
     /// Два уровня, как у `content_id`: внешний `None` — не трогать,
     /// внутренний `None` — убрать свою картинку и вернуться к добытой.
     pub icon: Option<Option<PathBuf>>,
@@ -142,7 +145,7 @@ pub fn update(cfg: &mut AppConfig, id: &str, patch: GamePatch) -> bool {
         game.launch = Launch::Exe;
     }
     if let Some(bg) = patch.background {
-        game.background = Some(bg);
+        game.background = bg;
     }
     if let Some(icon) = patch.icon {
         game.icon = icon;
@@ -409,6 +412,32 @@ mod tests {
         let patch = GamePatch { icon: Some(None), ..Default::default() };
         assert!(update(&mut cfg, "a", patch));
         assert_eq!(cfg.games[0].icon, None);
+    }
+
+    #[test]
+    fn update_can_set_a_custom_background() {
+        let mut cfg = AppConfig::default();
+        cfg.games.push(Game::manual("a".into(), "A".into()));
+        let patch = GamePatch {
+            background: Some(Some(PathBuf::from(r"C:\my\art.png"))),
+            ..Default::default()
+        };
+        assert!(update(&mut cfg, "a", patch));
+        assert_eq!(cfg.games[0].background, Some(PathBuf::from(r"C:\my\art.png")));
+    }
+
+    #[test]
+    fn update_can_clear_a_custom_background() {
+        // Тот же второй уровень необязательности, что и у иконки: без
+        // сброса выбранный фон было бы нечем убрать, кроме правки файла
+        // настроек руками.
+        let mut cfg = AppConfig::default();
+        let mut g = Game::manual("a".into(), "A".into());
+        g.background = Some(PathBuf::from(r"C:\my\art.png"));
+        cfg.games.push(g);
+        let patch = GamePatch { background: Some(None), ..Default::default() };
+        assert!(update(&mut cfg, "a", patch));
+        assert_eq!(cfg.games[0].background, None);
     }
 
     #[test]

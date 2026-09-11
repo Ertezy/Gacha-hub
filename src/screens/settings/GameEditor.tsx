@@ -64,19 +64,32 @@ export default function GameEditor({ game, hubGames, onChanged }: Props) {
 
       <label className="field">
         <span>Своя картинка фона</span>
-        <button
-          type="button"
-          disabled={busy}
-          onClick={() =>
-            void run(async () => {
-              const background = await api.pickImage();
-              if (background) await api.updateGame({ gameId: game.id, background });
-            })
-          }
-        >
-          Выбрать…
-        </button>
+        <div className="field-row">
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() =>
+              void (async () => {
+                const picked = await api.pickImage();
+                if (!picked) return;
+                await run(() => api.updateGame({ gameId: game.id, background: picked }));
+              })()
+            }
+          >
+            Выбрать…
+          </button>
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => void run(() => api.updateGame({ gameId: game.id, background: "" }))}
+          >
+            Сбросить
+          </button>
+        </div>
       </label>
+      <p className="settings-hint">
+        Пусто — фон рисуется сгенерированной заливкой.
+      </p>
 
       <label className="field">
         <span>Иконка</span>

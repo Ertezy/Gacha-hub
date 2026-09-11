@@ -253,6 +253,8 @@ pub async fn update_game(
     game_id: String,
     title: Option<String>,
     exe: Option<String>,
+    // Пустая строка означает «убрать свой фон»: null при переходе из JSON
+    // неотличим от «поле не передали».
     background: Option<String>,
     // Пустая строка означает «убрать свою картинку»: null при переходе из
     // JSON неотличим от «поле не передали».
@@ -282,7 +284,7 @@ pub async fn update_game(
     let patch = crate::library::GamePatch {
         title,
         exe_path,
-        background: background.map(std::path::PathBuf::from),
+        background: background.map(|s| (!s.is_empty()).then(|| std::path::PathBuf::from(s))),
         icon: icon.map(|s| (!s.is_empty()).then(|| std::path::PathBuf::from(s))),
         content_id: content_id.map(|s| (!s.is_empty()).then_some(s)),
         args,
@@ -398,26 +400,34 @@ fn clear_dir(dir: &std::path::Path) -> Result<usize, String> {
 }
 
 /// Размер кеша картинок в байтах — чтобы показать его рядом с кнопкой очистки.
-/// Считает и картинки хаба, и добытые иконки: иначе смена своей иконки
-/// оставляла бы прежнюю копию на диске навсегда, и её никто бы не увидел и
-/// не удалил.
+/// Считает картинки хаба, добытые иконки и копии фонов: иначе смена своей
+/// иконки или фона оставляла бы прежнюю копию на диске навсегда, и её никто
+/// бы не увидел и не удалил.
 #[tauri::command]
 pub async fn image_cache_size(app: AppHandle) -> u64 {
-    [crate::images::cache_dir(&app), crate::icons::cache_dir(&app)]
-        .into_iter()
-        .filter_map(Result::ok)
-        .map(|dir| dir_size(&dir))
-        .sum()
+    [
+        crate::images::cache_dir(&app),
+        crate::icons::cache_dir(&app),
+        crate::art::cache_dir(&app),
+    ]
+    .into_iter()
+    .filter_map(Result::ok)
+    .map(|dir| dir_size(&dir))
+    .sum()
 }
 
-/// Очищает кеш картинок хаба и кеш добытых иконок. После очистки иконки
-/// добываются заново сами при следующем обращении к списку игр —
-/// `icons::ensure` каждый раз проверяет, что файл в кеше есть и свеж, и
-/// пересоздаёт его, если нет.
+/// Очищает кеш картинок хаба, кеш добытых иконок и кеш фонов. После очистки
+/// иконки и фоны добываются заново сами при следующем обращении к списку
+/// игр — `icons::ensure` и `art::ensure` каждый раз проверяют, что файл в
+/// кеше есть, и пересоздают его, если нет.
 #[tauri::command]
 pub async fn clear_image_cache(app: AppHandle) -> Result<usize, String> {
     let mut removed = 0;
-    for dir in [crate::images::cache_dir(&app)?, crate::icons::cache_dir(&app)?] {
+    for dir in [
+        crate::images::cache_dir(&app)?,
+        crate::icons::cache_dir(&app)?,
+        crate::art::cache_dir(&app)?,
+    ] {
         removed += clear_dir(&dir)?;
     }
     Ok(removed)
@@ -534,5 +544,26 @@ mod tests {
     fn clear_dir_on_a_missing_folder_is_an_error_not_a_panic() {
         let err = clear_dir(std::path::Path::new(r"C:\nope\never\missing"));
         assert!(err.is_err());
+    }
+
+    #[test]
+    fn image_cache_size_sums_hub_icon_and_art_folders() {
+        // Раньше папка арта не входила ни в подсчёт, ни в очистку — свои
+        // фоны копились на диске без счётчика и без кнопки, которая могла
+        // бы их убрать. Три отдельные папки одной природы: их сумма и есть
+        // то число, что видит человек в настройках.
+        let hub = temp_dir("cachesize-hub");
+        let icons = temp_dir("cachesize-icons");
+        let art = temp_dir("cachesize-art");
+        std::fs::write(hub.join("a.png"), vec![0u8; 4]).unwrap();
+        std::fs::write(icons.join("b.png"), vec![0u8; 7]).unwrap();
+        std::fs::write(art.join("c.png"), vec![0u8; 11]).unwrap();
+
+        let total: u64 = [&hub, &icons, &art].into_iter().map(|d| dir_size(d)).sum();
+        assert_eq!(total, 22);
+
+        std::fs::remove_dir_all(&hub).ok();
+        std::fs::remove_dir_all(&icons).ok();
+        std::fs::remove_dir_all(&art).ok();
     }
 }

@@ -193,6 +193,15 @@ body {
   animation: art-in var(--move) ease-out, art-drift 40s ease-in-out infinite alternate;
 }
 
+/* Нижний слой перетекания (`GameArt`): уже показанная картинка. Без
+   собственного art-in — он должен быть непрозрачен с первого кадра, иначе у
+   него самого была бы своя вспышка в фон окна в момент, когда он становится
+   нижним слоем. */
+.art-photo-under {
+  animation: art-drift 40s ease-in-out infinite alternate;
+  opacity: 1;
+}
+
 @keyframes art-in {
   from {
     opacity: 0;
@@ -453,8 +462,11 @@ body {
 }
 
 .code-card.burning {
-  background: rgba(255, 197, 49, 0.1);
-  border-color: rgba(255, 197, 49, 0.55);
+  /* Через color-mix, а не rgba с зашитым числом: --accent теперь подвижен
+     (подбирается из арта или задаётся вручную), и подложка обязана следовать
+     за ним, а не расходиться с оригиналом по построению. */
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 55%, transparent);
 }
 
 .code-main { flex: 1; min-width: 0; }
