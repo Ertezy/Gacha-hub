@@ -69,6 +69,8 @@ export const api = {
     invoke<void>("set_behaviour", { closeToTray: b.closeToTray, trayOnLaunch: b.trayOnLaunch }),
 
   getLook: () => invoke<Look>("get_look"),
+  setLook: (accentHue: number | null, adaptFromArt: boolean) =>
+    invoke<void>("set_look", { accentHue, adaptFromArt }),
 
   setHubUrl: (url: string | null) => invoke<void>("set_hub_url", { url }),
   imageCacheSize: () => invoke<number>("image_cache_size"),

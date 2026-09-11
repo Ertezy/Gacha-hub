@@ -1,5 +1,6 @@
 import { useState } from "react";
 import GamesSection from "./settings/GamesSection";
+import LookSection from "./settings/LookSection";
 import SmallSections from "./settings/SmallSections";
 
 type Tab = "games" | "look" | "behaviour" | "data" | "about";
@@ -39,13 +40,7 @@ export default function Settings({ onClose }: Props) {
 
       <div className="settings-body">
         {tab === "games" && <GamesSection />}
-        {/* Раздел «Вид» появится в этапе 4. Место занято сейчас, чтобы тогда
-            вкладывать содержимое, а не переделывать навигацию. */}
-        {tab === "look" && (
-          <p className="settings-empty">
-            Фон и палитра появятся в следующем обновлении.
-          </p>
-        )}
+        {tab === "look" && <LookSection />}
         {tab !== "games" && tab !== "look" && <SmallSections tab={tab} />}
       </div>
     </div>
