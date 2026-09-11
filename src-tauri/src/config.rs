@@ -862,4 +862,23 @@ mod tests {
         assert_eq!(cfg.hub_url, None);
         assert_eq!(cfg.last_played, None);
     }
+
+    #[test]
+    fn assemble_current_keeps_seeded_true_with_an_empty_game_list() {
+        // Человек, у которого настройка давно пройдена, но список игр он
+        // осознанно очистил: на диске `seeded: true` при пустом `games`.
+        // `recover_seeded` тут ничего не восстанавливает (флаг и так уже
+        // `true`) — этот тест проверяет именно то, что `assemble_current`
+        // доносит сохранённое значение до собранного конфига, а не теряет
+        // его по пути от `raw`. Пять тестов выше на этот путь пустой список
+        // передают вместе с отсутствующим/ложным `seeded`, поэтому жёсткое
+        // `seeded: false` их не ловит.
+        let raw = serde_json::json!({
+            "version": 3,
+            "games": [],
+            "seeded": true
+        });
+        let cfg = assemble_current(&raw, 3, Vec::new());
+        assert!(cfg.seeded);
+    }
 }
