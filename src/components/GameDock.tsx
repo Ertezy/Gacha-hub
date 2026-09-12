@@ -10,6 +10,9 @@ interface Props {
 
 /** Цвет заглушки выводится из названия устойчиво: одна и та же игра всегда
  *  получает один и тот же цвет, и соседние игры не сливаются. */
+/** Докуда достаёт увеличение, в пикселях от курсора до центра иконки. */
+const REACH = 110;
+
 function tintOf(title: string): string {
   let hash = 0;
   for (const ch of title) hash = (hash * 31 + ch.charCodeAt(0)) % 360;
@@ -18,28 +21,39 @@ function tintOf(title: string): string {
 
 export default function GameDock({ games, selectedId, onSelect }: Props) {
   const dockRef = useRef<HTMLDivElement>(null);
-  const [scales, setScales] = useState<number[]>([]);
+  const [near, setNear] = useState<number[]>([]);
+  const restingCentres = useRef<number[] | null>(null);
 
   /* Только на стилях это не делается, и это ограничение, а не выбор: CSS умеет
      дотянуться до следующего соседа, но не до предыдущего, и увеличение
      раздувало бы иконки только справа от курсора. Поэтому считаем расстояние
-     от курсора до центра каждой иконки сами. */
+     от курсора до центра каждой иконки сами.
+
+     Центры меряются один раз, пока ряд в покое, и дальше служат опорой.
+     **Мерить их на каждом движении нельзя.** Увеличенные иконки раздвигают
+     ряд, ряд стоит по центру экрана и от этого едет вбок — значит на
+     следующем движении центры окажутся уже другими, от них другие
+     расстояния, от тех другие размеры. Вышла бы погоня за собственным
+     хвостом. От опорных центров близость — простая функция от положения
+     курсора, и дрожать ей не с чего. */
   const onMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
     const dock = dockRef.current;
     if (!dock) return;
+    if (restingCentres.current === null) {
+      restingCentres.current = Array.from(dock.children).map((child) => {
+        const r = (child as HTMLElement).getBoundingClientRect();
+        return r.left + r.width / 2;
+      });
+    }
     const x = e.clientX;
-    const next = Array.from(dock.children).map((child) => {
-      const r = (child as HTMLElement).getBoundingClientRect();
-      const distance = Math.abs(x - (r.left + r.width / 2));
-      const reach = 110;
-      if (distance > reach) return 1;
-      return 1 + 0.64 * (1 - distance / reach);
-    });
-    setScales(next);
+    setNear(restingCentres.current.map((c) => Math.max(0, 1 - Math.abs(x - c) / REACH)));
   }, []);
 
-  const onLeave = useCallback(() => setScales([]), []);
+  const onLeave = useCallback(() => {
+    restingCentres.current = null;
+    setNear([]);
+  }, []);
 
   if (games.length === 0) return null;
 
@@ -48,7 +62,10 @@ export default function GameDock({ games, selectedId, onSelect }: Props) {
       <div className="dock-bg" aria-hidden="true" />
       <div className="dock" ref={dockRef} onMouseMove={onMove} onMouseLeave={onLeave}>
         {games.map((g, i) => {
-          const zoom = { transform: `scale(${scales[i] ?? 1})` };
+          // Насколько иконка вырастет, решают стили: сюда уходит только
+          // близость к курсору, размер и кратность увеличения живут в
+          // таблице стилей рядом с теми правилами, которым они тоже нужны.
+          const zoom = { "--near": near[i] ?? 0 } as React.CSSProperties;
           return (
             <button
               key={g.id}
