@@ -7,7 +7,7 @@ import PlayButton from "./components/PlayButton";
 import GameDock from "./components/GameDock";
 import Settings from "./screens/Settings";
 import FirstRunView from "./screens/settings/FirstRunView";
-import type { GameView, HubData, LaunchResult, Look } from "./types";
+import type { GameView, HubData, LaunchResult } from "./types";
 
 type Screen = "loading" | "firstRun" | "main" | "settings";
 
@@ -19,42 +19,6 @@ export default function App() {
   // "loading" — пока не узнали, был ли уже первый запуск: не показывать
   // главный экран, чтобы не мигнуть им перед экраном первого запуска.
   const [screen, setScreen] = useState<Screen>("loading");
-  const [look, setLook] = useState<Look | null>(null);
-  // Последний оттенок, вычисленный из арта текущей игры. Хранится рядом с
-  // настройками вида: применение акцента зависит от обоих сразу и само
-  // срабатывает, когда меняется любой из них — независимо от того, что
-  // подоспело раньше, картинка или настройки.
-  const [artHue, setArtHue] = useState<number | null>(null);
-
-  const loadLook = useCallback(() => {
-    void api.getLook().then(setLook);
-  }, []);
-
-  useEffect(() => {
-    loadLook();
-  }, [loadLook]);
-
-  /** Оттенок ставится переопределением переменной на корне документа. */
-  useEffect(() => {
-    // Настройки ещё не пришли — трогать нечего, остаётся оттенок из палитры.
-    if (!look) return;
-
-    const root = document.documentElement;
-    // Заданный вручную оттенок побеждает подобранный из арта.
-    const hue = look.accentHue !== null ? look.accentHue : look.adaptFromArt ? artHue : null;
-
-    if (hue === null) {
-      root.style.removeProperty("--accent");
-      root.style.removeProperty("--accent-ink");
-      return;
-    }
-    // Насыщенность и светлота взяты из объявленного в палитре --accent
-    // (#ffc531 = hsl(43 100% 60%)) и --accent-ink (#20180a = hsl(38 52% 8%))
-    // и НЕ меняются: подбирается только оттенок. Это и делает подбор
-    // безопасным — цвет можно лишь сдвинуть по кругу, а не испортить.
-    root.style.setProperty("--accent", `hsl(${hue} 100% 60%)`);
-    root.style.setProperty("--accent-ink", `hsl(${hue} 52% 8%)`);
-  }, [look, artHue]);
 
   const load = useCallback(async () => {
     try {
@@ -108,13 +72,11 @@ export default function App() {
   }, [selected]);
 
   // Возврат из настроек обязан перечитать список игр: человек мог там всё
-  // поменять (добавить, убрать, переименовать, отвязать от хаба). Настройки
-  // вида — по той же причине: их тоже могли поменять на экране «Вид».
+  // поменять (добавить, убрать, переименовать, отвязать от хаба, сменить фон).
   const closeSettings = useCallback(() => {
     setScreen("main");
     void load();
-    loadLook();
-  }, [load, loadLook]);
+  }, [load]);
 
   if (screen === "loading") {
     return <div className="screen" />;
@@ -145,7 +107,7 @@ export default function App() {
         onOpenSettings={() => setScreen("settings")}
       />
       <main className="stage">
-        <GameArt game={selected} onHue={setArtHue} />
+        <GameArt game={selected} />
         {selected && <GameHeader game={selected} />}
         {selected && <PlayButton gameId={selected.id} onLaunch={launch} onFixed={load} />}
         {error && <div className="banner">Не удалось загрузить: {error}</div>}

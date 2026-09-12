@@ -1,15 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import { convertFileSrc } from "@tauri-apps/api/core";
 import { gradientFor } from "../lib/gradient";
-import { dominantHue } from "../lib/hue";
 import type { GameView } from "../types";
 
 interface Props {
   game: GameView | null;
-  onHue: (hue: number | null) => void;
 }
 
-export default function GameArt({ game, onHue }: Props) {
+export default function GameArt({ game }: Props) {
   const art = game?.artPath ?? null;
 
   // Два слоя вместо одной картинки по ключу: раньше при смене игры React в
@@ -23,10 +21,10 @@ export default function GameArt({ game, onHue }: Props) {
   // до того как состояние переприменится следующим рендером.
   const topRef = useRef(art);
 
-  // Арта нет — сказать об этом сразу, иначе остался бы оттенок прошлой игры.
+  // Арта нет — оба слоя очищаются сразу. Иначе при переходе к следующей игре
+  // с фоном нижним слоем стала бы картинка, которая давно ушла с экрана.
   useEffect(() => {
     if (!art) {
-      onHue(null);
       setTop(null);
       setBottom(null);
       topRef.current = null;
@@ -37,7 +35,7 @@ export default function GameArt({ game, onHue }: Props) {
       setTop(art);
       topRef.current = art;
     }
-  }, [art, onHue]);
+  }, [art]);
 
   if (!game) {
     return <div className="art" style={{ background: gradientFor("") }} />;
@@ -60,15 +58,7 @@ export default function GameArt({ game, onHue }: Props) {
         />
       )}
       {top && (
-        <img
-          key={`top-${top}`}
-          className="art-photo"
-          crossOrigin="anonymous"
-          src={convertFileSrc(top)}
-          alt=""
-          onLoad={(e) => onHue(dominantHue(e.currentTarget))}
-          onError={() => onHue(null)}
-        />
+        <img key={`top-${top}`} className="art-photo" src={convertFileSrc(top)} alt="" />
       )}
     </div>
   );

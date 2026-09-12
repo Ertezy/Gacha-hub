@@ -78,14 +78,6 @@ export interface Behaviour {
   trayOnLaunch: boolean;
 }
 
-/** Настройки внешнего вида. Отсутствие блока в конфиге означает нынешний вид. */
-export interface Look {
-  /** Оттенок акцента в градусах, заданный человеком вручную. `null` — не задан. */
-  accentHue: number | null;
-  /** Подбирать ли оттенок из фоновой картинки игры. */
-  adaptFromArt: boolean;
-}
-
 export interface FoundGame {
   title: string;
   contentId: string | null;

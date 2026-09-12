@@ -335,26 +335,6 @@ pub async fn set_behaviour(
 }
 
 #[tauri::command]
-pub async fn get_look(app: AppHandle) -> config::Look {
-    config::load(&app).look
-}
-
-#[tauri::command]
-pub async fn set_look(app: AppHandle, accent_hue: Option<u16>, adapt_from_art: bool) -> Result<(), String> {
-    // Проверка — до загрузки конфига: незачем читать и переписывать файл
-    // человека, если правка всё равно отвергается. Так же сделано для пути
-    // к файлу в `add_game`.
-    if let Some(hue) = accent_hue {
-        if hue >= 360 {
-            return Err("оттенок задаётся в градусах, от 0 до 359".to_string());
-        }
-    }
-    let mut cfg = config::load(&app);
-    cfg.look = config::Look { accent_hue, adapt_from_art };
-    config::save(&app, &cfg)
-}
-
-#[tauri::command]
 pub async fn set_hub_url(app: AppHandle, url: Option<String>) -> Result<(), String> {
     // Пустая строка означает «нет адреса», а не адрес из пустой строки.
     let url = url.filter(|u| !u.trim().is_empty());
