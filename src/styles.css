@@ -663,46 +663,55 @@ body {
   line-height: 1.35; margin-top: 6px;
 }
 
-/* Экран настроек занимает всё окно: список игр может быть длинным, и ему
-   нужна ширина под название, путь и кнопки. */
+/* Экран настроек (спека этапа 5, §7). Размеры — переменными здесь, а не
+   числами по месту: так же сделано у дока. */
 .settings {
+  --s-text: 14px;
+  --s-hint: 13px;
+  --s-title: 22px;
+  --s-tab: 15px;
+  --s-control-h: 34px;
+  --s-card-radius: 12px;
+  --s-control-radius: 8px;
+  --s-body-max: 760px;
+
   display: flex;
   height: 100%;
   background: var(--bg);
+  font-size: var(--s-text);
   animation: screen-in var(--move) ease-out;
 }
 
 .settings-nav {
-  width: 200px;
+  width: 220px;
   flex: none;
   display: flex;
   flex-direction: column;
   gap: 2px;
-  padding: 14px 10px;
+  padding: 18px 12px;
   background: var(--glass);
   border-right: 1px solid var(--line);
 }
 
-.settings-back {
-  background: none;
-  border: 0;
-  color: var(--ink-dim);
-  text-align: left;
-  padding: 8px 10px;
-  cursor: pointer;
-  font: inherit;
-  margin-bottom: 10px;
-}
-
+.settings-back,
 .settings-tab {
   background: none;
   border: 0;
-  border-radius: 8px;
+  border-radius: var(--s-control-radius);
   color: var(--ink-dim);
   text-align: left;
-  padding: 9px 11px;
+  padding: 10px 14px;
   cursor: pointer;
   font: inherit;
+  font-size: var(--s-tab);
+}
+
+.settings-back {
+  margin-bottom: 12px;
+}
+
+.settings-tab:hover {
+  color: var(--ink);
 }
 
 .settings-tab.active {
@@ -714,18 +723,98 @@ body {
   flex: 1;
   min-width: 0;
   overflow-y: auto;
-  padding: 22px 26px;
+  padding: 32px 40px;
+}
+
+/* Содержимое не растягивается на всю ширину: на развёрнутом окне строка
+   настройки иначе разъехалась бы между названием и переключателем. */
+.settings-body > * {
+  max-width: var(--s-body-max);
 }
 
 .settings-section-title {
-  font-size: 15px;
-  margin-bottom: 4px;
+  font-size: var(--s-title);
+  font-weight: 600;
+  margin-bottom: 6px;
 }
 
 .settings-hint {
-  font-size: 12px;
+  font-size: var(--s-hint);
   color: var(--ink-dim);
-  margin-bottom: 16px;
+  line-height: 1.45;
+  margin-bottom: 18px;
+}
+
+/* Карточка: настройки раздела вместе, строки разделены тонкой линией. */
+.settings-card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--s-card-radius);
+  margin-bottom: 14px;
+}
+
+/* Строка настройки: слева название и пояснение, справа управление. Узкой
+   колонки подписей больше нет, поэтому длинные названия не ломаются. */
+.settings-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-height: 56px;
+  padding: 12px 16px;
+}
+
+.settings-row + .settings-row {
+  border-top: 1px solid var(--line);
+}
+
+.settings-row-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.settings-row-title {
+  display: block;
+  line-height: 1.35;
+}
+
+.settings-row-hint {
+  display: block;
+  margin-top: 3px;
+  font-size: var(--s-hint);
+  color: var(--ink-dim);
+  line-height: 1.4;
+}
+
+.settings-row-control {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Приглушённая заметка под карточкой. */
+.settings-note {
+  font-size: var(--s-hint);
+  color: var(--ink-faint);
+  line-height: 1.45;
+  margin: -4px 4px 18px;
+}
+
+/* Свёрнутый блок «Дополнительно» внутри карточки. */
+.settings-extra {
+  border-top: 1px solid var(--line);
+  padding: 12px 16px;
+}
+
+.settings-extra summary {
+  cursor: pointer;
+  color: var(--ink-dim);
+  font-size: var(--s-hint);
+}
+
+.settings-extra .settings-row {
+  padding-left: 0;
+  padding-right: 0;
 }
 
 .game-row {
@@ -759,12 +848,111 @@ body {
 }
 
 .settings-error {
+  /* Значение совпадает с --danger (#ff8a76): CSS не умеет собрать rgba из
+     шестнадцатеричной переменной. */
   background: rgba(255, 138, 118, 0.16);
   border: 1px solid var(--danger);
-  border-radius: 8px;
-  padding: 9px 11px;
-  font-size: 12.5px;
-  margin-bottom: 12px;
+  border-radius: var(--s-control-radius);
+  padding: 10px 14px;
+  margin-bottom: 14px;
+}
+
+/* Кнопки и поля. Жёлтая кнопка — только главное действие раздела. */
+.button {
+  height: var(--s-control-h);
+  padding: 0 14px;
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: var(--s-control-radius);
+  color: var(--ink);
+  font: inherit;
+  font-size: var(--s-text);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.button:hover:not(:disabled) {
+  background: var(--card);
+}
+
+.button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.button.accent {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-ink);
+  font-weight: 600;
+}
+
+.button.danger {
+  color: var(--danger);
+  border-color: var(--danger);
+}
+
+.input {
+  height: var(--s-control-h);
+  min-width: 0;
+  padding: 0 10px;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: var(--s-control-radius);
+  color: var(--ink);
+  font: inherit;
+  font-size: var(--s-text);
+}
+
+.editor-input {
+  width: 260px;
+}
+
+/* Переключатель вместо стандартной галочки: стандартная синяя не из палитры
+   приложения. Включённый — цвет действия. */
+.switch {
+  position: relative;
+  flex: none;
+  width: 40px;
+  height: 22px;
+  border-radius: 11px;
+  border: 1px solid var(--line);
+  background: var(--card);
+  cursor: pointer;
+  transition: background var(--move) ease;
+}
+
+.switch::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--ink-dim);
+  transition: transform var(--move) ease, background var(--move) ease;
+}
+
+.switch[aria-checked="true"] {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.switch[aria-checked="true"]::after {
+  transform: translateX(18px);
+  background: var(--accent-ink);
+}
+
+.switch:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* Видимый фокус с клавиатуры у всех элементов управления настроек. */
+.settings :is(button, input, select, summary, [role="button"]):focus-visible {
+  outline: 2px solid var(--ink-dim);
+  outline-offset: 2px;
 }
 
 .field {

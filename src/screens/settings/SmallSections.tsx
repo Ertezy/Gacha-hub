@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { api } from "../../lib/api";
 import { hubFreshness } from "../../lib/time";
 import type { About, Behaviour, HubData } from "../../types";
+import Switch from "./Switch";
 
 interface Props {
   tab: "behaviour" | "data" | "about";
@@ -36,25 +37,37 @@ function Behaviours() {
     <div>
       <h2 className="settings-section-title">Поведение</h2>
       {error && <div className="settings-error">{error}</div>}
-      <label className="field">
-        <span>Крестик прячет окно в трей</span>
-        <input
-          type="checkbox"
-          checked={b.closeToTray}
-          onChange={(e) => save({ ...b, closeToTray: e.target.checked })}
-        />
-      </label>
-      <label className="field">
-        <span>Уходить в трей после запуска игры</span>
-        <input
-          type="checkbox"
-          checked={b.trayOnLaunch}
-          onChange={(e) => save({ ...b, trayOnLaunch: e.target.checked })}
-        />
-      </label>
-      <p className="settings-hint">
-        Автозапуск вместе с Windows появится в следующем обновлении.
-      </p>
+      <div className="settings-card">
+        <div className="settings-row">
+          <div className="settings-row-text">
+            <span className="settings-row-title">Крестик прячет окно в трей</span>
+            <span className="settings-row-hint">
+              Приложение продолжает работать, вернуть окно можно из значка в трее.
+            </span>
+          </div>
+          <div className="settings-row-control">
+            <Switch
+              checked={b.closeToTray}
+              label="Крестик прячет окно в трей"
+              onChange={(next) => save({ ...b, closeToTray: next })}
+            />
+          </div>
+        </div>
+        <div className="settings-row">
+          <div className="settings-row-text">
+            <span className="settings-row-title">Уходить в трей после запуска игры</span>
+            <span className="settings-row-hint">Окно не мешает игре.</span>
+          </div>
+          <div className="settings-row-control">
+            <Switch
+              checked={b.trayOnLaunch}
+              label="Уходить в трей после запуска игры"
+              onChange={(next) => save({ ...b, trayOnLaunch: next })}
+            />
+          </div>
+        </div>
+      </div>
+      <p className="settings-note">Автозапуск вместе с Windows появится в следующем обновлении.</p>
     </div>
   );
 }
@@ -162,28 +175,43 @@ function AboutSection() {
     <div>
       <h2 className="settings-section-title">О программе</h2>
       {error && <div className="settings-error">{error}</div>}
-      <p className="settings-hint">Версия {about?.version ?? "…"}</p>
-      <div className="field-row">
-        <button
-          type="button"
-          onClick={() => void api.openSafeUrl("https://github.com/Ertezy/Gacha-hub")}
-        >
-          Репозиторий
-        </button>
-        <button
-          type="button"
-          onClick={() => void api.openLogFolder().catch((e) => setError(String(e)))}
-        >
-          Показать журнал
-        </button>
+      <div className="settings-card">
+        <div className="settings-row">
+          <div className="settings-row-text">
+            <span className="settings-row-title">Версия {about?.version ?? "…"}</span>
+          </div>
+          <div className="settings-row-control">
+            <button
+              type="button"
+              className="button"
+              onClick={() => void api.openSafeUrl("https://github.com/Ertezy/Gacha-hub")}
+            >
+              Репозиторий
+            </button>
+          </div>
+        </div>
+        <div className="settings-row">
+          <div className="settings-row-text">
+            <span className="settings-row-title">Журнал</span>
+            <span className="settings-row-hint">
+              Лежит в {about?.logPath ?? "…"}. Если что-то не работает, приложите его к
+              сообщению о проблеме.
+            </span>
+          </div>
+          <div className="settings-row-control">
+            <button
+              type="button"
+              className="button"
+              onClick={() => void api.openLogFolder().catch((e) => setError(String(e)))}
+            >
+              Показать журнал
+            </button>
+          </div>
+        </div>
       </div>
-      <p className="settings-hint">
-        Журнал лежит в {about?.logPath ?? "…"}. Если что-то не работает,
-        приложите его к сообщению о проблеме.
-      </p>
-      <p className="settings-hint">
-        Приложение не связано с разработчиками игр. Названия, изображения и
-        другие материалы принадлежат правообладателям.
+      <p className="settings-note">
+        Приложение не связано с разработчиками игр. Названия, изображения и другие
+        материалы принадлежат правообладателям.
       </p>
     </div>
   );
