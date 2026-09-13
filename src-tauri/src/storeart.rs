@@ -116,8 +116,13 @@ pub fn epic_key_image_url(catalog: &serde_json::Value, catalog_item_id: &str) ->
 
 /// Адрес годен, только если он https и ведёт на хост Epic (спека §3.2).
 ///
-/// Хост берётся до первого `/`, `?` или `#`. Адрес с `@` отвергается целиком:
-/// в `https://cdn1.epicgames.com@evil.test/` настоящий хост — `evil.test`.
+/// Хост берётся до первого `/`, `?` или `#` и обязан состоять только из
+/// латинских букв, цифр, дефиса и точки, а порт — только из цифр. Разрешённый
+/// набор, а не список запрещённых символов: при скачивании адрес читается по
+/// стандарту WHATWG, и любой символ, который эта функция и настоящий разборщик
+/// поймут по-разному, превращается в подмену хоста. Так `\` работает как `/`
+/// в `https://evil.test\wide.epicgames.com/`, а двоеточие с `@` делают из
+/// `https://cdn1.epicgames.com:x@evil.test/` учётные данные и хост `evil.test`.
 // подключается в задаче 6
 #[allow(dead_code)]
 fn is_epic_image_url(url: &str) -> bool {
@@ -128,11 +133,18 @@ fn is_epic_image_url(url: &str) -> bool {
         return false;
     };
     let authority = rest.split(['/', '?', '#']).next().unwrap_or("");
-    if authority.contains('@') {
+    let (host, port) = match authority.split_once(':') {
+        Some((host, port)) => (host, Some(port)),
+        None => (authority, None),
+    };
+    if port.is_some_and(|p| p.is_empty() || !p.bytes().all(|b| b.is_ascii_digit())) {
         return false;
     }
-    let host = authority.split(':').next().unwrap_or("").to_ascii_lowercase();
+    if !host.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'-' || b == b'.') {
+        return false;
+    }
     const SUFFIX: &str = ".epicgames.com";
+    let host = host.to_ascii_lowercase();
     host.len() > SUFFIX.len() && host.ends_with(SUFFIX)
 }
 
@@ -315,6 +327,13 @@ mod tests {
             "https://evil.test/cdn1.epicgames.com",
             "https://.epicgames.com/a.jpg",
             "https://epicgames.com/a.jpg",
+            "https://evil.test\\wide.epicgames.com/a.jpg",
+            "https://cdn1.epicgames.com:x@evil.test/a.jpg",
+            "https://cdn1.epicgames.com:/a.jpg",
+            "https://evil.test\t.epicgames.com/a.jpg",
+            "https://evil.test%2F.epicgames.com/a.jpg",
+            "https:///a.jpg",
+            "https://:443/a.jpg",
         ] {
             assert!(!is_epic_image_url(bad), "{bad}");
         }
