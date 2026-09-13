@@ -35,6 +35,17 @@ export default function App() {
     api.getHub().then(setHub).catch(() => setHub(null));
   }, []);
 
+  // Только список игр, без выбора и хаба: событие о новых фонах не должно
+  // сбрасывать игру, которую человек уже выбрал в доке.
+  const reloadGames = useCallback(async () => {
+    try {
+      setGames(await api.getGames());
+      setError("");
+    } catch (e) {
+      setError(String(e));
+    }
+  }, []);
+
   // Фоны Epic докачиваются после запуска (спека этапа 5, §3.3), и Rust сообщает
   // об этом событием. Подписка регистрируется асинхронно, а Tauri не копит
   // события для тех, кто подпишется позже: докачка, закончившаяся до
@@ -43,15 +54,15 @@ export default function App() {
   // кеше. Всё, что докачается позже, придёт событием.
   useEffect(() => {
     let active = true;
-    const unlisten = listen("games-changed", () => void load());
+    const unlisten = listen("games-changed", () => void reloadGames());
     void unlisten.then(() => {
-      if (active) void load();
+      if (active) void reloadGames();
     });
     return () => {
       active = false;
       void unlisten.then((stop) => stop());
     };
-  }, [load]);
+  }, [reloadGames]);
 
   useEffect(() => {
     void (async () => {
