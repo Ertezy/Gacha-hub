@@ -102,6 +102,17 @@ function LayerView({
 }) {
   if (layer.kind === "fill") return null;
   if (layer.kind === "video") {
+    // Нижний слой неподвижен, пока новый фон проявляется поверх, и проигрывать
+    // ролик в нём некому. Если у ролика есть неподвижный кадр, под новым фоном
+    // лежит он, и файл ролика заново не загружается. Классы видео, а не
+    // картинки: у картинки медленный дрейф, и кадр прыгнул бы в масштабе.
+    if (under && layer.still) {
+      return (
+        <img className="art-video art-layer-under" src={convertFileSrc(layer.still)} alt="" />
+      );
+    }
+    // Кадра нет — остаётся сам ролик, иначе на время перетекания проглянул бы
+    // фон окна (спека §6.6). Внизу он не запускается и грузит только метаданные.
     return (
       <video
         ref={videoRef}
@@ -112,6 +123,7 @@ function LayerView({
         loop
         playsInline
         autoPlay={!under}
+        preload={under ? "metadata" : undefined}
       />
     );
   }
