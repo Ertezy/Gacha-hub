@@ -6,7 +6,33 @@
 
 use tauri::menu::{Menu, MenuItem};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
-use tauri::{AppHandle, Manager};
+use tauri::{AppHandle, Emitter, Manager};
+
+/// Событие для страницы: окно показано (`true`) или спрятано (`false`).
+pub const VISIBILITY_EVENT: &str = "window-visibility";
+
+/// Прячет главное окно. Единственное место в приложении, где это делается.
+///
+/// Раньше окно пряталось в двух местах, у крестика и после запуска игры, и
+/// проверка «есть ли значок в трее» жила у каждого отдельно — во втором её
+/// однажды забыли. Теперь и проверка, и сообщение странице (видео фона встаёт на
+/// паузу, спека этапа 5 §6.3) живут здесь, и забыть их в новом месте нельзя:
+/// другого способа спрятать окно в коде нет.
+///
+/// `false` — окно не спрятано: без значка в трее его стало бы нечем вернуть.
+pub fn hide_main_window(app: &AppHandle) -> bool {
+    if app.tray_by_id("main").is_none() {
+        return false;
+    }
+    let Some(window) = app.get_webview_window("main") else {
+        return false;
+    };
+    if window.hide().is_err() {
+        return false;
+    }
+    let _ = app.emit(VISIBILITY_EVENT, false);
+    true
+}
 
 pub fn setup(app: &AppHandle) -> tauri::Result<()> {
     let show = MenuItem::with_id(app, "show", "Показать окно", true, None::<&str>)?;
@@ -52,5 +78,6 @@ fn restore(app: &AppHandle) {
         let _ = window.show();
         let _ = window.unminimize();
         let _ = window.set_focus();
+        let _ = app.emit(VISIBILITY_EVENT, true);
     }
 }

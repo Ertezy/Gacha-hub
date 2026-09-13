@@ -113,12 +113,9 @@ pub async fn launch_game(app: AppHandle, game_id: String) -> Result<String, Stri
         log::error!("[config] не удалось сохранить lastPlayed: {e}");
     }
 
-    // Прячем окно, только если значок в трее на месте: иначе спрятанное окно
-    // стало бы нечем вернуть.
-    if cfg.behaviour.tray_on_launch && app.tray_by_id("main").is_some() {
-        if let Some(window) = app.get_webview_window("main") {
-            let _ = window.hide();
-        }
+    // Проверка трея и сообщение странице живут в одном месте.
+    if cfg.behaviour.tray_on_launch {
+        crate::tray::hide_main_window(&app);
     }
 
     Ok(game_id)

@@ -90,14 +90,11 @@ pub fn run() {
         })
         .on_window_event(|window, event| {
             if let tauri::WindowEvent::CloseRequested { api, .. } = event {
-                // Крестик прячет окно, а не закрывает приложение — но только
-                // если значок в трее на месте. Иначе спрятанное окно стало бы
-                // нечем вернуть.
-                let has_tray = window.app_handle().tray_by_id("main").is_some();
+                // Крестик прячет окно, а не закрывает приложение, если так
+                // настроено и окно есть чем вернуть (см. `tray::hide_main_window`).
                 let cfg = crate::config::load(window.app_handle());
-                if has_tray && cfg.behaviour.close_to_tray {
+                if cfg.behaviour.close_to_tray && tray::hide_main_window(window.app_handle()) {
                     api.prevent_close();
-                    let _ = window.hide();
                 }
             }
         })
