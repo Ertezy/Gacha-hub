@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { listen } from "@tauri-apps/api/event";
 import { api } from "./lib/api";
 import SidePanel from "./components/SidePanel";
 import GameArt from "./components/GameArt";
@@ -33,6 +34,16 @@ export default function App() {
     // не должна откладывать появление главного экрана.
     api.getHub().then(setHub).catch(() => setHub(null));
   }, []);
+
+  // Фоны Epic докачиваются после запуска (спека этапа 5, §3.3). Подписка
+  // объявлена раньше первой загрузки списка: сообщение, пришедшее до подписки,
+  // потерялось бы.
+  useEffect(() => {
+    const unlisten = listen("games-changed", () => void load());
+    return () => {
+      void unlisten.then((stop) => stop());
+    };
+  }, [load]);
 
   useEffect(() => {
     void (async () => {

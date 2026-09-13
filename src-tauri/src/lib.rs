@@ -15,7 +15,7 @@ mod storeart;
 mod tray;
 mod vdf;
 
-use tauri::Manager;
+use tauri::{Emitter, Manager};
 
 /// Дополняет уже существующие записи данными из манифестов магазинов (важно
 /// для тех, что перенеслись из v1 без данных о запуске: см.
@@ -75,6 +75,17 @@ pub fn run() {
             if let Err(e) = tray::setup(&app.handle().clone()) {
                 log::error!("[tray] не удалось создать значок в трее: {e}");
             }
+            // Картинки Epic требуют сети, а окно их ждать не должно (спека
+            // этапа 5, §3.3): докачиваем в отдельном потоке и сообщаем окну,
+            // когда появилось новое.
+            let handle = app.handle().clone();
+            std::thread::spawn(move || {
+                if art::download_missing_store_art(&handle) > 0 {
+                    if let Err(e) = handle.emit("games-changed", ()) {
+                        log::warn!("[art] окно не узнало о новых фонах: {e}");
+                    }
+                }
+            });
             Ok(())
         })
         .on_window_event(|window, event| {

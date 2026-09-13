@@ -164,6 +164,47 @@ fn own_video(app: &AppHandle, game: &Game) -> Option<PathBuf> {
     Some(video.clone())
 }
 
+/// Потолок размера картинки магазина. Тот же, что у картинок хаба, пока обмер
+/// картинок владельца не покажет, что его мало (спека этапа 5, §3.2).
+pub const MAX_STORE_ART_BYTES: u64 = crate::images::MAX_IMAGE_BYTES;
+
+/// Адреса картинок Epic, которых ещё нет в кеше фонов. Без сети и без окна —
+/// ради тестов.
+pub fn pending_epic_downloads(games: &[Game], ctx: &ArtContext, dir: &Path) -> Vec<String> {
+    let mut urls: Vec<String> = games
+        .iter()
+        .filter_map(|g| epic_image_url(g, ctx))
+        .filter(|url| crate::images::cached(dir, url).is_none())
+        .collect();
+    urls.sort();
+    urls.dedup();
+    urls
+}
+
+/// Докачивает недостающие картинки Epic (спека §3.3). Вызывается из отдельного
+/// потока при запуске: окно её не ждёт. Возвращает, сколько картинок появилось.
+///
+/// Отказ по одной картинке пишется в журнал и не мешает остальным: игра просто
+/// останется с заливкой до следующего запуска (спека §3.4).
+pub fn download_missing_store_art(app: &AppHandle) -> usize {
+    let cfg = crate::config::load(app);
+    if !cfg.store_art {
+        return 0;
+    }
+    let Ok(dir) = cache_dir(app) else {
+        return 0;
+    };
+    let ctx = ArtContext::build(cfg.store_art, &cfg.games);
+    let mut done = 0;
+    for url in pending_epic_downloads(&cfg.games, &ctx, &dir) {
+        match crate::images::fetch_into(&dir, &url, MAX_STORE_ART_BYTES) {
+            Ok(_) => done += 1,
+            Err(e) => log::warn!("[art] картинка Epic не скачалась: {e}"),
+        }
+    }
+    done
+}
+
 /// Картинка магазина, уже лежащая в кеше фонов.
 ///
 /// Картинка Steam копируется сюда сразу: это чтение с диска. Картинка Epic здесь
@@ -191,6 +232,61 @@ mod tests {
 
     fn p(s: &str) -> PathBuf {
         PathBuf::from(s)
+    }
+
+    fn epic_game(id: &str) -> Game {
+        let mut g = Game::manual(id.into(), id.into());
+        g.launch = crate::config::Launch::Epic {
+            namespace: "ns".into(),
+            catalog_item_id: id.into(),
+            app_name: "app".into(),
+        };
+        g
+    }
+
+    fn two_game_catalog() -> serde_json::Value {
+        serde_json::json!([
+            { "id": "a", "keyImages": [{ "type": "DieselGameBox", "url": "https://cdn1.epicgames.com/a.jpg" }] },
+            { "id": "b", "keyImages": [{ "type": "DieselGameBox", "url": "https://cdn1.epicgames.com/b.jpg" }] }
+        ])
+    }
+
+    fn scratch(tag: &str) -> PathBuf {
+        let p = std::env::temp_dir().join(format!("gh-art-{tag}-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&p);
+        std::fs::create_dir_all(&p).unwrap();
+        p
+    }
+
+    #[test]
+    fn only_missing_epic_pictures_are_queued() {
+        let dir = scratch("pending");
+        let a = "https://cdn1.epicgames.com/a.jpg";
+        std::fs::write(dir.join(crate::images::file_name_for(a, "jpg")), b"jpg").unwrap();
+        let ctx = ArtContext::for_test(true, Vec::new(), Some(two_game_catalog()));
+        let games = [epic_game("a"), epic_game("b")];
+        assert_eq!(
+            pending_epic_downloads(&games, &ctx, &dir),
+            vec!["https://cdn1.epicgames.com/b.jpg".to_string()]
+        );
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn nothing_is_queued_with_the_switch_off() {
+        let dir = scratch("off");
+        let ctx = ArtContext::for_test(false, Vec::new(), Some(two_game_catalog()));
+        assert!(pending_epic_downloads(&[epic_game("a")], &ctx, &dir).is_empty());
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn the_same_picture_is_queued_once() {
+        let dir = scratch("dedup");
+        let ctx = ArtContext::for_test(true, Vec::new(), Some(two_game_catalog()));
+        let games = [epic_game("a"), epic_game("a")];
+        assert_eq!(pending_epic_downloads(&games, &ctx, &dir).len(), 1);
+        std::fs::remove_dir_all(&dir).ok();
     }
 
     #[test]
