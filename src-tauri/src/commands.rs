@@ -24,6 +24,12 @@ pub struct GameView {
     pub icon_path: Option<String>,
     /// Путь к фоновой картинке. `None` — рисуется сгенерированная заливка.
     pub art_path: Option<String>,
+    /// Откуда взят фон, показанный первым (спека этапа 5, §2.1).
+    pub art_source: crate::art::ArtSource,
+    /// Своё видео фона. `None` — видео не задано или файл пропал.
+    pub video_path: Option<String>,
+    /// Своё видео задано, но файла на месте нет (спека §6.5).
+    pub video_missing: bool,
     /// Аргументы запуска. Действуют только при прямом запуске — Steam и Epic
     /// открывают ссылку магазина и передать их игре не могут (`launch.rs`).
     pub args: String,
@@ -53,22 +59,30 @@ fn view_of_without_icon(game: &Game) -> GameView {
         source_label,
         icon_path: None,
         art_path: None,
+        art_source: crate::art::ArtSource::Fill,
+        video_path: None,
+        video_missing: game.video.as_ref().is_some_and(|v| !v.is_file()),
         args: game.args.clone(),
         missing: !config::is_present(game),
     }
 }
 
-pub fn view_of(app: &AppHandle, game: &Game) -> GameView {
+pub fn view_of(app: &AppHandle, game: &Game, ctx: &crate::art::ArtContext) -> GameView {
+    let art = crate::art::resolve(app, game, ctx);
     GameView {
         icon_path: crate::icons::ensure(app, game).map(|p| p.to_string_lossy().into_owned()),
-        art_path: crate::art::ensure(app, game).map(|p| p.to_string_lossy().into_owned()),
+        art_path: art.art_path.map(|p| p.to_string_lossy().into_owned()),
+        art_source: art.source,
+        video_path: art.video_path.map(|p| p.to_string_lossy().into_owned()),
         ..view_of_without_icon(game)
     }
 }
 
 #[tauri::command]
 pub async fn get_games(app: AppHandle) -> Vec<GameView> {
-    config::load(&app).games.iter().map(|g| view_of(&app, g)).collect()
+    let cfg = config::load(&app);
+    let ctx = crate::art::ArtContext::build(cfg.store_art, &cfg.games);
+    cfg.games.iter().map(|g| view_of(&app, g, &ctx)).collect()
 }
 
 #[tauri::command]
@@ -414,8 +428,9 @@ pub async fn image_cache_size(app: AppHandle) -> u64 {
 
 /// Очищает кеш картинок хаба, кеш добытых иконок и кеш фонов. После очистки
 /// иконки и фоны добываются заново сами при следующем обращении к списку
-/// игр — `icons::ensure` и `art::ensure` каждый раз проверяют, что файл в
-/// кеше есть, и пересоздают его, если нет.
+/// игр — `icons::ensure` и `art::resolve` каждый раз проверяют, что файл в
+/// кеше есть, и пересоздают его, если нет, а картинки Epic — при следующем
+/// запуске.
 #[tauri::command]
 pub async fn clear_image_cache(app: AppHandle) -> Result<usize, String> {
     let mut removed = 0;
@@ -541,6 +556,16 @@ mod tests {
     fn clear_dir_on_a_missing_folder_is_an_error_not_a_panic() {
         let err = clear_dir(std::path::Path::new(r"C:\nope\never\missing"));
         assert!(err.is_err());
+    }
+
+    #[test]
+    fn view_marks_a_video_whose_file_disappeared() {
+        let mut g = steam_game();
+        g.video = Some(std::path::PathBuf::from(r"C:\nope\never.mp4"));
+        let view = view_of_without_icon(&g);
+        assert!(view.video_missing);
+        assert_eq!(view.video_path, None);
+        assert_eq!(view.art_source, crate::art::ArtSource::Fill);
     }
 
     #[test]

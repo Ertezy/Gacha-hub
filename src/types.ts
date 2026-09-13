@@ -12,6 +12,12 @@ export interface GameView {
   iconPath: string | null;
   /** Путь к фоновой картинке. `null` — рисуется сгенерированная заливка. */
   artPath: string | null;
+  /** Откуда взят фон, показанный первым. */
+  artSource: "video" | "picture" | "steam" | "epic" | "fill";
+  /** Своё видео фона. `null` — видео не задано или файл пропал. */
+  videoPath: string | null;
+  /** Своё видео задано, но файла на месте нет. */
+  videoMissing: boolean;
   /** Аргументы запуска. Действуют только при прямом запуске — Steam и Epic
    *  открывают ссылку магазина и передать их игре не могут. */
   args: string;

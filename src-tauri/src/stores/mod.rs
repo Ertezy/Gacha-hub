@@ -74,7 +74,6 @@ fn store_ref(launch: &Launch) -> Option<StoreRef> {
 /// Сравнение по частям пути и без учёта регистра латиницы: на Windows
 /// `C:\Games` и `c:\games` — одна папка, а строковое «начинается с» приняло бы
 /// `D:\Game2` за содержимое `D:\Game`. Пустой `parent` не содержит ничего.
-#[allow(dead_code)] // подключается в задаче 6
 fn is_inside(child: &Path, parent: &Path) -> bool {
     if parent.as_os_str().is_empty() {
         return false;
@@ -94,7 +93,6 @@ fn is_inside(child: &Path, parent: &Path) -> bool {
 /// Способ запуска говорит это прямо. Если игра запускается напрямую, её файл
 /// ищется внутри папок, которые магазины записали в свои манифесты: у владельца
 /// так записан Arknights: Endfield, установленный из Epic.
-#[allow(dead_code)] // подключается в задаче 6
 pub fn store_of(game: &crate::config::Game, installed: &[InstalledGame]) -> Option<StoreRef> {
     if let Some(found) = store_ref(&game.launch) {
         return Some(found);

@@ -7,8 +7,6 @@
 use std::path::{Path, PathBuf};
 use std::time::SystemTime;
 
-// подключается в задаче 6
-#[allow(dead_code)]
 const STEAM_HERO: &str = "library_hero.jpg";
 
 /// Широкая картинка библиотеки Steam для игры, самая свежая из найденных.
@@ -16,8 +14,6 @@ const STEAM_HERO: &str = "library_hero.jpg";
 /// Раскладок кеша две, поддерживаются обе (спека §3.1): новая — папка по номеру
 /// игры с подпапками внутри, старая — файл с номером в имени прямо в
 /// `librarycache`.
-// подключается в задаче 6
-#[allow(dead_code)]
 pub fn steam_hero(steam_roots: &[PathBuf], appid: u32) -> Option<PathBuf> {
     let mut found: Vec<(SystemTime, PathBuf)> = Vec::new();
     for root in steam_roots {
@@ -39,8 +35,6 @@ pub fn steam_hero(steam_roots: &[PathBuf], appid: u32) -> Option<PathBuf> {
 }
 
 /// Запоминает файл вместе с датой изменения, если он есть и это файл.
-// подключается в задаче 6
-#[allow(dead_code)]
 fn remember(found: &mut Vec<(SystemTime, PathBuf)>, path: PathBuf) {
     if let Ok(meta) = std::fs::metadata(&path) {
         if meta.is_file() {
@@ -52,13 +46,9 @@ fn remember(found: &mut Vec<(SystemTime, PathBuf)>, path: PathBuf) {
 /// Потолок чтения каталога Epic. У владельца файл весит 600 КБ на четыре сотни
 /// позиций; тридцать два мегабайта — запас на библиотеку в десятки раз больше, а
 /// не приглашение держать в памяти всё, что туда положат.
-// подключается в задаче 6
-#[allow(dead_code)]
 const MAX_CATALOG_BYTES: u64 = 32 * 1024 * 1024;
 
 /// Где Epic хранит каталог магазина.
-// подключается в задаче 6
-#[allow(dead_code)]
 pub fn epic_catalog_path() -> Option<PathBuf> {
     let program_data = std::env::var_os("PROGRAMDATA")?;
     Some(
@@ -72,8 +62,6 @@ pub fn epic_catalog_path() -> Option<PathBuf> {
 }
 
 /// Каталог Epic с диска, с потолком размера.
-// подключается в задаче 6
-#[allow(dead_code)]
 pub fn read_epic_catalog(path: &Path) -> Option<serde_json::Value> {
     use std::io::Read;
     let file = std::fs::File::open(path).ok()?;
@@ -87,8 +75,6 @@ pub fn read_epic_catalog(path: &Path) -> Option<serde_json::Value> {
 }
 
 /// Каталог Epic — это JSON-массив, записанный в base64.
-// подключается в задаче 6
-#[allow(dead_code)]
 pub fn parse_epic_catalog(bytes: &[u8]) -> Option<serde_json::Value> {
     let json = decode_base64(bytes)?;
     let value: serde_json::Value = serde_json::from_slice(&json).ok()?;
@@ -97,8 +83,6 @@ pub fn parse_epic_catalog(bytes: &[u8]) -> Option<serde_json::Value> {
 
 /// Адрес широкой картинки игры (тип `DieselGameBox`, 2560 на 1440) — или `None`,
 /// если игры в каталоге нет, картинки нет или адресу нельзя доверять.
-// подключается в задаче 6
-#[allow(dead_code)]
 pub fn epic_key_image_url(catalog: &serde_json::Value, catalog_item_id: &str) -> Option<String> {
     let item = catalog
         .as_array()?
@@ -123,8 +107,6 @@ pub fn epic_key_image_url(catalog: &serde_json::Value, catalog_item_id: &str) ->
 /// поймут по-разному, превращается в подмену хоста. Так `\` работает как `/`
 /// в `https://evil.test\wide.epicgames.com/`, а двоеточие с `@` делают из
 /// `https://cdn1.epicgames.com:x@evil.test/` учётные данные и хост `evil.test`.
-// подключается в задаче 6
-#[allow(dead_code)]
 fn is_epic_image_url(url: &str) -> bool {
     if !crate::hub::is_safe_https(url) {
         return false;
@@ -153,8 +135,6 @@ fn is_epic_image_url(url: &str) -> bool {
 /// Пробелы и переводы строк пропускаются. Любой другой посторонний символ,
 /// неполная четвёрка или `=` не в конце — `None`. Своя функция, а не
 /// библиотека: новых зависимостей в проекте не добавляется.
-// подключается в задаче 6
-#[allow(dead_code)]
 fn decode_base64(input: &[u8]) -> Option<Vec<u8>> {
     fn value(c: u8) -> Option<u32> {
         match c {
