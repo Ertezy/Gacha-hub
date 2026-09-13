@@ -28,7 +28,7 @@ pub struct GameView {
     pub art_source: crate::art::ArtSource,
     /// Своё видео фона. `None` — видео не задано или файл пропал.
     pub video_path: Option<String>,
-    /// Своё видео задано, но файла на месте нет (спека §6.5).
+    /// Своё видео задано, но файла нет на месте или это не mp4 и не webm (спека §6.1, §6.5).
     pub video_missing: bool,
     /// Аргументы запуска. Действуют только при прямом запуске — Steam и Epic
     /// открывают ссылку магазина и передать их игре не могут (`launch.rs`).
@@ -61,7 +61,7 @@ fn view_of_without_icon(game: &Game) -> GameView {
         art_path: None,
         art_source: crate::art::ArtSource::Fill,
         video_path: None,
-        video_missing: game.video.as_ref().is_some_and(|v| !v.is_file()),
+        video_missing: game.video.as_ref().is_some_and(|v| !crate::art::is_usable_video(v)),
         args: game.args.clone(),
         missing: !config::is_present(game),
     }
@@ -569,6 +569,17 @@ mod tests {
         assert!(view.video_missing);
         assert_eq!(view.video_path, None);
         assert_eq!(view.art_source, crate::art::ArtSource::Fill);
+    }
+
+    #[test]
+    fn a_video_that_is_not_mp4_or_webm_counts_as_missing() {
+        let dir = temp_dir("video-ext");
+        let file = dir.join("clip.txt");
+        std::fs::write(&file, b"x").unwrap();
+        let mut g = steam_game();
+        g.video = Some(file);
+        assert!(view_of_without_icon(&g).video_missing);
+        std::fs::remove_dir_all(&dir).ok();
     }
 
     #[test]

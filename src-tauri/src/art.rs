@@ -152,10 +152,15 @@ pub fn epic_image_url(game: &Game, ctx: &ArtContext) -> Option<String> {
 
 /// Фон игры, готовый к показу в окне.
 pub fn resolve(app: &AppHandle, game: &Game, ctx: &ArtContext) -> Chosen {
-    let Ok(dir) = cache_dir(app) else {
-        return choose(None, None, None);
-    };
+    // Видео кеш не нужен: без папки кеша пропадают только картинки.
     let video = own_video(app, game);
+    let dir = match cache_dir(app) {
+        Ok(dir) => dir,
+        Err(e) => {
+            log::warn!("[art] фон без кеша: {e}");
+            return choose(video, None, None);
+        }
+    };
     let picture = game
         .background
         .as_ref()
@@ -165,6 +170,18 @@ pub fn resolve(app: &AppHandle, game: &Game, ctx: &ArtContext) -> Chosen {
     choose(video, picture, store)
 }
 
+/// Ролик ли это по расширению (спека §6.1). Окну выдаётся только mp4 и webm.
+pub fn is_video_file_name(path: &Path) -> bool {
+    path.extension()
+        .and_then(|e| e.to_str())
+        .is_some_and(|e| e.eq_ignore_ascii_case("mp4") || e.eq_ignore_ascii_case("webm"))
+}
+
+/// Ролик подходящего формата, и файл на месте.
+pub fn is_usable_video(path: &Path) -> bool {
+    is_video_file_name(path) && path.is_file()
+}
+
 /// Своё видео, если файл на месте.
 ///
 /// Ролик не копируется: окну разрешается читать ровно этот файл там, где он
@@ -172,6 +189,10 @@ pub fn resolve(app: &AppHandle, game: &Game, ctx: &ArtContext) -> Chosen {
 /// выдача того же разрешения безвредна.
 fn own_video(app: &AppHandle, game: &Game) -> Option<PathBuf> {
     let video = game.video.as_ref()?;
+    if !is_video_file_name(video) {
+        log::warn!("[art] видео не mp4 и не webm, окну не выдаётся: {}", video.display());
+        return None;
+    }
     if !video.is_file() {
         return None;
     }
@@ -498,5 +519,15 @@ mod tests {
         let mut state = DownloadState::default();
         assert!(report_catalog_once(&mut state));
         assert!(!report_catalog_once(&mut state));
+    }
+
+    #[test]
+    fn only_mp4_and_webm_are_videos() {
+        assert!(is_video_file_name(Path::new("a.mp4")));
+        assert!(is_video_file_name(Path::new("B.WEBM")));
+        assert!(!is_video_file_name(Path::new("c.mkv")));
+        assert!(!is_video_file_name(Path::new("d.mp4.exe")));
+        assert!(!is_video_file_name(Path::new("noext")));
+        assert!(!is_video_file_name(Path::new("e.jpg")));
     }
 }
