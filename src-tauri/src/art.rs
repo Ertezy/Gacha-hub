@@ -3,10 +3,12 @@
 //! Отдельно от иконок, потому что это другая вещь с другим жизненным циклом,
 //! и класть их в одну папку значило бы путать при чистке.
 
+use std::collections::HashSet;
 use std::path::{Path, PathBuf};
+use std::sync::Mutex;
 
 use serde::Serialize;
-use tauri::{AppHandle, Manager};
+use tauri::{AppHandle, Emitter, Manager};
 
 use crate::config::Game;
 use crate::stores::{InstalledGame, StoreRef};
@@ -81,6 +83,9 @@ pub struct ArtContext {
     installed: Vec<InstalledGame>,
     steam_roots: Vec<PathBuf>,
     epic_catalog: Option<serde_json::Value>,
+    /// Каталог Epic нужен был, но не прочитался (испорчен, отсутствует,
+    /// превысил потолок размера).
+    epic_catalog_unreadable: bool,
 }
 
 impl ArtContext {
@@ -90,6 +95,7 @@ impl ArtContext {
             installed: Vec::new(),
             steam_roots: Vec::new(),
             epic_catalog: None,
+            epic_catalog_unreadable: false,
         };
         if !store_art {
             return ctx;
@@ -102,6 +108,7 @@ impl ArtContext {
         if games.iter().any(|g| matches!(ctx.store_of(g), Some(StoreRef::Epic { .. }))) {
             ctx.epic_catalog = crate::storeart::epic_catalog_path()
                 .and_then(|path| crate::storeart::read_epic_catalog(&path));
+            ctx.epic_catalog_unreadable = ctx.epic_catalog.is_none();
         }
         ctx
     }
@@ -110,13 +117,24 @@ impl ArtContext {
         crate::stores::store_of(game, &self.installed)
     }
 
+    /// Каталог Epic был нужен для списка игр, но не прочитался.
+    pub fn epic_catalog_unreadable(&self) -> bool {
+        self.epic_catalog_unreadable
+    }
+
     #[cfg(test)]
     pub fn for_test(
         store_art: bool,
         installed: Vec<InstalledGame>,
         epic_catalog: Option<serde_json::Value>,
     ) -> Self {
-        Self { store_art, installed, steam_roots: Vec::new(), epic_catalog }
+        Self {
+            store_art,
+            installed,
+            steam_roots: Vec::new(),
+            epic_catalog,
+            epic_catalog_unreadable: false,
+        }
     }
 }
 
@@ -181,35 +199,121 @@ pub fn pending_epic_downloads(games: &[Game], ctx: &ArtContext, dir: &Path) -> V
     urls
 }
 
-/// Докачивает недостающие картинки Epic (спека §3.3). Вызывается из отдельного
-/// потока при запуске: окно её не ждёт. Возвращает, сколько картинок появилось.
-///
-/// Отказ по одной картинке пишется в журнал и не мешает остальным: игра просто
-/// останется с заливкой до следующего запуска (спека §3.4).
-pub fn download_missing_store_art(app: &AppHandle) -> usize {
-    let cfg = crate::config::load(app);
-    if !cfg.store_art {
-        return 0;
+/// Докачка картинок Epic за время работы приложения.
+#[derive(Debug, Default)]
+pub struct DownloadState {
+    /// Поток докачки уже работает — второй не запускается.
+    running: bool,
+    /// Адреса, которые уже пробовали скачать. Неудачный до следующего запуска
+    /// не повторяется, иначе без сети каждое построение списка шло бы в сеть.
+    tried: HashSet<String>,
+    /// О нечитаемом каталоге Epic журнал уже знает.
+    catalog_reported: bool,
+}
+
+/// Состояние докачки, которое хранит Tauri (`manage`).
+#[derive(Debug, Default)]
+pub struct StoreArtDownloads(pub Mutex<DownloadState>);
+
+/// Отдаёт под докачку новые адреса, если поток свободен, и сразу запоминает их
+/// как опробованные. `None` — докачка уже идёт, либо добавить нечего.
+pub fn claim(state: &mut DownloadState, pending: Vec<String>) -> Option<Vec<String>> {
+    if state.running {
+        return None;
     }
-    let Ok(dir) = cache_dir(app) else {
-        return 0;
-    };
-    let ctx = ArtContext::build(cfg.store_art, &cfg.games);
-    let mut done = 0;
-    for url in pending_epic_downloads(&cfg.games, &ctx, &dir) {
-        match crate::images::fetch_into(&dir, &url, MAX_STORE_ART_BYTES) {
-            Ok(_) => done += 1,
-            Err(e) => log::warn!("[art] картинка Epic не скачалась: {e}"),
+    let fresh: Vec<String> =
+        pending.into_iter().filter(|url| !state.tried.contains(url)).collect();
+    if fresh.is_empty() {
+        return None;
+    }
+    state.tried.extend(fresh.iter().cloned());
+    state.running = true;
+    Some(fresh)
+}
+
+/// Докачка в потоке закончилась — следующий вызов `claim` может начать новую.
+pub fn finish(state: &mut DownloadState) {
+    state.running = false;
+}
+
+/// Забывает опробованные адреса: после очистки кеша неудачный раньше адрес
+/// можно попробовать снова.
+pub fn forget_tried(state: &mut DownloadState) {
+    state.tried.clear();
+}
+
+/// Правда только в первый раз за время работы приложения — дальше о
+/// нечитаемом каталоге Epic в журнал больше не пишем.
+pub fn report_catalog_once(state: &mut DownloadState) -> bool {
+    if state.catalog_reported {
+        return false;
+    }
+    state.catalog_reported = true;
+    true
+}
+
+/// Докачивает недостающие картинки Epic в отдельном потоке (спека §3.3).
+///
+/// Вызывается при каждом построении списка игр, поэтому одна дорога покрывает
+/// запуск, первый запуск, поиск установленных игр, ручное добавление, включение
+/// галочки и очистку кеша. Окно докачку не ждёт. Отказ по одной картинке пишется
+/// в журнал и не мешает остальным (спека §3.4).
+pub fn start_missing_downloads(app: &AppHandle, games: &[Game], ctx: &ArtContext) {
+    if ctx.epic_catalog_unreadable() {
+        let should_log = {
+            let state = app.state::<StoreArtDownloads>();
+            let mut state = state.0.lock().unwrap_or_else(|e| e.into_inner());
+            report_catalog_once(&mut state)
+        };
+        if should_log {
+            log::warn!("[art] каталог Epic не прочитан, картинок Epic не будет");
         }
     }
-    done
+    // Отказ уже разобран в `resolve`: здесь просто нечего качать без папки.
+    let Ok(dir) = cache_dir(app) else { return };
+    let pending = pending_epic_downloads(games, ctx, &dir);
+    let claimed = {
+        let state = app.state::<StoreArtDownloads>();
+        let mut state = state.0.lock().unwrap_or_else(|e| e.into_inner());
+        claim(&mut state, pending)
+    };
+    let Some(urls) = claimed else { return };
+
+    let app = app.clone();
+    std::thread::spawn(move || {
+        let mut done = 0;
+        for url in urls {
+            match crate::images::fetch_into(&dir, &url, MAX_STORE_ART_BYTES) {
+                Ok(_) => done += 1,
+                Err(e) => log::warn!("[art] картинка Epic не скачалась: {e}"),
+            }
+        }
+        {
+            let state = app.state::<StoreArtDownloads>();
+            let mut state = state.0.lock().unwrap_or_else(|e| e.into_inner());
+            finish(&mut state);
+        }
+        if done > 0 {
+            if let Err(e) = app.emit("games-changed", ()) {
+                log::warn!("[art] окно не узнало о новых фонах: {e}");
+            }
+        }
+    });
+}
+
+/// После очистки кеша картинки скачиваются заново, в том числе те, что не
+/// скачались раньше.
+pub fn forget_tried_downloads(app: &AppHandle) {
+    let state = app.state::<StoreArtDownloads>();
+    let mut state = state.0.lock().unwrap_or_else(|e| e.into_inner());
+    forget_tried(&mut state);
 }
 
 /// Картинка магазина, уже лежащая в кеше фонов.
 ///
 /// Картинка Steam копируется сюда сразу: это чтение с диска. Картинка Epic здесь
-/// только ищется в кеше — скачивает её фоновый поток после запуска (спека §3.3),
-/// и окно список игр не ждёт.
+/// только ищется в кеше — её докачивает поток, который запускает построение
+/// списка игр (спека §3.3), и окно список игр не ждёт.
 fn store_picture(dir: &Path, game: &Game, ctx: &ArtContext) -> Option<(ArtSource, PathBuf)> {
     if !ctx.store_art {
         return None;
@@ -348,5 +452,51 @@ mod tests {
         assert_eq!(epic_image_url(&g, &on), Some("https://cdn1.epicgames.com/a.jpg".into()));
         let off = ArtContext::for_test(false, Vec::new(), Some(catalog));
         assert_eq!(epic_image_url(&g, &off), None);
+    }
+
+    #[test]
+    fn claim_hands_out_each_new_address_once() {
+        let mut state = DownloadState::default();
+        assert_eq!(
+            claim(&mut state, vec!["a".to_string(), "b".to_string()]),
+            Some(vec!["a".to_string(), "b".to_string()])
+        );
+        assert_eq!(claim(&mut state, vec!["c".to_string()]), None, "поток уже работает");
+        finish(&mut state);
+        assert_eq!(
+            claim(&mut state, vec!["a".to_string(), "b".to_string()]),
+            None,
+            "оба адреса уже пробовали"
+        );
+        assert_eq!(
+            claim(&mut state, vec!["a".to_string(), "c".to_string()]),
+            Some(vec!["c".to_string()])
+        );
+    }
+
+    #[test]
+    fn claim_with_nothing_new_leaves_the_worker_stopped() {
+        let mut state = DownloadState::default();
+        assert_eq!(claim(&mut state, Vec::new()), None);
+        assert_eq!(claim(&mut state, vec!["a".to_string()]), Some(vec!["a".to_string()]));
+        finish(&mut state);
+        assert_eq!(claim(&mut state, vec!["a".to_string()]), None);
+        assert_eq!(claim(&mut state, vec!["b".to_string()]), Some(vec!["b".to_string()]));
+    }
+
+    #[test]
+    fn forgetting_tried_addresses_allows_a_new_try() {
+        let mut state = DownloadState::default();
+        assert_eq!(claim(&mut state, vec!["a".to_string()]), Some(vec!["a".to_string()]));
+        finish(&mut state);
+        forget_tried(&mut state);
+        assert_eq!(claim(&mut state, vec!["a".to_string()]), Some(vec!["a".to_string()]));
+    }
+
+    #[test]
+    fn an_unreadable_catalog_is_reported_once() {
+        let mut state = DownloadState::default();
+        assert!(report_catalog_once(&mut state));
+        assert!(!report_catalog_once(&mut state));
     }
 }

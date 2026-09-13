@@ -82,7 +82,12 @@ pub fn view_of(app: &AppHandle, game: &Game, ctx: &crate::art::ArtContext) -> Ga
 pub async fn get_games(app: AppHandle) -> Vec<GameView> {
     let cfg = config::load(&app);
     let ctx = crate::art::ArtContext::build(cfg.store_art, &cfg.games);
-    cfg.games.iter().map(|g| view_of(&app, g, &ctx)).collect()
+    let views = cfg.games.iter().map(|g| view_of(&app, g, &ctx)).collect();
+    // Докачка недостающих картинок Epic стартует отсюда: список игр строится
+    // при запуске, после настроек и после каждой их правки, так что одна
+    // дорога покрывает все случаи (спека §3.3).
+    crate::art::start_missing_downloads(&app, &cfg.games, &ctx);
+    views
 }
 
 #[tauri::command]
@@ -438,6 +443,7 @@ pub async fn clear_image_cache(app: AppHandle) -> Result<usize, String> {
     ] {
         removed += clear_dir(&dir)?;
     }
+    crate::art::forget_tried_downloads(&app);
     Ok(removed)
 }
 
