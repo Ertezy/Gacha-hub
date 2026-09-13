@@ -98,29 +98,30 @@ export default function GamesSection() {
         </GameRow>
       ))}
 
-      <button
-        type="button"
-        className="settings-add accent"
-        onClick={() =>
-          void (async () => {
-            const exe = await api.pickExe();
-            if (!exe) return;
-            const guessed = exe.split(/[\\/]/).pop()?.replace(/\.exe$/i, "") ?? "Игра";
-            try {
-              await api.addGame(guessed, exe);
-              await reload();
-            } catch (e) {
-              setError(String(e));
-            }
-          })()
-        }
-      >
-        + Добавить игру вручную
-      </button>
-
-      <button type="button" className="settings-add" onClick={() => setScanning(true)}>
-        Найти установленные игры
-      </button>
+      <div className="settings-actions">
+        <button
+          type="button"
+          className="button accent"
+          onClick={() =>
+            void (async () => {
+              const exe = await api.pickExe();
+              if (!exe) return;
+              const guessed = exe.split(/[\\/]/).pop()?.replace(/\.exe$/i, "") ?? "Игра";
+              try {
+                await api.addGame(guessed, exe);
+                await reload();
+              } catch (e) {
+                setError(String(e));
+              }
+            })()
+          }
+        >
+          + Добавить игру вручную
+        </button>
+        <button type="button" className="button" onClick={() => setScanning(true)}>
+          Найти установленные игры
+        </button>
+      </div>
     </div>
   );
 }

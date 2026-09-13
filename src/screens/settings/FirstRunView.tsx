@@ -95,10 +95,10 @@ export default function FirstRunView({ onDone }: Props) {
         </>
       )}
 
-      <div className="field-row">
+      <div className="settings-actions">
         <button
           type="button"
-          className="accent"
+          className="button accent"
           disabled={busy}
           onClick={() =>
             void (async () => {
@@ -124,7 +124,7 @@ export default function FirstRunView({ onDone }: Props) {
         >
           Добавить отмеченные
         </button>
-        <button type="button" disabled={busy} onClick={skip}>
+        <button type="button" className="button" disabled={busy} onClick={skip}>
           Пропустить
         </button>
       </div>

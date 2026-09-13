@@ -33,69 +33,61 @@ export default function GameEditor({ game, hubGames, onChanged }: Props) {
     <>
       {error && <div className="settings-error">{error}</div>}
 
-      <label className="field">
-        <span>Название</span>
-        <input value={title} onChange={(e) => setTitle(e.target.value)} />
-        <button
-          type="button"
-          className="accent"
-          disabled={busy || title.trim() === "" || title === game.title}
-          onClick={() => void run(() => api.updateGame({ gameId: game.id, title }))}
-        >
-          Сохранить
-        </button>
-      </label>
-
-      <label className="field">
-        <span>Файл игры</span>
-        <button
-          type="button"
-          disabled={busy}
-          onClick={() =>
-            void run(async () => {
-              const exe = await api.pickExe();
-              if (exe) await api.updateGame({ gameId: game.id, exe });
-            })
-          }
-        >
-          Выбрать…
-        </button>
-      </label>
-
-      <label className="field">
-        <span>Своя картинка фона</span>
-        <div className="field-row">
+      <div className="settings-row">
+        <div className="settings-row-text">
+          <span className="settings-row-title">Название</span>
+        </div>
+        <div className="settings-row-control">
+          <input
+            className="input editor-input"
+            aria-label="Название"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+          />
           <button
             type="button"
+            className="button accent"
+            disabled={busy || title.trim() === "" || title === game.title}
+            onClick={() => void run(() => api.updateGame({ gameId: game.id, title }))}
+          >
+            Сохранить
+          </button>
+        </div>
+      </div>
+
+      <div className="settings-row">
+        <div className="settings-row-text">
+          <span className="settings-row-title">Файл игры</span>
+          <span className="settings-row-hint">
+            Указанный вручную файл запускается напрямую, а не через магазин.
+          </span>
+        </div>
+        <div className="settings-row-control">
+          <button
+            type="button"
+            className="button"
             disabled={busy}
             onClick={() =>
-              void (async () => {
-                const picked = await api.pickImage();
-                if (!picked) return;
-                await run(() => api.updateGame({ gameId: game.id, background: picked }));
-              })()
+              void run(async () => {
+                const exe = await api.pickExe();
+                if (exe) await api.updateGame({ gameId: game.id, exe });
+              })
             }
           >
             Выбрать…
           </button>
-          <button
-            type="button"
-            disabled={busy}
-            onClick={() => void run(() => api.updateGame({ gameId: game.id, background: "" }))}
-          >
-            Сбросить
-          </button>
         </div>
-      </label>
-      <p className="settings-hint">
-        Пусто — фон рисуется сгенерированной заливкой.
-      </p>
+      </div>
 
-      <label className="field">
-        <span>Иконка</span>
-        <div className="field-row">
+      <div className="settings-row">
+        <div className="settings-row-text">
+          <span className="settings-row-title">Иконка</span>
+          <span className="settings-row-hint">Пусто — иконка берётся из файла игры.</span>
+        </div>
+        <div className="settings-row-control">
           <button
             type="button"
+            className="button"
             disabled={busy}
             onClick={() =>
               void (async () => {
@@ -109,95 +101,106 @@ export default function GameEditor({ game, hubGames, onChanged }: Props) {
           </button>
           <button
             type="button"
+            className="button"
             disabled={busy}
             onClick={() => void run(() => api.updateGame({ gameId: game.id, icon: "" }))}
           >
             Сбросить
           </button>
         </div>
-      </label>
-      <p className="settings-hint">
-        Пусто — иконка берётся из файла игры.
-      </p>
-
-      <label className="field">
-        <span>Показывать контент как</span>
-        <select
-          value={game.contentId ?? ""}
-          disabled={busy}
-          onChange={(e) =>
-            void run(() =>
-              api.updateGame({
-                gameId: game.id,
-                contentId: e.target.value,
-              }),
-            )
-          }
-        >
-          <option value="">нет — коды и баннеры не показывать</option>
-          {hubGames.map((h) => (
-            <option key={h.id} value={h.id}>
-              {h.title}
-            </option>
-          ))}
-        </select>
-      </label>
-
-      <div className="field-row">
-        {game.missing && (
-          <button
-            type="button"
-            disabled={busy}
-            onClick={() => void run(() => api.relocateGame(game.id))}
-          >
-            Найти заново
-          </button>
-        )}
-        <button
-          type="button"
-          className="danger"
-          disabled={busy}
-          onClick={() => {
-            void (async () => {
-              const yes = await confirm(`Удалить «${game.title}» из списка?`, {
-                title: "Удаление игры",
-                kind: "warning",
-                okLabel: "Удалить",
-                cancelLabel: "Отмена",
-              });
-              if (yes) await run(() => api.removeGame(game.id));
-            })();
-          }}
-        >
-          Удалить игру
-        </button>
       </div>
 
-      <details className="field-extra">
+      <div className="settings-row">
+        <div className="settings-row-text">
+          <span className="settings-row-title">Показывать контент как</span>
+          <span className="settings-row-hint">
+            Коды, баннеры и видео на панели слева берутся для этой игры.
+          </span>
+        </div>
+        <div className="settings-row-control">
+          <select
+            className="input"
+            aria-label="Показывать контент как"
+            value={game.contentId ?? ""}
+            disabled={busy}
+            onChange={(e) =>
+              void run(() => api.updateGame({ gameId: game.id, contentId: e.target.value }))
+            }
+          >
+            <option value="">нет — коды и баннеры не показывать</option>
+            {hubGames.map((h) => (
+              <option key={h.id} value={h.id}>
+                {h.title}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      <div className="settings-row">
+        <div className="settings-row-text" />
+        <div className="settings-row-control">
+          {game.missing && (
+            <button
+              type="button"
+              className="button"
+              disabled={busy}
+              onClick={() => void run(() => api.relocateGame(game.id))}
+            >
+              Найти заново
+            </button>
+          )}
+          <button
+            type="button"
+            className="button danger"
+            disabled={busy}
+            onClick={() => {
+              void (async () => {
+                const yes = await confirm(`Удалить «${game.title}» из списка?`, {
+                  title: "Удаление игры",
+                  kind: "warning",
+                  okLabel: "Удалить",
+                  cancelLabel: "Отмена",
+                });
+                if (yes) await run(() => api.removeGame(game.id));
+              })();
+            }}
+          >
+            Удалить игру
+          </button>
+        </div>
+      </div>
+
+      <details className="settings-extra">
         <summary>Дополнительно</summary>
         {game.sourceLabel === "напрямую" ? (
-          <>
-            <label className="field">
-              <span>Аргументы запуска</span>
+          <div className="settings-row">
+            <div className="settings-row-text">
+              <span className="settings-row-title">Аргументы запуска</span>
+              <span className="settings-row-hint">
+                Передаются игре как есть. Неверное значение может помешать ей запуститься.
+              </span>
+            </div>
+            <div className="settings-row-control">
               <input
+                className="input editor-input"
+                aria-label="Аргументы запуска"
                 value={args}
                 onChange={(e) => setArgs(e.target.value)}
                 placeholder="например, -window"
               />
               <button
                 type="button"
+                className="button"
                 disabled={busy || args === game.args}
                 onClick={() => void run(() => api.updateGame({ gameId: game.id, args }))}
               >
                 Сохранить
               </button>
-            </label>
-            <p className="settings-hint">
-              Передаются игре как есть. Неверное значение может помешать ей запуститься.
-            </p>
-          </>
+            </div>
+          </div>
         ) : (
-          <p className="settings-hint">
+          <p className="settings-row-hint">
             Аргументы запуска здесь недоступны: игру открывает {game.sourceLabel} по
             собственной ссылке, и передать ей что-то дополнительное нельзя.
           </p>
