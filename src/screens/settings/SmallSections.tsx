@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { api } from "../../lib/api";
-import { hubFreshness } from "../../lib/time";
+import { dataStatus } from "../../lib/panel";
 import type { About, Behaviour, HubData } from "../../types";
 import Switch from "./Switch";
 
@@ -95,69 +95,87 @@ function Data() {
     });
   }, []);
 
-  const source =
-    { remote: "из сети", override: "из локальной подмены", cache: "из кеша", bundled: "из комплекта" }[
-      hub?._source ?? ""
-    ] ?? "неизвестно";
-
-  // Свежесть — тем же способом, что и в подвале панели (§5 спеки требует
-  // показывать «откуда и когда»; словами это должно звучать одинаково
-  // в обоих местах).
   const nowSec = Math.floor(Date.now() / 1000);
-  const freshness = hub ? hubFreshness(hub.updatedAt, nowSec) : "";
 
   return (
     <div>
       <h2 className="settings-section-title">Данные</h2>
-
-      <label className="field">
-        <span>Адрес источника</span>
-        <input
-          value={url}
-          placeholder="https://…"
-          onChange={(e) => setUrl(e.target.value)}
-        />
-        <button
-          type="button"
-          className="accent"
-          disabled={url === savedUrl}
-          onClick={() =>
-            void api
-              .setHubUrl(url)
-              .then(() => {
-                setError("");
-                setSavedUrl(url);
-                reload();
-              })
-              .catch((e) => setError(String(e)))
-          }
-        >
-          Сохранить
-        </button>
-      </label>
       {error && <div className="settings-error">{error}</div>}
 
-      <p className="settings-hint">
-        Источник — {source}
-        {freshness && `, ${freshness}`}. Кеш картинок занимает{" "}
-        {(size / 1024 / 1024).toFixed(1)} МБ.
-      </p>
+      <div className="settings-card">
+        <div className="settings-row">
+          <div className="settings-row-text">
+            <span className="settings-row-title">{dataStatus(hub, nowSec)}</span>
+          </div>
+          <div className="settings-row-control">
+            <button type="button" className="button" onClick={reload}>
+              Обновить сейчас
+            </button>
+          </div>
+        </div>
 
-      <div className="field-row">
-        <button type="button" onClick={reload}>
-          Обновить сейчас
-        </button>
-        <button
-          type="button"
-          onClick={() =>
-            void api
-              .clearImageCache()
-              .then(reload)
-              .catch((e) => setError(String(e)))
-          }
-        >
-          Очистить кеш картинок
-        </button>
+        <div className="settings-row">
+          <div className="settings-row-text">
+            <span className="settings-row-title">Кеш картинок</span>
+            <span className="settings-row-hint">
+              Занимает {(size / 1024 / 1024).toFixed(1)} МБ: иконки, фоны и картинки панели.
+            </span>
+          </div>
+          <div className="settings-row-control">
+            <button
+              type="button"
+              className="button"
+              onClick={() =>
+                void api
+                  .clearImageCache()
+                  .then(reload)
+                  .catch((e) => setError(String(e)))
+              }
+            >
+              Очистить кеш картинок
+            </button>
+          </div>
+        </div>
+
+        {/* Поле адреса свёрнуто (спека §7.5): человеку со стороны вписывать туда
+            нечего, а открытое поле на виду читается как обязательное. */}
+        <details className="settings-extra">
+          <summary>Дополнительно</summary>
+          <div className="settings-row">
+            <div className="settings-row-text">
+              <span className="settings-row-title">Адрес источника данных</span>
+              <span className="settings-row-hint">
+                Нужен только для своего источника. Обычно поле пустое.
+              </span>
+            </div>
+            <div className="settings-row-control">
+              <input
+                className="input editor-input"
+                aria-label="Адрес источника данных"
+                value={url}
+                placeholder="https://…"
+                onChange={(e) => setUrl(e.target.value)}
+              />
+              <button
+                type="button"
+                className="button accent"
+                disabled={url === savedUrl}
+                onClick={() =>
+                  void api
+                    .setHubUrl(url)
+                    .then(() => {
+                      setError("");
+                      setSavedUrl(url);
+                      reload();
+                    })
+                    .catch((e) => setError(String(e)))
+                }
+              >
+                Сохранить
+              </button>
+            </div>
+          </div>
+        </details>
       </div>
     </div>
   );

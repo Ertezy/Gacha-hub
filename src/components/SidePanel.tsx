@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import PromoCodes from "./panel/PromoCodes";
 import Banners from "./panel/Banners";
 import Videos from "./panel/Videos";
+import { panelIsEmpty, sourceLabel } from "../lib/panel";
 import { hubFreshness } from "../lib/time";
 import type { HubData } from "../types";
 
@@ -52,17 +53,12 @@ export default function SidePanel({ hub, contentIds, selectedContentId, onOpenSe
   // Видео остаются даже на протухших данных: устаревший список роликов
   // просто устаревший, он никого не обманывает.
   const videos = !hub ? [] : hub.videos.filter((v) => selected(v.gameId));
+  const empty = !hub || panelIsEmpty(codes, banners, videos, nowSec);
 
   // Источник данных виден в интерфейсе — требование общей спеки §9.4.
   // Без него невозможно отличить «сеть отвалилась, показываю прошлогодний
   // комплект» от «всё свежее», а это первое, что спросят при разборе жалобы.
-  const sourceLabel: Record<string, string> = {
-    remote: "из сети",
-    override: "из локальной подмены",
-    cache: "из кеша",
-    bundled: "из комплекта",
-  };
-  const origin = hub?._source ? sourceLabel[hub._source] ?? hub._source : "";
+  const origin = sourceLabel(hub?._source);
 
   return (
     <aside className="panel">
@@ -72,6 +68,11 @@ export default function SidePanel({ hub, contentIds, selectedContentId, onOpenSe
         {hub && <PromoCodes codes={codes} games={hub.games} nowSec={nowSec} />}
         <Banners banners={banners} nowSec={nowSec} />
         <Videos videos={videos} nowSec={nowSec} />
+        {empty && (
+          <p className="panel-empty">
+            Пока нет кодов, баннеров и видео. Они появятся, когда заработает сервис данных.
+          </p>
+        )}
       </div>
 
       <div className="panel-foot">

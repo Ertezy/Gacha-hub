@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { api } from "../../lib/api";
+import { activeCodes } from "../../lib/panel";
 import { burnsToday, timeLeft } from "../../lib/time";
 import type { Code, HubGame } from "../../types";
 
@@ -19,9 +20,7 @@ interface Props {
 export default function PromoCodes({ codes, games, nowSec }: Props) {
   const [copied, setCopied] = useState<string | null>(null);
 
-  const active = codes
-    .filter((c) => c.expiresAt === null || c.expiresAt > nowSec)
-    .sort((a, b) => (a.expiresAt ?? Infinity) - (b.expiresAt ?? Infinity));
+  const active = activeCodes(codes, nowSec);
 
   if (active.length === 0) return null;
 

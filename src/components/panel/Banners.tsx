@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import CachedImage from "./CachedImage";
+import { runningBanners } from "../../lib/panel";
 import { progress, timeLeft } from "../../lib/time";
 import type { Banner } from "../../types";
 
@@ -16,7 +17,7 @@ interface Props {
  * ради чего арт и показывают.
  */
 export default function Banners({ banners, nowSec }: Props) {
-  const running = banners.filter((b) => b.startsAt <= nowSec && b.endsAt > nowSec);
+  const running = runningBanners(banners, nowSec);
   const [index, setIndex] = useState(0);
 
   // Сброс навешен на СОДЕРЖИМОЕ списка, а не на ссылку на массив.
