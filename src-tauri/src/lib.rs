@@ -11,6 +11,7 @@ mod library;
 mod localcopy;
 mod pe;
 mod stores;
+mod storeart;
 mod tray;
 mod vdf;
 
