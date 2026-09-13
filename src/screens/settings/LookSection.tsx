@@ -19,6 +19,7 @@ export default function LookSection() {
       const [list, enabled] = await Promise.all([api.getGames(), api.getStoreArt()]);
       setGames(list);
       setStoreArt(enabled);
+      setError("");
     } catch (e) {
       setError(String(e));
     }
