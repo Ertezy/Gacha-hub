@@ -142,7 +142,7 @@ Waves. Источник картинки и способ запуска — ве
 | Игра | Групп | Что выбирается |
 |---|---|---|
 | Genshin Impact | 1 | 256, PNG |
-| Honkai: Star Rail | 1 | 256, PNG — первая из двух одинаковых |
+| Honkai: Star Rail | 1 | 256, PNG — первая из двух разных картинок по 256 |
 | Zenless Zone Zero | 1 | 256, PNG |
 | Arknights: Endfield | 1 | 256, PNG |
 | Wuthering Waves | **2** | 256, **старый формат** |
