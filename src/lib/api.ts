@@ -52,6 +52,8 @@ export const api = {
     // трогает. Та же причина, что и у `contentId` — `null` неотличим от
     // отсутствующего поля при переходе через JSON.
     icon?: string;
+    // Пустая строка стирает своё видео; отсутствие поля его не трогает.
+    video?: string;
     // Заменяет аргументы запуска целиком. Пустая строка здесь не стирание,
     // а обычное значение — «запускать без аргументов».
     args?: string;
@@ -70,6 +72,9 @@ export const api = {
   getBehaviour: () => invoke<Behaviour>("get_behaviour"),
   setBehaviour: (b: Behaviour) =>
     invoke<void>("set_behaviour", { closeToTray: b.closeToTray, trayOnLaunch: b.trayOnLaunch }),
+
+  getStoreArt: () => invoke<boolean>("get_store_art"),
+  setStoreArt: (enabled: boolean) => invoke<void>("set_store_art", { enabled }),
 
   setHubUrl: (url: string | null) => invoke<void>("set_hub_url", { url }),
   imageCacheSize: () => invoke<number>("image_cache_size"),
@@ -93,6 +98,16 @@ export const api = {
       multiple: false,
       directory: false,
       filters: [{ name: "Картинка", extensions: ["png", "jpg", "jpeg", "webp"] }],
+    });
+    return typeof picked === "string" ? picked : null;
+  },
+
+  /** Выбрать видео фона. `null` — человек отменил. */
+  pickVideo: async () => {
+    const picked = await open({
+      multiple: false,
+      directory: false,
+      filters: [{ name: "Видео", extensions: ["mp4", "webm"] }],
     });
     return typeof picked === "string" ? picked : null;
   },

@@ -25,6 +25,9 @@ pub struct GamePatch {
     /// Два уровня, как у `content_id`: внешний `None` — не трогать,
     /// внутренний `None` — убрать свою картинку и вернуться к добытой.
     pub icon: Option<Option<PathBuf>>,
+    /// Два уровня, как у `background`: внешний `None` — не трогать,
+    /// внутренний `None` — убрать своё видео.
+    pub video: Option<Option<PathBuf>>,
     pub content_id: Option<Option<String>>,
     /// Аргументы запуска. Один уровень, как у `title`: внешний `None` — не
     /// трогать, `Some` — заменить целиком. Пустая строка здесь не признак
@@ -78,6 +81,7 @@ pub fn add(cfg: &mut AppConfig, title: String, exe: PathBuf) -> String {
         args: String::new(),
         background: None,
         icon: None,
+        video: None,
     });
     id
 }
@@ -119,6 +123,7 @@ pub fn add_found(
         args: String::new(),
         background: None,
         icon: None,
+        video: None,
     });
     Ok(id)
 }
@@ -149,6 +154,9 @@ pub fn update(cfg: &mut AppConfig, id: &str, patch: GamePatch) -> bool {
     }
     if let Some(icon) = patch.icon {
         game.icon = icon;
+    }
+    if let Some(video) = patch.video {
+        game.video = video;
     }
     if let Some(content) = patch.content_id {
         game.content_id = content;
@@ -217,6 +225,7 @@ mod tests {
             last_played: None,
             seeded: true,
             behaviour: Behaviour::default(),
+            store_art: true,
             games: ids
                 .iter()
                 .map(|id| Game {
@@ -229,6 +238,7 @@ mod tests {
                     args: String::new(),
                     background: None,
                     icon: None,
+                    video: None,
                 })
                 .collect(),
         }
@@ -331,6 +341,7 @@ mod tests {
                 exe_path: None,
                 background: None,
                 icon: None,
+                video: None,
                 content_id: None,
                 args: None,
             },
@@ -376,6 +387,7 @@ mod tests {
                 exe_path: Some(new_exe.clone()),
                 background: None,
                 icon: None,
+                video: None,
                 content_id: None,
                 args: None,
             },
@@ -499,5 +511,20 @@ mod tests {
         // Названий с хоть каким-то текстом проходят.
         assert!(validate_title("Мой тест").is_ok());
         assert!(validate_title("  Полезная игра  ").is_ok());
+    }
+
+    #[test]
+    fn update_sets_and_clears_the_video() {
+        let mut cfg = cfg_with(&["a"]);
+        let set = GamePatch {
+            video: Some(Some(PathBuf::from(r"D:\v.mp4"))),
+            ..GamePatch::default()
+        };
+        assert!(update(&mut cfg, "a", set));
+        assert_eq!(cfg.games[0].video, Some(PathBuf::from(r"D:\v.mp4")));
+
+        let clear = GamePatch { video: Some(None), ..GamePatch::default() };
+        assert!(update(&mut cfg, "a", clear));
+        assert_eq!(cfg.games[0].video, None);
     }
 }

@@ -259,6 +259,9 @@ pub async fn update_game(
     // Пустая строка означает «убрать свою картинку»: null при переходе из
     // JSON неотличим от «поле не передали».
     icon: Option<String>,
+    // Пустая строка означает «убрать своё видео»: null при переходе из JSON
+    // неотличим от «поле не передали».
+    video: Option<String>,
     // Пустая строка означает «стереть привязку»: null для этого не годится,
     // потому что при переходе из JSON он неотличим от «поле не передали».
     content_id: Option<String>,
@@ -286,6 +289,7 @@ pub async fn update_game(
         exe_path,
         background: background.map(|s| (!s.is_empty()).then(|| std::path::PathBuf::from(s))),
         icon: icon.map(|s| (!s.is_empty()).then(|| std::path::PathBuf::from(s))),
+        video: video.map(|s| (!s.is_empty()).then(|| std::path::PathBuf::from(s))),
         content_id: content_id.map(|s| (!s.is_empty()).then_some(s)),
         args,
     };
@@ -331,6 +335,18 @@ pub async fn set_behaviour(
         close_to_tray,
         tray_on_launch,
     };
+    config::save(&app, &cfg)
+}
+
+#[tauri::command]
+pub async fn get_store_art(app: AppHandle) -> bool {
+    config::load(&app).store_art
+}
+
+#[tauri::command]
+pub async fn set_store_art(app: AppHandle, enabled: bool) -> Result<(), String> {
+    let mut cfg = config::load(&app);
+    cfg.store_art = enabled;
     config::save(&app, &cfg)
 }
 
@@ -466,6 +482,7 @@ mod tests {
             args: String::new(),
             background: None,
             icon: None,
+            video: None,
         }
     }
 

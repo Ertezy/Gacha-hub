@@ -254,6 +254,7 @@ mod tests {
             args: String::new(),
             background: None,
             icon: None,
+            video: None,
         }
     }
 

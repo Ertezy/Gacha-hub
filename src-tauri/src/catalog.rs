@@ -250,6 +250,7 @@ mod tests {
             args: String::new(),
             background: None,
             icon: None,
+            video: None,
         }];
         let installed = vec![InstalledGame {
             title: "Honkai: Star Rail".into(),
@@ -289,6 +290,7 @@ mod tests {
             args: String::new(),
             background: None,
             icon: None,
+            video: None,
         }];
         let installed = vec![InstalledGame {
             title: "Wuthering Waves".into(),
@@ -324,6 +326,7 @@ mod tests {
             args: String::new(),
             background: None,
             icon: None,
+            video: None,
         }];
         let installed: Vec<InstalledGame> = Vec::new();
 
@@ -347,6 +350,7 @@ mod tests {
             args: String::new(),
             background: None,
             icon: None,
+            video: None,
         }];
         let installed = vec![InstalledGame {
             title: "Wuthering Waves".into(),
@@ -374,6 +378,7 @@ mod tests {
             args: String::new(),
             background: None,
             icon: None,
+            video: None,
         }];
         let found = vec![installed("Wuthering Waves", Launch::Steam { appid: 3513350 })];
 
@@ -397,6 +402,7 @@ mod tests {
             args: String::new(),
             background: None,
             icon: None,
+            video: None,
         }];
         let found = vec![installed("Wuthering Waves", Launch::Steam { appid: 3513350 })];
 
@@ -491,6 +497,7 @@ mod tests {
             args: String::new(),
             background: None,
             icon: None,
+            video: None,
         };
         let found = vec![installed("Wuthering Waves", Launch::Steam { appid: 3513350 })];
 
@@ -513,6 +520,7 @@ mod tests {
             args: String::new(),
             background: None,
             icon: None,
+            video: None,
         };
         let found = vec![installed("Wuthering Waves", Launch::Steam { appid: 3513350 })];
 
@@ -536,6 +544,7 @@ mod tests {
             args: String::new(),
             background: None,
             icon: None,
+            video: None,
         };
         let found = vec![installed("Wuthering Waves", Launch::Steam { appid: 3513350 })];
 
@@ -561,6 +570,7 @@ mod tests {
             args: String::new(),
             background: None,
             icon: None,
+            video: None,
         }];
         let found = installed("Wuthering Waves", Launch::Steam { appid: 3513350 });
 

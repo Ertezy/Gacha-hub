@@ -108,6 +108,8 @@ pub fn run() {
             commands::relocate_game,
             commands::get_behaviour,
             commands::set_behaviour,
+            commands::get_store_art,
+            commands::set_store_art,
             commands::set_hub_url,
             commands::image_cache_size,
             commands::clear_image_cache,

@@ -46,6 +46,10 @@ pub struct Game {
     /// игры: это осознанный выбор, и автоматика его не трогает.
     #[serde(default)]
     pub icon: Option<PathBuf>,
+    /// Своё видео фона. Важнее своей картинки и картинки магазина (спека этапа 5,
+    /// §2.1).
+    #[serde(default)]
+    pub video: Option<PathBuf>,
 }
 
 impl Game {
@@ -64,6 +68,7 @@ impl Game {
             args: String::new(),
             background: None,
             icon: None,
+            video: None,
         }
     }
 }
@@ -107,8 +112,17 @@ pub struct AppConfig {
     pub seeded: bool,
     #[serde(default)]
     pub behaviour: Behaviour,
+    /// Брать ли фоны из магазинов. Отсутствие поля означает «включено»: после
+    /// обновления фоны появляются у всех, а выбора человека при этом не теряется
+    /// — раньше этой настройки не было (спека этапа 5, §4.3).
+    #[serde(default = "enabled")]
+    pub store_art: bool,
     #[serde(default)]
     pub games: Vec<Game>,
+}
+
+fn enabled() -> bool {
+    true
 }
 
 impl Default for AppConfig {
@@ -120,6 +134,7 @@ impl Default for AppConfig {
             // Свежая установка: первого запуска ещё не было.
             seeded: false,
             behaviour: Behaviour::default(),
+            store_art: true,
             games: Vec::new(),
         }
     }
@@ -184,6 +199,7 @@ pub fn migrate_v1(raw: &serde_json::Value) -> Option<AppConfig> {
             args,
             background: None,
             icon: None,
+            video: None,
         });
     }
 
@@ -199,6 +215,7 @@ pub fn migrate_v1(raw: &serde_json::Value) -> Option<AppConfig> {
         // У человека уже есть игры — первый запуск для него состоялся.
         seeded: true,
         behaviour: Behaviour::default(),
+        store_art: true,
         games,
     })
 }
@@ -242,6 +259,7 @@ pub fn migrate_v2(raw: &serde_json::Value) -> Option<AppConfig> {
         // У человека уже есть игры — первый запуск для него состоялся.
         seeded: true,
         behaviour: Behaviour::default(),
+        store_art: true,
         games,
     })
 }
@@ -370,6 +388,10 @@ fn assemble_current(raw: &serde_json::Value, version: u32, games: Vec<Game>) -> 
             .get("behaviour")
             .and_then(|v| serde_json::from_value(v.clone()).ok())
             .unwrap_or_default(),
+        // Читается здесь, поле за полем, как и всё остальное. Подставь сюда
+        // умолчание безусловно — и выключенная человеком галочка включалась бы
+        // при каждом чтении. Ровно так едва не случилось с блоком `look`.
+        store_art: raw.get("storeArt").and_then(|v| v.as_bool()).unwrap_or(true),
         // Блок `look` от прежней настройки цвета намеренно не читается. У тех,
         // кто успел его сохранить, он просто исчезнет при следующей записи
         // конфига, а игры и остальные настройки останутся как были.
@@ -575,6 +597,7 @@ mod tests {
             last_played: None,
             seeded: false,
             behaviour: Behaviour::default(),
+            store_art: true,
             games: vec![
                 Game::manual("b".into(), "Второй".into()),
                 Game::manual("a".into(), "Первый".into()),
@@ -698,6 +721,7 @@ mod tests {
             last_played: Some("zzz".into()),
             seeded: true,
             behaviour: Behaviour { close_to_tray: false, tray_on_launch: true },
+            store_art: true,
             games: vec![],
         };
         let text = serde_json::to_string(&cfg).unwrap();
@@ -828,5 +852,42 @@ mod tests {
         });
         let cfg = assemble_current(&raw, 3, Vec::new());
         assert!(cfg.seeded);
+    }
+
+    #[test]
+    fn assemble_current_keeps_a_saved_store_art_false() {
+        let raw = serde_json::json!({ "version": 3, "games": [], "storeArt": false });
+        let cfg = assemble_current(&raw, 3, Vec::new());
+        assert!(
+            !cfg.store_art,
+            "выключенная галочка магазинов не должна включаться сама при чтении"
+        );
+    }
+
+    #[test]
+    fn assemble_current_turns_store_art_on_when_the_key_is_absent() {
+        let raw = serde_json::json!({ "version": 3, "games": [] });
+        let cfg = assemble_current(&raw, 3, Vec::new());
+        assert!(cfg.store_art);
+    }
+
+    #[test]
+    fn migrations_turn_store_art_on() {
+        let v2 = serde_json::json!({ "version": 2, "games": [] });
+        assert!(migrate_v2(&v2).expect("v2 переносится").store_art);
+        let v1 = serde_json::json!({ "version": 1, "games": {} });
+        assert!(migrate_v1(&v1).expect("v1 переносится").store_art);
+    }
+
+    #[test]
+    fn a_video_path_and_the_store_switch_survive_a_save_round_trip() {
+        let mut cfg = AppConfig::default();
+        let mut g = Game::manual("a".into(), "A".into());
+        g.video = Some(std::path::PathBuf::from(r"D:\walls\a.mp4"));
+        cfg.games.push(g);
+        let text = serde_json::to_string(&cfg).unwrap();
+        assert!(text.contains("\"storeArt\":true"), "поле должно писаться: {text}");
+        let back: AppConfig = serde_json::from_str(&text).unwrap();
+        assert_eq!(back.games[0].video, Some(std::path::PathBuf::from(r"D:\walls\a.mp4")));
     }
 }

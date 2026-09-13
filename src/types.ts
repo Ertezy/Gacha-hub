@@ -101,5 +101,6 @@ export interface AppConfig {
   lastPlayed: string | null;
   seeded: boolean;
   behaviour: Behaviour;
+  storeArt: boolean;
   games: unknown[];
 }
