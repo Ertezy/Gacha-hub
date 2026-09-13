@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { layerFor, layerKey } from "./background";
+import { hasOwnBackground, layerFor, layerKey, sourceText } from "./background";
 
 describe("layerFor", () => {
   it("своё видео идёт первым, картинка остаётся его неподвижным кадром", () => {
@@ -42,5 +42,40 @@ describe("layerKey", () => {
 
   it("у заливки один ключ", () => {
     expect(layerKey({ kind: "fill" })).toBe("fill");
+  });
+});
+
+describe("sourceText", () => {
+  const cases: [Parameters<typeof sourceText>[0]["artSource"], string][] = [
+    ["video", "своё видео"],
+    ["picture", "своя картинка"],
+    ["steam", "из Steam"],
+    ["epic", "из Epic Games"],
+    ["fill", "заливка"],
+  ];
+  for (const [artSource, expected] of cases) {
+    it(`${artSource} -> ${expected}`, () => {
+      expect(sourceText({ artSource, videoMissing: false })).toBe(expected);
+    });
+  }
+
+  it("пропавшее видео называется прямо", () => {
+    expect(sourceText({ artSource: "epic", videoMissing: true })).toBe(
+      "из Epic Games, файл видео не найден",
+    );
+  });
+});
+
+describe("hasOwnBackground", () => {
+  it("своё видео и своя картинка — есть что убрать", () => {
+    expect(hasOwnBackground({ artSource: "video", videoMissing: false })).toBe(true);
+    expect(hasOwnBackground({ artSource: "picture", videoMissing: false })).toBe(true);
+  });
+  it("пропавшее видео тоже можно убрать", () => {
+    expect(hasOwnBackground({ artSource: "fill", videoMissing: true })).toBe(true);
+  });
+  it("магазин и заливка — убирать нечего", () => {
+    expect(hasOwnBackground({ artSource: "steam", videoMissing: false })).toBe(false);
+    expect(hasOwnBackground({ artSource: "fill", videoMissing: false })).toBe(false);
   });
 });
