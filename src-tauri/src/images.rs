@@ -25,7 +25,7 @@ const FETCH_TIMEOUT: Duration = Duration::from_secs(10);
 
 /// Пять мегабайт: уменьшенный арт весит десятки килобайт, всё крупнее —
 /// либо ошибка сборщика, либо попытка занять нам диск.
-const MAX_IMAGE_BYTES: u64 = 5 * 1024 * 1024;
+pub const MAX_IMAGE_BYTES: u64 = 5 * 1024 * 1024;
 
 /// Правда, если прочитанное тело не влезло в потолок размера.
 ///
@@ -66,7 +66,7 @@ fn ext_for(content_type: &str) -> &'static str {
 /// Из адреса не берётся ни один символ. Это единственное, что защищает от
 /// адреса вроде `https://ho.st/../../../evil.png`: собери мы имя из пути,
 /// такой адрес записал бы файл за пределы папки кеша.
-fn file_name_for(url: &str, ext: &str) -> String {
+pub(crate) fn file_name_for(url: &str, ext: &str) -> String {
     // FNV-1a, 64 бита. Криптостойкость тут не нужна: задача не в защите от
     // подбора, а в том, чтобы имя не содержало ничего из адреса.
     let mut h: u64 = 0xcbf2_9ce4_8422_2325;
@@ -87,13 +87,13 @@ pub fn cache_dir(app: &AppHandle) -> Result<PathBuf, String> {
     Ok(dir)
 }
 
-/// Путь к картинке в кеше; скачивает, если её там нет.
+/// Путь к картинке в кеше хаба; скачивает, если её там нет.
 pub fn fetch(app: &AppHandle, url: &str) -> Result<PathBuf, String> {
-    if !is_safe_https(url) {
-        return Err(format!("отказываюсь качать не-https адрес: {url}"));
-    }
-    let dir = cache_dir(app)?;
+    fetch_into(&cache_dir(app)?, url, MAX_IMAGE_BYTES)
+}
 
+/// Уже скачанная картинка по этому адресу в папке `dir`, без обращения к сети.
+pub fn cached(dir: &Path, url: &str) -> Option<PathBuf> {
     // Один адрес может прийти под разными типами содержимого (перенастройка
     // CDN, смена картинки на той стороне), и тогда в кеше окажутся файлы с
     // одним хешем и разными расширениями. Берём самый свежий, лишние удаляем:
@@ -107,15 +107,30 @@ pub fn fetch(app: &AppHandle, url: &str) -> Result<PathBuf, String> {
             }
         }
     }
-    if !found.is_empty() {
-        found.sort_by_key(|(t, _)| *t);
-        let (_, newest) = found.pop().expect("проверено на непустоту");
-        for (_, stale) in found {
-            let _ = fs::remove_file(stale);
-        }
-        // Отодвигает файл в конец очереди на уборку.
-        let _ = touch(&newest);
-        return Ok(newest);
+    if found.is_empty() {
+        return None;
+    }
+    found.sort_by_key(|(t, _)| *t);
+    let (_, newest) = found.pop().expect("проверено на непустоту");
+    for (_, stale) in found {
+        let _ = fs::remove_file(stale);
+    }
+    // Отодвигает файл в конец очереди на уборку.
+    let _ = touch(&newest);
+    Some(newest)
+}
+
+/// Скачивает картинку в папку `dir`, если её там ещё нет.
+///
+/// Общая для кеша картинок хаба и картинок магазина (спека этапа 5, §3.2): два
+/// способа безопасно качать неизбежно разошлись бы, и один из них однажды
+/// потерял бы проверку, которую держит другой.
+pub fn fetch_into(dir: &Path, url: &str, max_bytes: u64) -> Result<PathBuf, String> {
+    if !is_safe_https(url) {
+        return Err(format!("отказываюсь качать не-https адрес: {url}"));
+    }
+    if let Some(hit) = cached(dir, url) {
+        return Ok(hit);
     }
 
     // Редиректов не больше двух и только внутри https.
@@ -142,11 +157,11 @@ pub fn fetch(app: &AppHandle, url: &str) -> Result<PathBuf, String> {
     // испорченный кеш сам не вылечится.
     let mut bytes = Vec::new();
     resp.into_reader()
-        .take(MAX_IMAGE_BYTES + 1)
+        .take(max_bytes + 1)
         .read_to_end(&mut bytes)
         .map_err(|e| format!("не удалось прочитать {url}: {e}"))?;
-    if exceeds_ceiling(bytes.len(), MAX_IMAGE_BYTES) {
-        return Err(format!("картинка больше {MAX_IMAGE_BYTES} байт: {url}"));
+    if exceeds_ceiling(bytes.len(), max_bytes) {
+        return Err(format!("картинка больше {max_bytes} байт: {url}"));
     }
 
     let path = dir.join(file_name_for(url, ext));
@@ -197,6 +212,41 @@ pub fn evict(dir: &Path, max_age: Duration) -> usize {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn scratch(tag: &str) -> PathBuf {
+        let p = std::env::temp_dir().join(format!("gh-images-{tag}-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&p);
+        std::fs::create_dir_all(&p).unwrap();
+        p
+    }
+
+    #[test]
+    fn a_cached_picture_is_returned_without_the_network() {
+        // Адрес на несуществующем домене: если бы функция пошла в сеть, тест
+        // упал бы по таймауту или ошибке, а не вернул файл.
+        let dir = scratch("hit");
+        let url = "https://example.invalid/art.jpg";
+        let file = dir.join(file_name_for(url, "jpg"));
+        std::fs::write(&file, b"jpg").unwrap();
+        assert_eq!(fetch_into(&dir, url, MAX_IMAGE_BYTES), Ok(file));
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn a_non_https_address_is_refused_even_when_a_file_is_cached() {
+        let dir = scratch("http");
+        let url = "http://example.invalid/art.jpg";
+        std::fs::write(dir.join(file_name_for(url, "jpg")), b"jpg").unwrap();
+        assert!(fetch_into(&dir, url, MAX_IMAGE_BYTES).is_err());
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn nothing_cached_means_none() {
+        let dir = scratch("miss");
+        assert_eq!(cached(&dir, "https://example.invalid/none.jpg"), None);
+        std::fs::remove_dir_all(&dir).ok();
+    }
 
     #[test]
     fn the_same_url_always_gets_the_same_name() {
