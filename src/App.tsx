@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { api } from "./lib/api";
+import { launchNote } from "./lib/launch";
 import SidePanel from "./components/SidePanel";
 import GameArt from "./components/GameArt";
-import GameHeader from "./components/GameHeader";
 import PlayButton from "./components/PlayButton";
 import GameDock from "./components/GameDock";
 import Settings from "./screens/Settings";
@@ -138,8 +138,14 @@ export default function App() {
       />
       <main className="stage">
         <GameArt game={selected} />
-        {selected && <GameHeader game={selected} />}
-        {selected && <PlayButton gameId={selected.id} onLaunch={launch} onFixed={load} />}
+        {selected && (
+          <PlayButton
+            gameId={selected.id}
+            note={launchNote(selected)}
+            onLaunch={launch}
+            onFixed={load}
+          />
+        )}
         {error && <div className="banner">Не удалось загрузить: {error}</div>}
         <GameDock games={games} selectedId={selected?.id ?? null} onSelect={select} />
       </main>

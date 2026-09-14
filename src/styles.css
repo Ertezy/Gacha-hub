@@ -239,25 +239,15 @@ body {
   }
 }
 
-.game-header {
-  position: absolute;
-  top: 60px;
-  right: 48px;
-  text-align: right;
-  line-height: 1.2;
-}
-
-.game-header b {
-  display: block;
-  font-size: 27px;
-  letter-spacing: 0.14em;
-  text-shadow: 0 3px 12px rgba(0, 0, 0, 0.45);
-}
-
-.game-header span {
+/* Подпись над кнопкой PLAY: откуда запустится игра. Крупного названия игры на
+   экране нет (спека этапа 5, §11): оно почти всегда нарисовано на самом арте и
+   сливалось с ним. Двойная тень держит строку читаемой на светлом фоне. */
+.play-note {
+  margin-right: 18px;
   font-size: 13px;
-  color: var(--ink-dim);
-  letter-spacing: 0.05em;
+  color: var(--ink);
+  letter-spacing: 0.04em;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.7), 0 0 14px rgba(0, 0, 0, 0.55);
 }
 
 /* Док снизу доходит верхней панелью до кнопки PLAY по дизайну; кнопка должна быть на переднем плане. */

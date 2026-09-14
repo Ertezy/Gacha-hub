@@ -4,6 +4,8 @@ import type { LaunchResult } from "../types";
 
 interface Props {
   gameId: string;
+  /** Подпись над кнопкой: откуда запустится игра (`launchNote`). */
+  note: string;
   onLaunch: () => Promise<LaunchResult>;
   /** Путь починили — родителю нужно перечитать список игр, чтобы ошибка
    *  и значок пропажи исчезли (спека §3.4). */
@@ -11,7 +13,7 @@ interface Props {
   disabled?: boolean;
 }
 
-export default function PlayButton({ gameId, onLaunch, onFixed, disabled }: Props) {
+export default function PlayButton({ gameId, note, onLaunch, onFixed, disabled }: Props) {
   const [busy, setBusy] = useState(false);
   const [fixing, setFixing] = useState(false);
   const [failure, setFailure] = useState<string | null>(null);
@@ -63,6 +65,7 @@ export default function PlayButton({ gameId, onLaunch, onFixed, disabled }: Prop
           </div>
         </>
       )}
+      <div className="play-note">{note}</div>
       <button
         className="play"
         disabled={busy || fixing || disabled}
