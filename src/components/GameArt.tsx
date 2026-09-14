@@ -3,24 +3,11 @@ import { convertFileSrc } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { gradientFor } from "../lib/gradient";
 import { layerFor, layerKey, type Layer } from "../lib/background";
+import { useMotionOn } from "../lib/motion";
 import type { GameView } from "../types";
 
 interface Props {
   game: GameView | null;
-}
-
-const REDUCED_MOTION = "(prefers-reduced-motion: reduce)";
-
-/** Системная настройка «уменьшить движение», с подпиской на её смену. */
-function useReducedMotion(): boolean {
-  const [reduced, setReduced] = useState(() => window.matchMedia(REDUCED_MOTION).matches);
-  useEffect(() => {
-    const query = window.matchMedia(REDUCED_MOTION);
-    const onChange = () => setReduced(query.matches);
-    query.addEventListener("change", onChange);
-    return () => query.removeEventListener("change", onChange);
-  }, []);
-  return reduced;
 }
 
 /**
@@ -43,7 +30,7 @@ function useWindowVisible(): boolean {
 }
 
 export default function GameArt({ game }: Props) {
-  const reduced = useReducedMotion();
+  const reduced = !useMotionOn();
   const visible = useWindowVisible();
   const layer: Layer = game ? layerFor(game, reduced) : { kind: "fill" };
   const key = layerKey(layer);

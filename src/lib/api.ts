@@ -76,6 +76,9 @@ export const api = {
   getStoreArt: () => invoke<boolean>("get_store_art"),
   setStoreArt: (enabled: boolean) => invoke<void>("set_store_art", { enabled }),
 
+  getAnimation: () => invoke<boolean>("get_animation"),
+  setAnimation: (enabled: boolean) => invoke<void>("set_animation", { enabled }),
+
   /** Проверяет выбранный файл видео (формат, вес) и разрешает окну читать его. */
   checkVideo: (path: string) => invoke<void>("check_video", { path }),
 

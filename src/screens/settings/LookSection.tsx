@@ -4,6 +4,7 @@ import { listen } from "@tauri-apps/api/event";
 import { api } from "../../lib/api";
 import { gradientFor } from "../../lib/gradient";
 import { hasOwnBackground, sourceText, videoSizeProblem } from "../../lib/background";
+import { setMotion } from "../../lib/motion";
 import Switch from "./Switch";
 import type { GameView } from "../../types";
 
@@ -11,14 +12,20 @@ import type { GameView } from "../../types";
 export default function LookSection() {
   const [games, setGames] = useState<GameView[]>([]);
   const [storeArt, setStoreArt] = useState<boolean | null>(null);
+  const [animation, setAnimation] = useState<boolean | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
   const reload = useCallback(async () => {
     try {
-      const [list, enabled] = await Promise.all([api.getGames(), api.getStoreArt()]);
+      const [list, storeArtEnabled, animationEnabled] = await Promise.all([
+        api.getGames(),
+        api.getStoreArt(),
+        api.getAnimation(),
+      ]);
       setGames(list);
-      setStoreArt(enabled);
+      setStoreArt(storeArtEnabled);
+      setAnimation(animationEnabled);
       setError("");
     } catch (e) {
       setError(String(e));
@@ -97,6 +104,32 @@ export default function LookSection() {
                 label="Брать фоны из магазинов"
                 disabled={busy}
                 onChange={(next) => void run(() => api.setStoreArt(next))}
+              />
+            )}
+          </div>
+        </div>
+
+        <div className="settings-row">
+          <div className="settings-row-text">
+            <span className="settings-row-title">Анимация</span>
+            <span className="settings-row-hint">
+              Видео фона, медленное движение картинки, увеличение иконок в доке и
+              поворот шестерёнки. Настройка Windows на приложение не влияет.
+            </span>
+          </div>
+          <div className="settings-row-control">
+            {animation !== null && (
+              <Switch
+                checked={animation}
+                label="Анимация"
+                disabled={busy}
+                onChange={(next) =>
+                  void run(async () => {
+                    await api.setAnimation(next);
+                    // Применяется сразу, не дожидаясь закрытия настроек.
+                    setMotion(next);
+                  })
+                }
               />
             )}
           </div>

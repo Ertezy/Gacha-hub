@@ -376,6 +376,18 @@ pub async fn set_store_art(app: AppHandle, enabled: bool) -> Result<(), String> 
     config::save(&app, &cfg)
 }
 
+#[tauri::command]
+pub async fn get_animation(app: AppHandle) -> bool {
+    config::load(&app).animation
+}
+
+#[tauri::command]
+pub async fn set_animation(app: AppHandle, enabled: bool) -> Result<(), String> {
+    let mut cfg = config::load(&app);
+    cfg.animation = enabled;
+    config::save(&app, &cfg)
+}
+
 /// Проверяет выбранный файл видео и, если он годится, разрешает окну его
 /// прочитать — до записи в конфиг странице ещё нужно измерить размер кадра в
 /// точках, открыв файл детачнутым `<video>` (см. `LookSection.tsx`, §1.2).

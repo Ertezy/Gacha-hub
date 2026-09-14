@@ -1,5 +1,6 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { convertFileSrc } from "@tauri-apps/api/core";
+import { motionOn, subscribeMotion } from "../lib/motion";
 import type { GameView } from "../types";
 
 interface Props {
@@ -24,6 +25,21 @@ export default function GameDock({ games, selectedId, onSelect }: Props) {
   const [near, setNear] = useState<number[]>([]);
   const restingCentres = useRef<number[] | null>(null);
 
+  const onLeave = useCallback(() => {
+    restingCentres.current = null;
+    setNear([]);
+  }, []);
+
+  // Тумблер «Анимация» могли выключить, пока курсор стоит над доком без
+  // движения: `onMove` в таком случае больше не позовут, и увеличенные иконки
+  // застряли бы такими до следующего шевеления мыши. Подписка возвращает их в
+  // покой сразу же, а не ждёт следующего движения (спека этапа 5, §12).
+  useEffect(() => {
+    return subscribeMotion((on) => {
+      if (!on) onLeave();
+    });
+  }, [onLeave]);
+
   /* Только на стилях это не делается, и это ограничение, а не выбор: CSS умеет
      дотянуться до следующего соседа, но не до предыдущего, и увеличение
      раздувало бы иконки только справа от курсора. Поэтому считаем расстояние
@@ -37,7 +53,7 @@ export default function GameDock({ games, selectedId, onSelect }: Props) {
      хвостом. От опорных центров близость — простая функция от положения
      курсора, и дрожать ей не с чего. */
   const onMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    if (!motionOn()) return;
     const dock = dockRef.current;
     if (!dock) return;
     if (restingCentres.current === null) {
@@ -48,11 +64,6 @@ export default function GameDock({ games, selectedId, onSelect }: Props) {
     }
     const x = e.clientX;
     setNear(restingCentres.current.map((c) => Math.max(0, 1 - Math.abs(x - c) / REACH)));
-  }, []);
-
-  const onLeave = useCallback(() => {
-    restingCentres.current = null;
-    setNear([]);
   }, []);
 
   if (games.length === 0) return null;

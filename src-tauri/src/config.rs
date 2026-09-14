@@ -117,6 +117,13 @@ pub struct AppConfig {
     /// — раньше этой настройки не было (спека этапа 5, §4.3).
     #[serde(default = "enabled")]
     pub store_art: bool,
+    /// Тумблер «Анимация»: видео фона, дрейф картинки, увеличение иконок в
+    /// доке, поворот шестерёнки. Заменяет собой системную настройку Windows
+    /// «уменьшить движение» — та на приложение больше не влияет. Отсутствие
+    /// поля означает «включено», как приложение вело себя до тумблера
+    /// (спека этапа 5, §12).
+    #[serde(default = "enabled")]
+    pub animation: bool,
     #[serde(default)]
     pub games: Vec<Game>,
 }
@@ -135,6 +142,7 @@ impl Default for AppConfig {
             seeded: false,
             behaviour: Behaviour::default(),
             store_art: true,
+            animation: true,
             games: Vec::new(),
         }
     }
@@ -216,6 +224,7 @@ pub fn migrate_v1(raw: &serde_json::Value) -> Option<AppConfig> {
         seeded: true,
         behaviour: Behaviour::default(),
         store_art: true,
+        animation: true,
         games,
     })
 }
@@ -260,6 +269,7 @@ pub fn migrate_v2(raw: &serde_json::Value) -> Option<AppConfig> {
         seeded: true,
         behaviour: Behaviour::default(),
         store_art: true,
+        animation: true,
         games,
     })
 }
@@ -392,6 +402,10 @@ fn assemble_current(raw: &serde_json::Value, version: u32, games: Vec<Game>) -> 
         // умолчание безусловно — и выключенная человеком галочка включалась бы
         // при каждом чтении. Ровно так едва не случилось с блоком `look`.
         store_art: raw.get("storeArt").and_then(|v| v.as_bool()).unwrap_or(true),
+        // Тот же приём, что и у `store_art` прямо выше: подставь сюда
+        // умолчание безусловно — и выключенный человеком тумблер включался бы
+        // при каждом чтении.
+        animation: raw.get("animation").and_then(|v| v.as_bool()).unwrap_or(true),
         // Блок `look` от прежней настройки цвета намеренно не читается. У тех,
         // кто успел его сохранить, он просто исчезнет при следующей записи
         // конфига, а игры и остальные настройки останутся как были.
@@ -598,6 +612,7 @@ mod tests {
             seeded: false,
             behaviour: Behaviour::default(),
             store_art: true,
+            animation: true,
             games: vec![
                 Game::manual("b".into(), "Второй".into()),
                 Game::manual("a".into(), "Первый".into()),
@@ -722,6 +737,7 @@ mod tests {
             seeded: true,
             behaviour: Behaviour { close_to_tray: false, tray_on_launch: true },
             store_art: true,
+            animation: true,
             games: vec![],
         };
         let text = serde_json::to_string(&cfg).unwrap();
@@ -877,6 +893,31 @@ mod tests {
         assert!(migrate_v2(&v2).expect("v2 переносится").store_art);
         let v1 = serde_json::json!({ "version": 1, "games": {} });
         assert!(migrate_v1(&v1).expect("v1 переносится").store_art);
+    }
+
+    #[test]
+    fn assemble_current_keeps_a_saved_animation_false() {
+        let raw = serde_json::json!({ "version": 3, "games": [], "animation": false });
+        let cfg = assemble_current(&raw, 3, Vec::new());
+        assert!(
+            !cfg.animation,
+            "выключенный тумблер анимации не должен включаться сам при чтении"
+        );
+    }
+
+    #[test]
+    fn assemble_current_turns_animation_on_when_the_key_is_absent() {
+        let raw = serde_json::json!({ "version": 3, "games": [] });
+        let cfg = assemble_current(&raw, 3, Vec::new());
+        assert!(cfg.animation);
+    }
+
+    #[test]
+    fn migrations_turn_animation_on() {
+        let v2 = serde_json::json!({ "version": 2, "games": [] });
+        assert!(migrate_v2(&v2).expect("v2 переносится").animation);
+        let v1 = serde_json::json!({ "version": 1, "games": {} });
+        assert!(migrate_v1(&v1).expect("v1 переносится").animation);
     }
 
     #[test]

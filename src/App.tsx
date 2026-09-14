@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { api } from "./lib/api";
 import { launchNote } from "./lib/launch";
+import { setMotion } from "./lib/motion";
 import SidePanel from "./components/SidePanel";
 import GameArt from "./components/GameArt";
 import PlayButton from "./components/PlayButton";
@@ -74,6 +75,13 @@ export default function App() {
       setScreen("main");
     })();
   }, [load]);
+
+  // Тумблер «Анимация» читается один раз при запуске: дальше `motion.ts` сам
+  // держит актуальное значение и рассылает его подписчикам при переключении
+  // на вкладке «Вид» (спека этапа 5, §12).
+  useEffect(() => {
+    api.getAnimation().then(setMotion).catch(() => {});
+  }, []);
 
   // Экран первого запуска закрывается — список игр мог измениться.
   const finishFirstRun = useCallback(() => {

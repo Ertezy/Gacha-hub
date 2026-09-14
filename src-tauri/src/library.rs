@@ -226,6 +226,7 @@ mod tests {
             seeded: true,
             behaviour: Behaviour::default(),
             store_art: true,
+            animation: true,
             games: ids
                 .iter()
                 .map(|id| Game {
