@@ -43,6 +43,34 @@ fn remember(found: &mut Vec<(SystemTime, PathBuf)>, path: PathBuf) {
     }
 }
 
+/// Сервер, с которого Steam отдаёт картинки библиотеки.
+const STEAM_ASSETS: &str = "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps";
+
+/// Адрес той же картинки библиотеки Steam в двойном размере, 3840 на 1240.
+///
+/// На диске Steam держит только 1920 на 620, а окно выше такой полоски, и
+/// картинку приходится растягивать. Двойную Steam отдаёт открыто со своего
+/// сервера, и в её адресе стоит имя подпапки из новой раскладки кеша (спека
+/// §3.1). Адрес собирается только из номера игры и этого имени, а имя
+/// проверяется: одни строчные шестнадцатеричные цифры, не длиннее 64. У старой
+/// раскладки подпапки нет — `None`.
+pub fn steam_hero_2x_url(hero: &Path, appid: u32) -> Option<String> {
+    if hero.file_name()? != STEAM_HERO {
+        return None;
+    }
+    let folder = hero.parent()?;
+    let name = folder.file_name()?.to_str()?;
+    let game_folder = folder.parent()?.file_name()?.to_str()?;
+    if game_folder != appid.to_string() {
+        return None;
+    }
+    let is_hex = |b: u8| b.is_ascii_digit() || (b'a'..=b'f').contains(&b);
+    if name.is_empty() || name.len() > 64 || !name.bytes().all(is_hex) {
+        return None;
+    }
+    Some(format!("{STEAM_ASSETS}/{appid}/{name}/library_hero_2x.jpg"))
+}
+
 /// Потолок чтения каталога Epic. У владельца файл весит 600 КБ на четыре сотни
 /// позиций; тридцать два мегабайта — запас на библиотеку в десятки раз больше, а
 /// не приглашение держать в памяти всё, что туда положат.
@@ -227,6 +255,54 @@ mod tests {
     #[test]
     fn a_missing_steam_folder_gives_nothing() {
         assert_eq!(steam_hero(&[PathBuf::from(r"C:\nope\never")], 1), None);
+    }
+
+    const WUWA_HASH: &str = "de0f5fcf72849ff1ba2aa8603e64dd42ba7f380d";
+
+    #[test]
+    fn the_big_hero_address_is_built_from_the_new_layout() {
+        let hero = PathBuf::from(format!(
+            r"C:\Steam\appcache\librarycache\3513350\{WUWA_HASH}\library_hero.jpg"
+        ));
+        assert_eq!(
+            steam_hero_2x_url(&hero, 3513350),
+            Some(format!(
+                "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/3513350/{WUWA_HASH}/library_hero_2x.jpg"
+            ))
+        );
+    }
+
+    #[test]
+    fn the_old_layout_has_no_big_hero() {
+        let hero = PathBuf::from(r"C:\Steam\appcache\librarycache\3513350_library_hero.jpg");
+        assert_eq!(steam_hero_2x_url(&hero, 3513350), None);
+    }
+
+    #[test]
+    fn a_folder_that_is_not_a_lowercase_hex_name_gives_no_address() {
+        let too_long = "a".repeat(65);
+        for folder in ["", "DE0F5FCF", "de0f5fcg", "de0f 5fcf", "..", too_long.as_str()] {
+            let hero = PathBuf::from(r"C:\Steam\appcache\librarycache\3513350")
+                .join(folder)
+                .join("library_hero.jpg");
+            assert_eq!(steam_hero_2x_url(&hero, 3513350), None, "папка {folder:?}");
+        }
+    }
+
+    #[test]
+    fn a_hero_under_another_games_folder_gives_no_address() {
+        let hero = PathBuf::from(format!(
+            r"C:\Steam\appcache\librarycache\1\{WUWA_HASH}\library_hero.jpg"
+        ));
+        assert_eq!(steam_hero_2x_url(&hero, 3513350), None);
+    }
+
+    #[test]
+    fn a_file_that_is_not_the_hero_gives_no_address() {
+        let logo = PathBuf::from(format!(
+            r"C:\Steam\appcache\librarycache\3513350\{WUWA_HASH}\logo.png"
+        ));
+        assert_eq!(steam_hero_2x_url(&logo, 3513350), None);
     }
 
     #[test]

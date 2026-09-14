@@ -136,6 +136,12 @@ impl ArtContext {
             epic_catalog_unreadable: false,
         }
     }
+
+    #[cfg(test)]
+    pub fn with_steam_roots(mut self, steam_roots: Vec<PathBuf>) -> Self {
+        self.steam_roots = steam_roots;
+        self
+    }
 }
 
 /// Адрес картинки Epic для игры — или `None`, если галочка выключена, игра не из
@@ -207,12 +213,25 @@ fn own_video(app: &AppHandle, game: &Game) -> Option<PathBuf> {
 /// картинок владельца не покажет, что его мало (спека этапа 5, §3.2).
 pub const MAX_STORE_ART_BYTES: u64 = crate::images::MAX_IMAGE_BYTES;
 
-/// Адреса картинок Epic, которых ещё нет в кеше фонов. Без сети и без окна —
-/// ради тестов.
-pub fn pending_epic_downloads(games: &[Game], ctx: &ArtContext, dir: &Path) -> Vec<String> {
+/// Адрес большой картинки Steam для игры — или `None`, если галочка выключена,
+/// игра не из Steam или картинка библиотеки лежит в старой раскладке кеша.
+fn steam_big_hero_url(game: &Game, ctx: &ArtContext) -> Option<String> {
+    if !ctx.store_art {
+        return None;
+    }
+    let Some(StoreRef::Steam { appid }) = ctx.store_of(game) else {
+        return None;
+    };
+    let hero = crate::storeart::steam_hero(&ctx.steam_roots, appid)?;
+    crate::storeart::steam_hero_2x_url(&hero, appid)
+}
+
+/// Адреса картинок магазинов, которых ещё нет в кеше фонов: картинки Epic и
+/// большие картинки Steam. Без сети и без окна — ради тестов.
+pub fn pending_store_downloads(games: &[Game], ctx: &ArtContext, dir: &Path) -> Vec<String> {
     let mut urls: Vec<String> = games
         .iter()
-        .filter_map(|g| epic_image_url(g, ctx))
+        .filter_map(|g| epic_image_url(g, ctx).or_else(|| steam_big_hero_url(g, ctx)))
         .filter(|url| crate::images::cached(dir, url).is_none())
         .collect();
     urls.sort();
@@ -220,7 +239,7 @@ pub fn pending_epic_downloads(games: &[Game], ctx: &ArtContext, dir: &Path) -> V
     urls
 }
 
-/// Докачка картинок Epic за время работы приложения.
+/// Докачка картинок магазинов за время работы приложения.
 #[derive(Debug, Default)]
 pub struct DownloadState {
     /// Поток докачки уже работает — второй не запускается.
@@ -273,7 +292,8 @@ pub fn report_catalog_once(state: &mut DownloadState) -> bool {
     true
 }
 
-/// Докачивает недостающие картинки Epic в отдельном потоке (спека §3.3).
+/// Докачивает недостающие картинки магазинов в отдельном потоке: картинки Epic и
+/// большие картинки Steam (спека §3.1, §3.3).
 ///
 /// Вызывается при каждом построении списка игр, поэтому одна дорога покрывает
 /// запуск, первый запуск, поиск установленных игр, ручное добавление, включение
@@ -292,7 +312,7 @@ pub fn start_missing_downloads(app: &AppHandle, games: &[Game], ctx: &ArtContext
     }
     // Отказ уже разобран в `resolve`: здесь просто нечего качать без папки.
     let Ok(dir) = cache_dir(app) else { return };
-    let pending = pending_epic_downloads(games, ctx, &dir);
+    let pending = pending_store_downloads(games, ctx, &dir);
     let claimed = {
         let state = app.state::<StoreArtDownloads>();
         let mut state = state.0.lock().unwrap_or_else(|e| e.into_inner());
@@ -306,7 +326,7 @@ pub fn start_missing_downloads(app: &AppHandle, games: &[Game], ctx: &ArtContext
         for url in urls {
             match crate::images::fetch_into(&dir, &url, MAX_STORE_ART_BYTES) {
                 Ok(_) => done += 1,
-                Err(e) => log::warn!("[art] картинка Epic не скачалась: {e}"),
+                Err(e) => log::warn!("[art] картинка магазина не скачалась: {e}"),
             }
         }
         {
@@ -332,9 +352,10 @@ pub fn forget_tried_downloads(app: &AppHandle) {
 
 /// Картинка магазина, уже лежащая в кеше фонов.
 ///
-/// Картинка Steam копируется сюда сразу: это чтение с диска. Картинка Epic здесь
-/// только ищется в кеше — её докачивает поток, который запускает построение
-/// списка игр (спека §3.3), и окно список игр не ждёт.
+/// Картинка Steam с диска копируется сюда сразу: это чтение с диска. Большая
+/// картинка Steam и картинка Epic здесь только ищутся в кеше — их докачивает
+/// поток, который запускает построение списка игр (спека §3.1, §3.3), и окно
+/// список игр не ждёт. Скачанная большая картинка Steam заменяет картинку с диска.
 fn store_picture(dir: &Path, game: &Game, ctx: &ArtContext) -> Option<(ArtSource, PathBuf)> {
     if !ctx.store_art {
         return None;
@@ -342,7 +363,10 @@ fn store_picture(dir: &Path, game: &Game, ctx: &ArtContext) -> Option<(ArtSource
     match ctx.store_of(game)? {
         StoreRef::Steam { appid } => {
             let hero = crate::storeart::steam_hero(&ctx.steam_roots, appid)?;
-            crate::localcopy::copy_into(dir, &hero, "steam-").map(|p| (ArtSource::Steam, p))
+            let big = crate::storeart::steam_hero_2x_url(&hero, appid)
+                .and_then(|url| crate::images::cached(dir, &url));
+            big.or_else(|| crate::localcopy::copy_into(dir, &hero, "steam-"))
+                .map(|p| (ArtSource::Steam, p))
         }
         StoreRef::Epic { .. } => {
             let url = epic_image_url(game, ctx)?;
@@ -391,7 +415,7 @@ mod tests {
         let ctx = ArtContext::for_test(true, Vec::new(), Some(two_game_catalog()));
         let games = [epic_game("a"), epic_game("b")];
         assert_eq!(
-            pending_epic_downloads(&games, &ctx, &dir),
+            pending_store_downloads(&games, &ctx, &dir),
             vec!["https://cdn1.epicgames.com/b.jpg".to_string()]
         );
         std::fs::remove_dir_all(&dir).ok();
@@ -401,7 +425,7 @@ mod tests {
     fn nothing_is_queued_with_the_switch_off() {
         let dir = scratch("off");
         let ctx = ArtContext::for_test(false, Vec::new(), Some(two_game_catalog()));
-        assert!(pending_epic_downloads(&[epic_game("a")], &ctx, &dir).is_empty());
+        assert!(pending_store_downloads(&[epic_game("a")], &ctx, &dir).is_empty());
         std::fs::remove_dir_all(&dir).ok();
     }
 
@@ -410,7 +434,7 @@ mod tests {
         let dir = scratch("dedup");
         let ctx = ArtContext::for_test(true, Vec::new(), Some(two_game_catalog()));
         let games = [epic_game("a"), epic_game("a")];
-        assert_eq!(pending_epic_downloads(&games, &ctx, &dir).len(), 1);
+        assert_eq!(pending_store_downloads(&games, &ctx, &dir).len(), 1);
         std::fs::remove_dir_all(&dir).ok();
     }
 
@@ -519,6 +543,71 @@ mod tests {
         let mut state = DownloadState::default();
         assert!(report_catalog_once(&mut state));
         assert!(!report_catalog_once(&mut state));
+    }
+
+    const HASH: &str = "de0f5fcf72849ff1ba2aa8603e64dd42ba7f380d";
+
+    fn steam_game(appid: u32) -> Game {
+        let mut g = Game::manual("s".into(), "S".into());
+        g.launch = crate::config::Launch::Steam { appid };
+        g
+    }
+
+    /// Папка Steam, где у игры лежит картинка библиотеки в новой раскладке кеша.
+    fn steam_root_with_hero(tag: &str, appid: u32) -> PathBuf {
+        let root = scratch(tag);
+        let folder = root
+            .join("appcache")
+            .join("librarycache")
+            .join(appid.to_string())
+            .join(HASH);
+        std::fs::create_dir_all(&folder).unwrap();
+        std::fs::write(folder.join("library_hero.jpg"), b"small").unwrap();
+        root
+    }
+
+    fn big_hero_url(appid: u32) -> String {
+        format!(
+            "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/{appid}/{HASH}/library_hero_2x.jpg"
+        )
+    }
+
+    #[test]
+    fn a_missing_big_steam_picture_is_queued_until_it_is_cached() {
+        let root = steam_root_with_hero("steam-root-queue", 7);
+        let dir = scratch("steam-dir-queue");
+        let ctx = ArtContext::for_test(true, Vec::new(), None).with_steam_roots(vec![root.clone()]);
+        assert_eq!(pending_store_downloads(&[steam_game(7)], &ctx, &dir), vec![big_hero_url(7)]);
+        std::fs::write(dir.join(crate::images::file_name_for(&big_hero_url(7), "jpg")), b"big")
+            .unwrap();
+        assert!(pending_store_downloads(&[steam_game(7)], &ctx, &dir).is_empty(), "уже в кеше");
+        std::fs::remove_dir_all(&root).ok();
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn no_big_steam_picture_is_queued_with_the_switch_off() {
+        let root = steam_root_with_hero("steam-root-off", 7);
+        let dir = scratch("steam-dir-off");
+        let ctx = ArtContext::for_test(false, Vec::new(), None).with_steam_roots(vec![root.clone()]);
+        assert!(pending_store_downloads(&[steam_game(7)], &ctx, &dir).is_empty());
+        std::fs::remove_dir_all(&root).ok();
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn the_big_steam_picture_replaces_the_small_one_once_downloaded() {
+        let root = steam_root_with_hero("steam-root-show", 7);
+        let dir = scratch("steam-dir-show");
+        let ctx = ArtContext::for_test(true, Vec::new(), None).with_steam_roots(vec![root.clone()]);
+        let (source, small) = store_picture(&dir, &steam_game(7), &ctx).unwrap();
+        assert_eq!(source, ArtSource::Steam);
+        assert_eq!(std::fs::read(&small).unwrap(), b"small", "пока большой нет — картинка с диска");
+        let big = dir.join(crate::images::file_name_for(&big_hero_url(7), "jpg"));
+        std::fs::write(&big, b"big").unwrap();
+        assert_eq!(store_picture(&dir, &steam_game(7), &ctx), Some((ArtSource::Steam, big)));
+        std::fs::remove_dir_all(&root).ok();
+        std::fs::remove_dir_all(&dir).ok();
     }
 
     #[test]
