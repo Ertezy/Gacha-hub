@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { hasOwnBackground, layerFor, layerKey, sourceText } from "./background";
+import { hasOwnBackground, layerFor, layerKey, sourceText, videoSizeProblem } from "./background";
 
 describe("layerFor", () => {
   it("своё видео идёт первым, картинка остаётся его неподвижным кадром", () => {
@@ -77,5 +77,39 @@ describe("hasOwnBackground", () => {
   it("магазин и заливка — убирать нечего", () => {
     expect(hasOwnBackground({ artSource: "steam", videoMissing: false })).toBe(false);
     expect(hasOwnBackground({ artSource: "fill", videoMissing: false })).toBe(false);
+  });
+});
+
+describe("videoSizeProblem", () => {
+  it("1920×1080 годится", () => {
+    expect(videoSizeProblem(1920, 1080)).toBeNull();
+  });
+
+  it("2560×1440 — ровно на потолке, годится", () => {
+    expect(videoSizeProblem(2560, 1440)).toBeNull();
+  });
+
+  it("1440×2560 — тот же потолок повёрнутым боком, годится", () => {
+    expect(videoSizeProblem(1440, 2560)).toBeNull();
+  });
+
+  it("3840×2160 отклоняется", () => {
+    expect(videoSizeProblem(3840, 2160)).toBe("Видео больше 2560×1440 — выберите ролик поменьше.");
+  });
+
+  it("2561×1000 отклоняется — превышена только большая сторона", () => {
+    expect(videoSizeProblem(2561, 1000)).toBe("Видео больше 2560×1440 — выберите ролик поменьше.");
+  });
+
+  it("0×0 нечитаемо", () => {
+    expect(videoSizeProblem(0, 0)).toBe(
+      "Не удалось прочитать видео — выберите mp4 (H.264) или webm.",
+    );
+  });
+
+  it("NaN нечитаемо", () => {
+    expect(videoSizeProblem(NaN, NaN)).toBe(
+      "Не удалось прочитать видео — выберите mp4 (H.264) или webm.",
+    );
   });
 });

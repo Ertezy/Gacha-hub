@@ -109,6 +109,7 @@ pub fn run() {
             commands::set_behaviour,
             commands::get_store_art,
             commands::set_store_art,
+            commands::check_video,
             commands::set_hub_url,
             commands::image_cache_size,
             commands::clear_image_cache,

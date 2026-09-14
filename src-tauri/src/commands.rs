@@ -300,6 +300,16 @@ pub async fn update_game(
     if let Some(title_val) = &title {
         crate::library::validate_title(title_val)?;
     }
+    // Пустая строка стирает видео и проверке не подлежит. Непустая проходит
+    // ту же проверку, что и перед выбором файла (`check_video`): страница не
+    // единственная защита (спека §12).
+    if let Some(v) = &video {
+        if !v.is_empty() {
+            if let Some(problem) = crate::art::video_file_problem(std::path::Path::new(v)) {
+                return Err(problem);
+            }
+        }
+    }
     let patch = crate::library::GamePatch {
         title,
         exe_path,
@@ -364,6 +374,23 @@ pub async fn set_store_art(app: AppHandle, enabled: bool) -> Result<(), String> 
     let mut cfg = config::load(&app);
     cfg.store_art = enabled;
     config::save(&app, &cfg)
+}
+
+/// Проверяет выбранный файл видео и, если он годится, разрешает окну его
+/// прочитать — до записи в конфиг странице ещё нужно измерить размер кадра в
+/// точках, открыв файл детачнутым `<video>` (см. `LookSection.tsx`, §1.2).
+/// Разбор mp4 и webm на стороне Rust ради одних только размеров кадра
+/// пришлось бы писать вручную — своего парсера в зависимостях нет.
+#[tauri::command]
+pub async fn check_video(app: AppHandle, path: String) -> Result<(), String> {
+    let path = std::path::PathBuf::from(path);
+    if let Some(problem) = crate::art::video_file_problem(&path) {
+        return Err(problem);
+    }
+    app.asset_protocol_scope()
+        .allow_file(&path)
+        .map_err(|e| format!("Окну не открыть видео: {e}"))?;
+    Ok(())
 }
 
 #[tauri::command]

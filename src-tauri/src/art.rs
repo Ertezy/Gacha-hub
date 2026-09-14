@@ -188,6 +188,39 @@ pub fn is_usable_video(path: &Path) -> bool {
     is_video_file_name(path) && path.is_file()
 }
 
+/// Потолок веса своего видео фона — решение владельца после живой проверки
+/// (спека этапа 5, §12). Длина ролика не ограничена: он читается с диска
+/// кусками и крутится по кругу, поэтому нагрузку даёт вес и разрешение кадра,
+/// а не то, сколько секунд он длится.
+pub const MAX_VIDEO_BYTES: u64 = 300 * 1024 * 1024;
+
+/// Правда, если файл тяжелее потолка. Вынесена отдельно от `video_file_problem`
+/// ради границы: тест проверяет её напрямую, без файла на диске — тот же
+/// приём, что у `exceeds_ceiling` в `images.rs`.
+fn exceeds_video_limit(len: u64) -> bool {
+    len > MAX_VIDEO_BYTES
+}
+
+/// Первая найденная проблема с файлом своего видео фона — фраза для показа
+/// человеку, или `None`, если файл годится. Проверяется и до выбора (окно
+/// зовёт `check_video`), и при записи в конфиг (`update_game`): страница не
+/// единственная защита (спека §12).
+pub fn video_file_problem(path: &Path) -> Option<String> {
+    if !is_video_file_name(path) {
+        return Some("Видео должно быть в формате mp4 или webm.".to_string());
+    }
+    let Ok(meta) = std::fs::metadata(path) else {
+        return Some("Файл видео не найден.".to_string());
+    };
+    if !meta.is_file() {
+        return Some("Файл видео не найден.".to_string());
+    }
+    if exceeds_video_limit(meta.len()) {
+        return Some("Видео тяжелее 300 МБ — выберите файл поменьше.".to_string());
+    }
+    None
+}
+
 /// Своё видео, если файл на месте.
 ///
 /// Ролик не копируется: окну разрешается читать ровно этот файл там, где он
@@ -618,5 +651,44 @@ mod tests {
         assert!(!is_video_file_name(Path::new("d.mp4.exe")));
         assert!(!is_video_file_name(Path::new("noext")));
         assert!(!is_video_file_name(Path::new("e.jpg")));
+    }
+
+    #[test]
+    fn video_file_problem_flags_the_wrong_extension() {
+        let dir = scratch("video-ext");
+        let file = dir.join("clip.txt");
+        std::fs::write(&file, b"x").unwrap();
+        assert_eq!(
+            video_file_problem(&file),
+            Some("Видео должно быть в формате mp4 или webm.".to_string())
+        );
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn video_file_problem_flags_a_missing_file() {
+        let dir = scratch("video-missing");
+        let file = dir.join("nope.mp4");
+        assert_eq!(video_file_problem(&file), Some("Файл видео не найден.".to_string()));
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn video_file_problem_accepts_a_small_real_file() {
+        let dir = scratch("video-ok");
+        let file = dir.join("clip.mp4");
+        std::fs::write(&file, b"tiny").unwrap();
+        assert_eq!(video_file_problem(&file), None);
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn exceeds_video_limit_is_false_exactly_at_the_ceiling() {
+        assert!(!exceeds_video_limit(MAX_VIDEO_BYTES));
+    }
+
+    #[test]
+    fn exceeds_video_limit_is_true_one_byte_over() {
+        assert!(exceeds_video_limit(MAX_VIDEO_BYTES + 1));
     }
 }

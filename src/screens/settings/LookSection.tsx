@@ -3,7 +3,7 @@ import { convertFileSrc } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { api } from "../../lib/api";
 import { gradientFor } from "../../lib/gradient";
-import { hasOwnBackground, sourceText } from "../../lib/background";
+import { hasOwnBackground, sourceText, videoSizeProblem } from "../../lib/background";
 import Switch from "./Switch";
 import type { GameView } from "../../types";
 
@@ -57,8 +57,23 @@ export default function LookSection() {
 
   const pick = (gameId: string, kind: "background" | "video") =>
     void (async () => {
-      const picked = kind === "video" ? await api.pickVideo() : await api.pickImage();
-      if (picked) await run(() => api.updateGame({ gameId, [kind]: picked }));
+      if (kind === "background") {
+        const picked = await api.pickImage();
+        if (picked) await run(() => api.updateGame({ gameId, background: picked }));
+        return;
+      }
+      const picked = await api.pickVideo();
+      if (!picked) return;
+      // Вся цепочка — проверка формата и веса в Rust, затем размер в точках —
+      // идёт внутри `run`: кнопки блокируются на время проверки, а отказ
+      // `checkVideo` попадает в баннер ошибки той же дорогой, что и остальные.
+      await run(async () => {
+        await api.checkVideo(picked);
+        const { width, height } = await videoPixelSize(picked);
+        const problem = videoSizeProblem(width, height);
+        if (problem) throw problem;
+        await api.updateGame({ gameId, video: picked });
+      });
     })();
 
   return (
@@ -157,4 +172,39 @@ function Preview({ game }: { game: GameView }) {
     return <img className="look-preview" src={convertFileSrc(game.artPath)} alt="" />;
   }
   return <div className="look-preview" style={{ background: gradientFor(game.title) }} />;
+}
+
+/**
+ * Размер видео в точках. Измеряется здесь, на странице, а не в Rust: Rust
+ * умеет проверить формат и вес файла, но разбор самого mp4 или webm ради
+ * одних только размеров кадра пришлось бы писать вручную — готового парсера
+ * в зависимостях нет, а детачнутый `<video>` браузера делает это бесплатно.
+ *
+ * Файл к этому моменту уже разрешён окну командой `checkVideo`. `error` и
+ * десятисекундный таймер дают `0, 0` — тот же сигнал «не удалось прочитать»,
+ * что и у испорченного файла.
+ */
+function videoPixelSize(path: string): Promise<{ width: number; height: number }> {
+  return new Promise((resolve) => {
+    const video = document.createElement("video");
+    video.preload = "metadata";
+    video.muted = true;
+
+    let done = false;
+    const finish = (width: number, height: number) => {
+      if (done) return;
+      done = true;
+      clearTimeout(timer);
+      // Файл держится открытым, пока у элемента есть источник — освобождаем
+      // его сразу, не дожидаясь сборки мусора.
+      video.src = "";
+      video.load();
+      resolve({ width, height });
+    };
+
+    const timer = setTimeout(() => finish(0, 0), 10_000);
+    video.addEventListener("loadedmetadata", () => finish(video.videoWidth, video.videoHeight));
+    video.addEventListener("error", () => finish(0, 0));
+    video.src = convertFileSrc(path);
+  });
 }

@@ -45,3 +45,17 @@ export function sourceText(game: Pick<GameView, "artSource" | "videoMissing">): 
 export function hasOwnBackground(game: Pick<GameView, "artSource" | "videoMissing">): boolean {
   return game.artSource === "video" || game.artSource === "picture" || game.videoMissing;
 }
+
+/** Потолок размера своего видео в точках — решение владельца после живой
+ *  проверки (спека этапа 5, §12). Ориентация не важна: предел проверяется по
+ *  большей и меньшей стороне отдельно, а не по ширине и высоте буквально —
+ *  ролик 1440×2560 такой же годный, как и 2560×1440. */
+export function videoSizeProblem(width: number, height: number): string | null {
+  if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) {
+    return "Не удалось прочитать видео — выберите mp4 (H.264) или webm.";
+  }
+  if (Math.max(width, height) > 2560 || Math.min(width, height) > 1440) {
+    return "Видео больше 2560×1440 — выберите ролик поменьше.";
+  }
+  return null;
+}
