@@ -241,13 +241,19 @@ body {
 
 /* Подпись над кнопкой PLAY: откуда запустится игра. Крупного названия игры на
    экране нет (спека этапа 5, §11): оно почти всегда нарисовано на самом арте и
-   сливалось с ним. Двойная тень держит строку читаемой на светлом фоне. */
+   сливалось с ним. Одна тень не спасала на светлом арте, поэтому строка лежит
+   на полупрозрачной подложке. Подложка темнее, чем у дока (`--glass`): у дока
+   крупные иконки, а мелкий текст на светлом арте серой подложки не хватает. */
 .play-note {
-  margin-right: 18px;
-  font-size: 13px;
+  margin-right: 8px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: rgba(14, 15, 20, 0.66);
+  backdrop-filter: blur(12px);
+  font-size: 14px;
+  font-weight: 600;
   color: var(--ink);
-  letter-spacing: 0.04em;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.7), 0 0 14px rgba(0, 0, 0, 0.55);
+  letter-spacing: 0.02em;
 }
 
 /* Док снизу доходит верхней панелью до кнопки PLAY по дизайну; кнопка должна быть на переднем плане. */
@@ -635,17 +641,43 @@ body {
   font-size: 12px; color: rgba(255, 255, 255, 0.55);
 }
 
-.panel-foot-row {
-  display: block;
-  width: 100%;
-  margin-bottom: 6px;
+/* Шестерёнка настроек: крупная, без подписи, при наведении плавно
+   поворачивается на пол-оборота и возвращается, когда курсор уходит. Восемь
+   зубцов, поэтому после пол-оборота значок выглядит так же, как в покое. */
+.panel-gear {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  margin: 0 0 6px -8px;
   padding: 0;
   border: none;
+  border-radius: 10px;
   background: none;
-  font: inherit;
-  color: inherit;
-  text-align: left;
+  color: var(--ink);
   cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.panel-gear svg {
+  width: 26px;
+  height: 26px;
+  transition: transform 0.9s cubic-bezier(0.33, 0.8, 0.3, 1);
+}
+
+.panel-gear:hover {
+  background: var(--card);
+}
+
+.panel-gear:hover svg,
+.panel-gear:focus-visible svg {
+  transform: rotate(180deg);
+}
+
+.panel-gear:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 .panel-stale { font-size: 10.5px; color: var(--ink-faint); }
 

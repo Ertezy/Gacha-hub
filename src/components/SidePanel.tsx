@@ -76,8 +76,29 @@ export default function SidePanel({ hub, contentIds, selectedContentId, onOpenSe
       </div>
 
       <div className="panel-foot">
-        <button type="button" className="panel-foot-row" onClick={onOpenSettings}>
-          ⚙ Настройки и игры
+        {/* Шестерёнка без подписи: значок узнаётся сам, а название есть во
+            всплывающей подсказке и для экранного диктора. Зубцы — пунктир
+            толстой обводки круга, без чужих иконок и зависимостей. */}
+        <button
+          type="button"
+          className="panel-gear"
+          onClick={onOpenSettings}
+          aria-label="Настройки и игры"
+          title="Настройки и игры"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <circle
+              cx="12"
+              cy="12"
+              r="8.2"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="3.2"
+              strokeDasharray="2.6 3.84"
+            />
+            <circle cx="12" cy="12" r="6" fill="none" stroke="currentColor" strokeWidth="2" />
+            <circle cx="12" cy="12" r="2.3" fill="none" stroke="currentColor" strokeWidth="2" />
+          </svg>
         </button>
         {hub && (
           <div className="panel-stale">
