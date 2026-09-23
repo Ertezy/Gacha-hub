@@ -64,6 +64,27 @@ fn etag_for<'a>(meta: Option<&'a CacheMeta>, url: &str) -> Option<&'a str> {
     meta.filter(|m| m.url == url).and_then(|m| m.etag.as_deref())
 }
 
+/// Пишет свежий ответ в кеш и, только если это удалось, — метку версии рядом.
+///
+/// Порядок обязателен, а не для красоты: если кеш не записался (антивирус
+/// на Windows временно держит файл, sharing violation), а метка всё равно
+/// обновится, старое содержимое `hub_cache.json` останется лежать под НОВОЙ
+/// меткой. Дальше сервер честно отвечает 304 на эту метку, и устаревший кеш
+/// тихо выдаётся с источником `remote`, пока файл у сборщика не поменяется
+/// снова — это может быть и через несколько дней. Не записали кеш — метку
+/// не трогаем: старые кеш и метка остаются согласованной парой, а частично
+/// записанный или отсутствующий кеш `read_json_file` прочитает как `None`,
+/// что `decide` при следующем 304 превратит в повторный запрос без метки.
+fn store_fresh(cache_path: &Path, meta_path: &Path, url: &str, data: &HubData, etag: Option<String>) {
+    let Ok(json) = serde_json::to_string_pretty(data) else {
+        return;
+    };
+    if fs::write(cache_path, json).is_err() {
+        return;
+    }
+    write_meta(meta_path, &CacheMeta { url: url.to_string(), etag });
+}
+
 enum Remote {
     Fresh { data: HubData, etag: Option<String> },
     NotModified,
@@ -256,10 +277,7 @@ pub fn load(app: &AppHandle, hub_url: Option<&str>) -> Result<HubData, String> {
         }
         match outcome {
             Outcome::UseFresh(mut data, etag) => {
-                if let Ok(json) = serde_json::to_string_pretty(&data) {
-                    let _ = fs::write(&cache_path, json);
-                }
-                write_meta(&meta_path, &CacheMeta { url: url.to_string(), etag });
+                store_fresh(&cache_path, &meta_path, url, &data, etag);
                 data.source = Some("remote".to_string());
                 return Ok(data);
             }
@@ -470,6 +488,23 @@ mod tests {
 
     fn data(version: u32) -> HubData {
         HubData { version, ..HubData::default() }
+    }
+
+    #[test]
+    fn a_failed_cache_write_leaves_the_meta_file_unchanged() {
+        // Путь к кешу лежит в несуществующей подпапке — `fs::write` там
+        // обязан провалиться, не создавая родителей. Этого достаточно,
+        // чтобы проверить порядок в `store_fresh`, не поднимая `AppHandle`.
+        let dir = temp_hub_dir("meta-guard");
+        let cache_path = dir.join("nonexistent").join("hub_cache.json");
+        let meta_path = dir.join("hub_cache.meta.json");
+        let old_meta = CacheMeta { url: DEFAULT_HUB_URL.to_string(), etag: Some("\"old\"".to_string()) };
+        write_meta(&meta_path, &old_meta);
+
+        store_fresh(&cache_path, &meta_path, DEFAULT_HUB_URL, &data(3), Some("\"new\"".to_string()));
+
+        assert_eq!(read_meta(&meta_path), Some(old_meta));
+        std::fs::remove_dir_all(&dir).ok();
     }
 
     #[test]
