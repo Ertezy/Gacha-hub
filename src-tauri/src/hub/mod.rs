@@ -1,8 +1,9 @@
 //! Данные хаба: где их взять и в каком порядке.
 //!
 //! Источники по убыванию приоритета:
-//!   1. удалённый файл по `hubUrl` (только https, 5 с, редиректы запрещены),
-//!      результат кешируется в `%APPDATA%\<id>\hub_cache.json`;
+//!   1. удалённый файл по `hubUrl`, а если поле пустое — по адресу сборщика
+//!      (только https, 5 с, редиректы запрещены); результат кешируется в
+//!      `%APPDATA%\<id>\hub_cache.json`, метка версии — в `hub_cache.meta.json`;
 //!   2. `%APPDATA%\<id>\hub.json` — ручная подмена без пересборки;
 //!   3. `%APPDATA%\<id>\hub_cache.json` — последняя удачная загрузка;
 //!   4. `resources/hub.json` из комплекта.
@@ -28,6 +29,65 @@ const REMOTE_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(5);
 /// Не больше двух мегабайт: файл хаба — текст, всё крупнее либо ошибка,
 /// либо попытка занять нам память.
 const MAX_HUB_BYTES: usize = 2 * 1024 * 1024;
+
+/// Файл, который выкладывает сборщик (спека сборщика §9). Пустое поле адреса
+/// в настройках означает именно его; вписанный адрес побеждает.
+pub const DEFAULT_HUB_URL: &str = "https://ertezy.github.io/Gacha-hub-info/hub.json";
+
+pub fn effective_url(hub_url: Option<&str>) -> &str {
+    match hub_url {
+        Some(url) if !url.trim().is_empty() => url,
+        _ => DEFAULT_HUB_URL,
+    }
+}
+
+/// Метка версии последнего удачного ответа и адрес, для которого она получена.
+#[derive(Debug, PartialEq, serde::Serialize, serde::Deserialize)]
+struct CacheMeta {
+    url: String,
+    etag: Option<String>,
+}
+
+fn read_meta(path: &Path) -> Option<CacheMeta> {
+    serde_json::from_str(&fs::read_to_string(path).ok()?).ok()
+}
+
+fn write_meta(path: &Path, meta: &CacheMeta) {
+    if let Ok(json) = serde_json::to_string(meta) {
+        let _ = fs::write(path, json);
+    }
+}
+
+/// Метка отправляется только тому адресу, от которого пришла: после смены
+/// адреса в настройках чужая метка дала бы ложное «не изменилось».
+fn etag_for<'a>(meta: Option<&'a CacheMeta>, url: &str) -> Option<&'a str> {
+    meta.filter(|m| m.url == url).and_then(|m| m.etag.as_deref())
+}
+
+enum Remote {
+    Fresh { data: HubData, etag: Option<String> },
+    NotModified,
+    Failed,
+}
+
+enum Outcome {
+    UseFresh(HubData, Option<String>),
+    UseCache(HubData),
+    Refetch,
+    Fallback,
+}
+
+/// Что делать с ответом сервера. Чистая функция: сеть и файлы — снаружи.
+fn decide(remote: Remote, cached: Option<HubData>) -> Outcome {
+    match remote {
+        Remote::Fresh { data, etag } => Outcome::UseFresh(data, etag),
+        Remote::NotModified => match cached {
+            Some(data) => Outcome::UseCache(data),
+            None => Outcome::Refetch,
+        },
+        Remote::Failed => Outcome::Fallback,
+    }
+}
 
 /// Годится ли адрес для запроса из приложения.
 ///
@@ -85,28 +145,36 @@ fn read_json_file(path: &Path) -> Option<HubData> {
     serde_json::from_str(&text).ok()
 }
 
-/// Блокирующая загрузка по https с коротким таймаутом.
+/// Блокирующая загрузка по https с коротким таймаутом и условным заголовком.
 /// Редиректы запрещены: иначе ответ https-адреса мог бы увести нас на http.
-fn fetch_remote(url: &str) -> Option<HubData> {
+/// ureq при `redirects(0)` отдаёт 3xx, в том числе 304, как обычный ответ.
+fn fetch_remote(url: &str, etag: Option<&str>) -> Remote {
     if !is_safe_https(url) {
-        return None;
+        return Remote::Failed;
     }
-    let resp = ureq::builder()
-        .redirects(0)
-        .build()
-        .get(url)
-        .timeout(REMOTE_TIMEOUT)
-        .call()
-        .ok()?;
-
+    let mut request = ureq::builder().redirects(0).build().get(url).timeout(REMOTE_TIMEOUT);
+    if let Some(tag) = etag {
+        request = request.set("If-None-Match", tag);
+    }
+    let Ok(resp) = request.call() else {
+        return Remote::Failed;
+    };
+    if resp.status() == 304 {
+        return Remote::NotModified;
+    }
+    if resp.status() != 200 {
+        return Remote::Failed;
+    }
+    let tag = resp.header("etag").map(str::to_string);
     let mut body = String::new();
     // Потолок соблюдается при чтении: Content-Length пишет отправитель.
-    resp.into_reader()
-        .take(MAX_HUB_BYTES as u64)
-        .read_to_string(&mut body)
-        .ok()?;
-
-    serde_json::from_str(&body).ok()
+    if resp.into_reader().take(MAX_HUB_BYTES as u64).read_to_string(&mut body).is_err() {
+        return Remote::Failed;
+    }
+    match serde_json::from_str(&body) {
+        Ok(data) => Remote::Fresh { data, etag: tag },
+        Err(_) => Remote::Failed,
+    }
 }
 
 fn bundled(app: &AppHandle) -> Result<HubData, String> {
@@ -175,24 +243,36 @@ pub fn load(app: &AppHandle, hub_url: Option<&str>) -> Result<HubData, String> {
         .app_config_dir()
         .map_err(|e| format!("config dir: {e}"))?;
     let cache_path = cfg_dir.join("hub_cache.json");
+    let meta_path = cfg_dir.join("hub_cache.meta.json");
     let override_path = cfg_dir.join("hub.json");
+    let url = effective_url(hub_url);
 
-    if let Some(url) = hub_url.filter(|u| is_safe_https(u)) {
-        if let Some(mut data) = fetch_remote(url) {
-            if let Ok(json) = serde_json::to_string_pretty(&data) {
-                let _ = fs::write(&cache_path, json);
+    if is_safe_https(url) {
+        let meta = read_meta(&meta_path);
+        let first = fetch_remote(url, etag_for(meta.as_ref(), url));
+        let mut outcome = decide(first, read_json_file(&cache_path));
+        if matches!(outcome, Outcome::Refetch) {
+            outcome = decide(fetch_remote(url, None), None);
+        }
+        match outcome {
+            Outcome::UseFresh(mut data, etag) => {
+                if let Ok(json) = serde_json::to_string_pretty(&data) {
+                    let _ = fs::write(&cache_path, json);
+                }
+                write_meta(&meta_path, &CacheMeta { url: url.to_string(), etag });
+                data.source = Some("remote".to_string());
+                return Ok(data);
             }
-            data.source = Some("remote".to_string());
-            return Ok(data);
+            Outcome::UseCache(mut data) => {
+                data.source = Some("remote".to_string());
+                return Ok(data);
+            }
+            Outcome::Refetch | Outcome::Fallback => {}
         }
-        if let Some(data) = read_local_chain(&override_path, &cache_path) {
-            return Ok(data);
-        }
-    } else if let Some(mut data) = read_json_file(&override_path) {
-        data.source = Some("override".to_string());
+    }
+    if let Some(data) = read_local_chain(&override_path, &cache_path) {
         return Ok(data);
     }
-
     bundled(app)
 }
 
@@ -353,5 +433,64 @@ mod tests {
 
         assert!(read_local_chain(&override_path, &cache_path).is_none());
         std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn an_empty_hub_url_means_the_collector() {
+        assert_eq!(effective_url(None), DEFAULT_HUB_URL);
+        assert_eq!(effective_url(Some("")), DEFAULT_HUB_URL);
+        assert_eq!(effective_url(Some("   ")), DEFAULT_HUB_URL);
+        assert_eq!(effective_url(Some("https://example.test/hub.json")), "https://example.test/hub.json");
+    }
+
+    #[test]
+    fn the_collector_address_is_https() {
+        assert!(is_safe_https(DEFAULT_HUB_URL));
+    }
+
+    #[test]
+    fn a_version_tag_is_sent_only_for_the_address_it_came_from() {
+        let meta = CacheMeta { url: DEFAULT_HUB_URL.to_string(), etag: Some("\"v1\"".to_string()) };
+        assert_eq!(etag_for(Some(&meta), DEFAULT_HUB_URL), Some("\"v1\""));
+        assert_eq!(etag_for(Some(&meta), "https://example.test/hub.json"), None);
+        assert_eq!(etag_for(None, DEFAULT_HUB_URL), None);
+    }
+
+    #[test]
+    fn cache_meta_survives_a_round_trip_and_garbage_reads_as_none() {
+        let dir = temp_hub_dir("meta");
+        let path = dir.join("hub_cache.meta.json");
+        let meta = CacheMeta { url: DEFAULT_HUB_URL.to_string(), etag: Some("\"v2\"".to_string()) };
+        write_meta(&path, &meta);
+        assert_eq!(read_meta(&path), Some(meta));
+        std::fs::write(&path, "{broken").unwrap();
+        assert_eq!(read_meta(&path), None);
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    fn data(version: u32) -> HubData {
+        HubData { version, ..HubData::default() }
+    }
+
+    #[test]
+    fn a_fresh_answer_is_used_with_its_tag() {
+        match decide(Remote::Fresh { data: data(2), etag: Some("\"v3\"".into()) }, None) {
+            Outcome::UseFresh(d, tag) => {
+                assert_eq!(d.version, 2);
+                assert_eq!(tag.as_deref(), Some("\"v3\""));
+            }
+            _ => panic!("ожидался свежий файл"),
+        }
+    }
+
+    #[test]
+    fn not_modified_uses_the_cache_or_refetches_without_one() {
+        assert!(matches!(decide(Remote::NotModified, Some(data(2))), Outcome::UseCache(d) if d.version == 2));
+        assert!(matches!(decide(Remote::NotModified, None), Outcome::Refetch));
+    }
+
+    #[test]
+    fn a_failed_request_falls_back_to_the_local_chain() {
+        assert!(matches!(decide(Remote::Failed, Some(data(2))), Outcome::Fallback));
     }
 }
