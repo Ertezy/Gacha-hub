@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { api } from "./lib/api";
 import { launchNote } from "./lib/launch";
 import { setMotion } from "./lib/motion";
+import { REFRESH_EVERY_MS, sameHub, shouldRefreshOnShow } from "./lib/hubRefresh";
 import SidePanel from "./components/SidePanel";
 import GameArt from "./components/GameArt";
 import PlayButton from "./components/PlayButton";
@@ -22,6 +23,22 @@ export default function App() {
   // главный экран, чтобы не мигнуть им перед экраном первого запуска.
   const [screen, setScreen] = useState<Screen>("loading");
 
+  // Когда данные панели проверялись последний раз — для проверки при возвращении окна.
+  const lastHubCheck = useRef(0);
+
+  // Хаб грузится отдельно: он может ходить в сеть, и его задержка не должна
+  // откладывать появление главного экрана. Те же данные панель не
+  // перерисовывают; отказ сети оставляет на экране то, что уже показано.
+  const refreshHub = useCallback(async () => {
+    lastHubCheck.current = Date.now();
+    try {
+      const next = await api.getHub();
+      setHub((current) => (sameHub(current, next) ? current : next));
+    } catch {
+      // Показанные данные остаются; следующая проверка попробует снова.
+    }
+  }, []);
+
   const load = useCallback(async () => {
     try {
       const [list, last] = await Promise.all([api.getGames(), api.getLastPlayed()]);
@@ -31,10 +48,8 @@ export default function App() {
     } catch (e) {
       setError(String(e));
     }
-    // Хаб грузится отдельно: он может ходить в сеть, и его задержка
-    // не должна откладывать появление главного экрана.
-    api.getHub().then(setHub).catch(() => setHub(null));
-  }, []);
+    void refreshHub();
+  }, [refreshHub]);
 
   // Только список игр, без выбора и хаба: событие о новых фонах не должно
   // сбрасывать игру, которую человек уже выбрал в доке.
@@ -64,6 +79,27 @@ export default function App() {
       void unlisten.then((stop) => stop());
     };
   }, [reloadGames]);
+
+  // Приложение живёт в трее днями: данные панели проверяются раз в 3 часа и
+  // при возвращении окна, если с прошлой проверки прошёл час (спека сборщика §9).
+  useEffect(() => {
+    const timer = window.setInterval(() => void refreshHub(), REFRESH_EVERY_MS);
+    const onShown = () => {
+      if (shouldRefreshOnShow(lastHubCheck.current, Date.now())) void refreshHub();
+    };
+    const unlisten = listen<boolean>("window-visibility", (e) => {
+      if (e.payload) onShown();
+    });
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") onShown();
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      window.clearInterval(timer);
+      void unlisten.then((stop) => stop());
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
+  }, [refreshHub]);
 
   useEffect(() => {
     void (async () => {
