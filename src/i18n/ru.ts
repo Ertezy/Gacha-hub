@@ -41,6 +41,37 @@ export const ru: Dictionary = {
     videos: "Видео",
     premiere: "премьера",
   },
+  // Строки главного экрана, дока игр и общих обёрток — дословно как в коде до
+  // перевода (было в App.tsx, PlayButton.tsx, GameDock.tsx, lib/launch.ts,
+  // lib/background.ts, lib/api.ts).
+  main: {
+    launch: {
+      note: { steam: "Запустится через Steam", epic: "Запустится через Epic Games", exe: "Запустится напрямую" },
+      fileMissing: "файл не найден",
+      from: { steam: "из Steam", epic: "из Epic Games", exe: "из папки" },
+    },
+    play: "▶ Играть",
+    launching: "Запускаю…",
+    settings: "Настройки и игры",
+    gameFileMissing: "Файл игры не найден",
+    dockFileMissing: (title: string) => `${title} — файл игры не найден`,
+    noGameSelected: "игра не выбрана",
+    loadFailed: (detail: string) => `Не удалось загрузить: ${detail}`,
+    relocate: "Найти заново",
+    pickManually: "Указать вручную",
+    background: {
+      source: { video: "своё видео", picture: "своя картинка", fill: "заливка" },
+      videoMissing: (source: string) => `${source}, файл видео не найден`,
+      videoUnreadable: "Не удалось прочитать видео — выберите mp4 (H.264) или webm.",
+      videoTooBig: "Видео больше 2560×1440 — выберите ролик поменьше.",
+    },
+    filters: {
+      program: "Программа",
+      image: "Картинка",
+      video: "Видео",
+    },
+    refuseNonHttps: (url: string) => `отказываюсь открывать не-https ссылку: ${url}`,
+  },
   // Прежние тексты ошибок Rust дословно, переменная часть — подробность.
   errors: {
     unknown: "Что-то пошло не так",

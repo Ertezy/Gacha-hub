@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { convertFileSrc } from "@tauri-apps/api/core";
 import { motionOn, subscribeMotion } from "../lib/motion";
+import { useT } from "../i18n";
 import type { GameView } from "../types";
 
 interface Props {
@@ -24,6 +25,7 @@ export default function GameDock({ games, selectedId, onSelect }: Props) {
   const dockRef = useRef<HTMLDivElement>(null);
   const [near, setNear] = useState<number[]>([]);
   const restingCentres = useRef<number[] | null>(null);
+  const t = useT();
 
   const onLeave = useCallback(() => {
     restingCentres.current = null;
@@ -82,7 +84,7 @@ export default function GameDock({ games, selectedId, onSelect }: Props) {
               key={g.id}
               className={`dock-item${g.missing ? " missing" : ""}`}
               onClick={() => onSelect(g.id)}
-              title={g.missing ? `${g.title} — файл игры не найден` : g.title}
+              title={g.missing ? t.main.dockFileMissing(g.title) : g.title}
             >
               <span className="dock-name">{g.title}</span>
               {g.iconPath ? (

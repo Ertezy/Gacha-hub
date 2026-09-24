@@ -1,10 +1,8 @@
+import type { Dictionary } from "../i18n";
 import type { GameView } from "../types";
 
-/**
- * Подпись над кнопкой «Играть»: откуда запустится игра и не пропал ли её файл.
- * Человек не помнит, где что лежит, и лаунчер говорит это за него.
- */
-export function launchNote(game: Pick<GameView, "sourceLabel" | "missing">): string {
-  const note = `Запустится через ${game.sourceLabel}`;
-  return game.missing ? `${note} · файл не найден` : note;
+/** Подпись над кнопкой запуска: откуда запустится игра, и нет ли её файла. */
+export function launchNote(t: Dictionary, game: Pick<GameView, "sourceKind" | "missing">): string {
+  const note = t.main.launch.note[game.sourceKind];
+  return game.missing ? `${note} · ${t.main.launch.fileMissing}` : note;
 }

@@ -153,7 +153,7 @@ export default function App() {
   }, []);
 
   const launch = useCallback(async (): Promise<LaunchResult> => {
-    if (!selected) return { ok: false, msg: "игра не выбрана" };
+    if (!selected) return { ok: false, msg: t.main.noGameSelected };
     try {
       await api.launchGame(selected.id);
       return { ok: true, msg: "" };
@@ -202,12 +202,12 @@ export default function App() {
         {selected && (
           <PlayButton
             gameId={selected.id}
-            note={launchNote(selected)}
+            note={launchNote(t, selected)}
             onLaunch={launch}
             onFixed={load}
           />
         )}
-        {error && <div className="banner">Не удалось загрузить: {error}</div>}
+        {error && <div className="banner">{t.main.loadFailed(error)}</div>}
         <GameDock games={games} selectedId={selected?.id ?? null} onSelect={select} />
       </main>
     </div>

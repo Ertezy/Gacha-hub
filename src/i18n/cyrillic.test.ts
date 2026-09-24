@@ -16,12 +16,6 @@ const FILES = import.meta.glob<string>(["/src/**/*.{ts,tsx}", "!/src/**/*.test.{
 const ALLOWED = new Set(["/src/i18n/ru.ts", "/src/i18n/native.ts"]);
 
 const PENDING = new Set<string>([
-  "/src/App.tsx",
-  "/src/components/GameDock.tsx",
-  "/src/components/PlayButton.tsx",
-  "/src/lib/api.ts",
-  "/src/lib/background.ts",
-  "/src/lib/launch.ts",
   "/src/screens/Settings.tsx",
   "/src/screens/settings/FirstRunView.tsx",
   "/src/screens/settings/GameEditor.tsx",

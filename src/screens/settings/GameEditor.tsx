@@ -3,7 +3,12 @@ import { confirm } from "@tauri-apps/plugin-dialog";
 import { api } from "../../lib/api";
 import { useT } from "../../i18n";
 import { errorText } from "../../i18n/errors";
-import type { GameView, HubGame } from "../../types";
+import type { GameView, HubGame, SourceKind } from "../../types";
+
+// Тот же текст, что раньше лежал в GameView.sourceLabel — код перевёл на
+// sourceKind (Task 5, спека §6.3), а собственно перевод этой строки ждёт
+// своей задачи (Task 6).
+const SOURCE_LABEL: Record<SourceKind, string> = { steam: "Steam", epic: "Epic Games", exe: "напрямую" };
 
 interface Props {
   game: GameView;
@@ -176,7 +181,7 @@ export default function GameEditor({ game, hubGames, onChanged }: Props) {
 
       <details className="settings-extra">
         <summary>Дополнительно</summary>
-        {game.sourceLabel === "напрямую" ? (
+        {game.sourceKind === "exe" ? (
           <div className="settings-row">
             <div className="settings-row-text">
               <span className="settings-row-title">Аргументы запуска</span>
@@ -204,7 +209,7 @@ export default function GameEditor({ game, hubGames, onChanged }: Props) {
           </div>
         ) : (
           <p className="settings-row-hint">
-            Аргументы запуска здесь недоступны: игру открывает {game.sourceLabel} по
+            Аргументы запуска здесь недоступны: игру открывает {SOURCE_LABEL[game.sourceKind]} по
             собственной ссылке, и передать ей что-то дополнительное нельзя.
           </p>
         )}

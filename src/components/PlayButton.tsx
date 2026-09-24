@@ -60,10 +60,10 @@ export default function PlayButton({ gameId, note, onLaunch, onFixed, disabled }
           <div className="play-error">{failure}</div>
           <div className="play-fix">
             <button type="button" disabled={fixing} onClick={() => void relocate()}>
-              Найти заново
+              {t.main.relocate}
             </button>
             <button type="button" disabled={fixing} onClick={() => void pickManually()}>
-              Указать вручную
+              {t.main.pickManually}
             </button>
           </div>
         </>
@@ -74,7 +74,7 @@ export default function PlayButton({ gameId, note, onLaunch, onFixed, disabled }
         disabled={busy || fixing || disabled}
         onClick={() => void click()}
       >
-        {busy ? "Запускаю…" : "▶ Играть"}
+        {busy ? t.main.launching : t.main.play}
       </button>
     </div>
   );

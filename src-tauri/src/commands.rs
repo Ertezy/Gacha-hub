@@ -22,6 +22,17 @@ fn save_config(app: &AppHandle, cfg: &config::AppConfig) -> Result<(), AppError>
     config::save(app, cfg).map_err(|e| AppError::with(code::CONFIG_SAVE_FAILED, e))
 }
 
+/// Вид запуска кодом — слово на языке интерфейса подставляет страница
+/// (спека этапа 6 §6.3). Названия магазинов не переводятся, но и они живут
+/// в словаре страницы, рядом с остальным текстом подписи.
+fn source_kind(launch: &Launch) -> &'static str {
+    match launch {
+        Launch::Steam { .. } => "steam",
+        Launch::Epic { .. } => "epic",
+        Launch::Exe => "exe",
+    }
+}
+
 /// Игра в том виде, в каком её рисует интерфейс.
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -29,8 +40,8 @@ pub struct GameView {
     pub id: String,
     pub title: String,
     pub content_id: Option<String>,
-    /// Подпись «запустится через …».
-    pub source_label: String,
+    /// Вид запуска кодом (`"steam" | "epic" | "exe"`) — слово подставляет страница.
+    pub source_kind: &'static str,
     /// Путь к файлу иконки на диске. `None` — рисуется заглушка с буквой.
     pub icon_path: Option<String>,
     /// Путь к фоновой картинке. `None` — рисуется сгенерированная заливка.
@@ -56,18 +67,11 @@ pub struct GameView {
 /// `icon_path` и `art_path` здесь всегда `None` — их выставляет только
 /// `view_of`.
 fn view_of_without_icon(game: &Game) -> GameView {
-    let source_label = match game.launch {
-        Launch::Steam { .. } => "Steam",
-        Launch::Epic { .. } => "Epic Games",
-        Launch::Exe => "напрямую",
-    }
-    .to_string();
-
     GameView {
         id: game.id.clone(),
         title: game.title.clone(),
         content_id: game.content_id.clone(),
-        source_label,
+        source_kind: source_kind(&game.launch),
         icon_path: None,
         art_path: None,
         art_source: crate::art::ArtSource::Fill,
@@ -165,7 +169,7 @@ pub struct FoundGame {
     /// Идентификатор контента, если игру знает каталог. `None` — по ней не
     /// будет ни кодов, ни баннеров, и на экране это подписывается честно.
     pub content_id: Option<String>,
-    pub source_label: String,
+    pub source_kind: &'static str,
     /// Игра с таким путём уже есть в конфиге — галочку ставить не нужно.
     pub already_added: bool,
 }
@@ -181,12 +185,6 @@ pub async fn scan_installed(app: AppHandle) -> Vec<FoundGame> {
         .into_iter()
         .map(|found| {
             let content_id = crate::catalog::content_id_for(&found, &hub_games);
-            let source_label = match found.launch {
-                Launch::Steam { .. } => "Steam",
-                Launch::Epic { .. } => "Epic Games",
-                Launch::Exe => "напрямую",
-            }
-            .to_string();
             // То же сравнение, что решает, какую запись пользователя
             // дополнить данными установки (`catalog::already_configured`
             // переиспользует его же) — а не отдельное по exePath: у игр
@@ -196,7 +194,7 @@ pub async fn scan_installed(app: AppHandle) -> Vec<FoundGame> {
             FoundGame {
                 title: found.title,
                 content_id,
-                source_label,
+                source_kind: source_kind(&found.launch),
                 already_added,
             }
         })
@@ -593,7 +591,18 @@ mod tests {
 
     #[test]
     fn view_labels_the_store_a_game_starts_through() {
-        assert_eq!(view_of_without_icon(&steam_game()).source_label, "Steam");
+        assert_eq!(view_of_without_icon(&steam_game()).source_kind, "steam");
+    }
+
+    #[test]
+    fn epic_games_are_labelled_as_epic() {
+        let mut g = steam_game();
+        g.launch = Launch::Epic {
+            namespace: "ns".into(),
+            catalog_item_id: "cid".into(),
+            app_name: "app".into(),
+        };
+        assert_eq!(view_of_without_icon(&g).source_kind, "epic");
     }
 
     #[test]
@@ -605,7 +614,7 @@ mod tests {
     fn exe_games_are_labelled_as_direct() {
         let mut g = steam_game();
         g.launch = Launch::Exe;
-        assert_eq!(view_of_without_icon(&g).source_label, "напрямую");
+        assert_eq!(view_of_without_icon(&g).source_kind, "exe");
     }
 
     /// Отдельная папка на тег теста, а не общий путь: тесты этого файла пишут

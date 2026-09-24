@@ -2,12 +2,15 @@
 
 export type LaunchKind = "steam" | "epic" | "exe";
 
+/** Вид запуска кодом — слово на языке интерфейса подставляет страница
+ *  (спека этапа 6 §6.3). */
+export type SourceKind = "steam" | "epic" | "exe";
+
 export interface GameView {
   id: string;
   title: string;
   contentId: string | null;
-  /** Подпись «запустится через …». */
-  sourceLabel: string;
+  sourceKind: SourceKind;
   /** Путь к файлу иконки. `null` — рисуется заглушка с буквой. */
   iconPath: string | null;
   /** Путь к фоновой картинке. `null` — рисуется сгенерированная заливка. */
@@ -89,7 +92,7 @@ export interface Behaviour {
 export interface FoundGame {
   title: string;
   contentId: string | null;
-  sourceLabel: string;
+  sourceKind: SourceKind;
   alreadyAdded: boolean;
 }
 

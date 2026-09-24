@@ -3,7 +3,7 @@ import { open } from "@tauri-apps/plugin-dialog";
 import { writeText } from "@tauri-apps/plugin-clipboard-manager";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import type { About, AppConfig, Behaviour, FoundGame, GameView, HubData } from "../types";
-import type { Lang, VideoLang } from "../i18n";
+import { currentT, type Lang, type VideoLang } from "../i18n";
 
 /**
  * Типизированные обёртки над мостом Tauri.
@@ -31,7 +31,7 @@ export const api = {
    */
   openSafeUrl: async (url: string) => {
     if (!url.startsWith("https://")) {
-      throw new Error(`отказываюсь открывать не-https ссылку: ${url}`);
+      throw new Error(currentT().main.refuseNonHttps(url));
     }
     await openUrl(url);
   },
@@ -99,7 +99,7 @@ export const api = {
     const picked = await open({
       multiple: false,
       directory: false,
-      filters: [{ name: "Программа", extensions: ["exe"] }],
+      filters: [{ name: currentT().main.filters.program, extensions: ["exe"] }],
     });
     return typeof picked === "string" ? picked : null;
   },
@@ -109,7 +109,7 @@ export const api = {
     const picked = await open({
       multiple: false,
       directory: false,
-      filters: [{ name: "Картинка", extensions: ["png", "jpg", "jpeg", "webp"] }],
+      filters: [{ name: currentT().main.filters.image, extensions: ["png", "jpg", "jpeg", "webp"] }],
     });
     return typeof picked === "string" ? picked : null;
   },
@@ -119,7 +119,7 @@ export const api = {
     const picked = await open({
       multiple: false,
       directory: false,
-      filters: [{ name: "Видео", extensions: ["mp4", "webm"] }],
+      filters: [{ name: currentT().main.filters.video, extensions: ["mp4", "webm"] }],
     });
     return typeof picked === "string" ? picked : null;
   },

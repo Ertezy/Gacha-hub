@@ -39,6 +39,35 @@ export const en = {
     videos: "Videos",
     premiere: "premiere",
   },
+  // Главный экран, док игр и общие обёртки страницы (спека этапа 6, Task 5).
+  main: {
+    launch: {
+      note: { steam: "Launches via Steam", epic: "Launches via Epic Games", exe: "Launches directly" },
+      fileMissing: "game file not found",
+      from: { steam: "from Steam", epic: "from Epic Games", exe: "from a folder" },
+    },
+    play: "▶ Play",
+    launching: "Launching…",
+    settings: "Settings and games",
+    gameFileMissing: "Game file not found",
+    dockFileMissing: (title: string) => `${title} — game file not found`,
+    noGameSelected: "No game selected",
+    loadFailed: (detail: string) => `Failed to load: ${detail}`,
+    relocate: "Find again",
+    pickManually: "Specify manually",
+    background: {
+      source: { video: "custom video", picture: "custom image", fill: "gradient" },
+      videoMissing: (source: string) => `${source}, video file not found`,
+      videoUnreadable: "Couldn't read the video — pick an mp4 (H.264) or webm file.",
+      videoTooBig: "Video is larger than 2560×1440 — pick a smaller clip.",
+    },
+    filters: {
+      program: "Program",
+      image: "Picture",
+      video: "Video",
+    },
+    refuseNonHttps: (url: string) => `refusing to open a non-https link: ${url}`,
+  },
   // Ошибки из Rust: код → фраза, подробность подставляется (спека §6.2,
   // src/i18n/errors.ts). Имена полей — коды из src-tauri/src/error.rs.
   errors: {

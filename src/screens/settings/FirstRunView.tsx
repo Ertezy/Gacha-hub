@@ -74,7 +74,7 @@ export default function FirstRunView({ onDone }: Props) {
           onChange={() => toggle(g.title)}
         />
         <span className="found-title">{g.title}</span>
-        <span className="found-source">{g.sourceLabel}</span>
+        <span className="found-source">{t.main.launch.from[g.sourceKind]}</span>
         {g.alreadyAdded && <span className="found-note">уже добавлена</span>}
       </label>
     ));

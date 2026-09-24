@@ -82,7 +82,7 @@ export default function LookSection() {
       await run(async () => {
         await api.checkVideo(picked);
         const { width, height } = await videoPixelSize(picked);
-        const problem = videoSizeProblem(width, height);
+        const problem = videoSizeProblem(t, width, height);
         if (problem) throw problem;
         await api.updateGame({ gameId, video: picked });
       });
@@ -151,7 +151,7 @@ export default function LookSection() {
               <div className="settings-row-text">
                 <span className="settings-row-title">{g.title}</span>
                 <span className={g.videoMissing ? "settings-row-hint look-warn" : "settings-row-hint"}>
-                  {sourceText(g)}
+                  {sourceText(t, g)}
                 </span>
               </div>
               <div className="settings-row-control">
