@@ -3,6 +3,7 @@ mod catalog;
 mod commands;
 mod config;
 mod hub;
+mod i18n;
 mod ico;
 mod icons;
 mod images;
@@ -111,6 +112,10 @@ pub fn run() {
             commands::set_store_art,
             commands::get_animation,
             commands::set_animation,
+            commands::get_language,
+            commands::set_language,
+            commands::get_video_language,
+            commands::set_video_language,
             commands::check_video,
             commands::set_hub_url,
             commands::image_cache_size,

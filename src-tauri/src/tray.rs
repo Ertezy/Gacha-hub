@@ -6,7 +6,10 @@
 
 use tauri::menu::{Menu, MenuItem};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
-use tauri::{AppHandle, Emitter, Manager};
+use tauri::{AppHandle, Emitter, Manager, Wry};
+
+use crate::config::{self, Language};
+use crate::i18n;
 
 /// Событие для страницы: окно показано (`true`) или спрятано (`false`).
 pub const VISIBILITY_EVENT: &str = "window-visibility";
@@ -34,10 +37,28 @@ pub fn hide_main_window(app: &AppHandle) -> bool {
     true
 }
 
+/// Пункты меню трея — чтобы переименовать их при смене языка без перезапуска.
+pub struct TrayMenu {
+    show: MenuItem<Wry>,
+    quit: MenuItem<Wry>,
+}
+
+/// Переименовывает пункты меню на новый язык. Без трея — ничего не делает.
+pub fn apply_language(app: &AppHandle, lang: Language) {
+    let Some(menu) = app.try_state::<TrayMenu>() else {
+        return;
+    };
+    let texts = i18n::tray(lang);
+    let _ = menu.show.set_text(texts.show);
+    let _ = menu.quit.set_text(texts.quit);
+}
+
 pub fn setup(app: &AppHandle) -> tauri::Result<()> {
-    let show = MenuItem::with_id(app, "show", "Показать окно", true, None::<&str>)?;
-    let quit = MenuItem::with_id(app, "quit", "Выход", true, None::<&str>)?;
+    let texts = i18n::tray(config::load(app).language);
+    let show = MenuItem::with_id(app, "show", texts.show, true, None::<&str>)?;
+    let quit = MenuItem::with_id(app, "quit", texts.quit, true, None::<&str>)?;
     let menu = Menu::with_items(app, &[&show, &quit])?;
+    app.manage(TrayMenu { show: show.clone(), quit: quit.clone() });
 
     // Мягкий отказ вместо паники: без значка не собрать окно, но приложение
     // не обязано падать — оно просто останется без трея (см. lib.rs).

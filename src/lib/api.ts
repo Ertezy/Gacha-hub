@@ -3,6 +3,7 @@ import { open } from "@tauri-apps/plugin-dialog";
 import { writeText } from "@tauri-apps/plugin-clipboard-manager";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import type { About, AppConfig, Behaviour, FoundGame, GameView, HubData } from "../types";
+import type { Lang, VideoLang } from "../i18n";
 
 /**
  * Типизированные обёртки над мостом Tauri.
@@ -78,6 +79,11 @@ export const api = {
 
   getAnimation: () => invoke<boolean>("get_animation"),
   setAnimation: (enabled: boolean) => invoke<void>("set_animation", { enabled }),
+
+  getLanguage: () => invoke<Lang>("get_language"),
+  setLanguage: (language: Lang) => invoke<void>("set_language", { language }),
+  getVideoLanguage: () => invoke<VideoLang>("get_video_language"),
+  setVideoLanguage: (language: VideoLang) => invoke<void>("set_video_language", { language }),
 
   /** Проверяет выбранный файл видео (формат, вес) и разрешает окну читать его. */
   checkVideo: (path: string) => invoke<void>("check_video", { path }),

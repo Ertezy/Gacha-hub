@@ -56,6 +56,8 @@ export interface Banner {
 
 export interface Video {
   gameId: string;
+  /** "en" или "ja"; у файлов до этапа 6 поля нет — такое видео английское. */
+  lang?: string;
   title: string;
   url: string;
   thumb: string | null;

@@ -131,6 +131,11 @@ pub struct Banner {
 #[serde(rename_all = "camelCase")]
 pub struct Video {
     pub game_id: String,
+    /// Язык видео: "en" или "ja" (спека этапа 6 §3.2). У файлов до этапа 6
+    /// поля нет — страница считает такое видео английским. Без поля здесь
+    /// serde выбросил бы метку по дороге к странице.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub lang: Option<String>,
     #[serde(default)]
     pub title: String,
     pub url: String,
@@ -268,6 +273,22 @@ mod tests {
         let json = r#"{"gameId":"gi","code":"Z","rewards":""}"#;
         let c: Code = serde_json::from_str(json).unwrap();
         assert_eq!(c.region, "all");
+    }
+
+    #[test]
+    fn a_video_keeps_its_language_and_an_old_one_has_none() {
+        let with: Video = serde_json::from_value(serde_json::json!({
+            "gameId": "hsr", "lang": "ja", "title": "T", "url": "https://www.youtube.com/watch?v=a",
+            "thumb": null, "publishedAt": 1, "duration": null, "premiere": false
+        })).unwrap();
+        assert_eq!(with.lang.as_deref(), Some("ja"));
+        assert_eq!(serde_json::to_value(&with).unwrap()["lang"], "ja");
+        let old: Video = serde_json::from_value(serde_json::json!({
+            "gameId": "hsr", "title": "T", "url": "https://www.youtube.com/watch?v=a",
+            "thumb": null, "publishedAt": 1, "duration": null, "premiere": false
+        })).unwrap();
+        assert_eq!(old.lang, None);
+        assert!(serde_json::to_value(&old).unwrap().get("lang").is_none());
     }
 
     #[test]

@@ -5,10 +5,23 @@ import ReactDOM from "react-dom/client";
 // чтобы нарисовать буквы. Вариативное начертание — один файл на все веса.
 import "@fontsource-variable/golos-text";
 import App from "./App";
+import { api } from "./lib/api";
+import { asLang, setLanguage } from "./i18n";
+import { asVideoLang, setVideoLanguage } from "./lib/videoLanguage";
 import "./styles.css";
 
-ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
-  <React.StrictMode>
-    <App />
-  </React.StrictMode>,
-);
+// Язык читается до первой отрисовки: иначе при запуске на миг мелькнул бы
+// английский у того, кто выбрал русский (спека этапа 6 §4.3). Отказ моста —
+// значения по умолчанию, приложение всё равно открывается.
+void Promise.all([
+  api.getLanguage().then(asLang, () => "en" as const),
+  api.getVideoLanguage().then(asVideoLang, () => "en" as const),
+]).then(([lang, videoLang]) => {
+  setLanguage(lang);
+  setVideoLanguage(videoLang);
+  ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
+    <React.StrictMode>
+      <App />
+    </React.StrictMode>,
+  );
+});

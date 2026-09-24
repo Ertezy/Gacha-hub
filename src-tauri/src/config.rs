@@ -96,6 +96,25 @@ impl Default for Behaviour {
     }
 }
 
+/// Язык интерфейса (спека этапа 6 §5.1). По умолчанию английский — и для
+/// свежей установки, и для конфига, где поля ещё нет.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum Language {
+    #[default]
+    En,
+    Ru,
+}
+
+/// Язык видео в панели (спека этапа 6 §3.3). По умолчанию английский.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum VideoLanguage {
+    #[default]
+    En,
+    Ja,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AppConfig {
@@ -124,6 +143,12 @@ pub struct AppConfig {
     /// (спека этапа 5, §12).
     #[serde(default = "enabled")]
     pub animation: bool,
+    /// Язык интерфейса. Нет поля или незнакомое значение — английский.
+    #[serde(default)]
+    pub language: Language,
+    /// Язык видео в панели. Нет поля или незнакомое значение — английский.
+    #[serde(default)]
+    pub video_language: VideoLanguage,
     #[serde(default)]
     pub games: Vec<Game>,
 }
@@ -143,6 +168,8 @@ impl Default for AppConfig {
             behaviour: Behaviour::default(),
             store_art: true,
             animation: true,
+            language: Language::En,
+            video_language: VideoLanguage::En,
             games: Vec::new(),
         }
     }
@@ -225,6 +252,8 @@ pub fn migrate_v1(raw: &serde_json::Value) -> Option<AppConfig> {
         behaviour: Behaviour::default(),
         store_art: true,
         animation: true,
+        language: Language::En,
+        video_language: VideoLanguage::En,
         games,
     })
 }
@@ -270,6 +299,8 @@ pub fn migrate_v2(raw: &serde_json::Value) -> Option<AppConfig> {
         behaviour: Behaviour::default(),
         store_art: true,
         animation: true,
+        language: Language::En,
+        video_language: VideoLanguage::En,
         games,
     })
 }
@@ -406,6 +437,15 @@ fn assemble_current(raw: &serde_json::Value, version: u32, games: Vec<Game>) -> 
         // умолчание безусловно — и выключенный человеком тумблер включался бы
         // при каждом чтении.
         animation: raw.get("animation").and_then(|v| v.as_bool()).unwrap_or(true),
+        // Незнакомое значение — английский, а не ошибка чтения всего конфига.
+        language: raw
+            .get("language")
+            .and_then(|v| serde_json::from_value(v.clone()).ok())
+            .unwrap_or_default(),
+        video_language: raw
+            .get("videoLanguage")
+            .and_then(|v| serde_json::from_value(v.clone()).ok())
+            .unwrap_or_default(),
         // Блок `look` от прежней настройки цвета намеренно не читается. У тех,
         // кто успел его сохранить, он просто исчезнет при следующей записи
         // конфига, а игры и остальные настройки останутся как были.
@@ -613,6 +653,8 @@ mod tests {
             behaviour: Behaviour::default(),
             store_art: true,
             animation: true,
+            language: Language::En,
+            video_language: VideoLanguage::En,
             games: vec![
                 Game::manual("b".into(), "Второй".into()),
                 Game::manual("a".into(), "Первый".into()),
@@ -738,6 +780,8 @@ mod tests {
             behaviour: Behaviour { close_to_tray: false, tray_on_launch: true },
             store_art: true,
             animation: true,
+            language: Language::En,
+            video_language: VideoLanguage::En,
             games: vec![],
         };
         let text = serde_json::to_string(&cfg).unwrap();
@@ -918,6 +962,31 @@ mod tests {
         assert!(migrate_v2(&v2).expect("v2 переносится").animation);
         let v1 = serde_json::json!({ "version": 1, "games": {} });
         assert!(migrate_v1(&v1).expect("v1 переносится").animation);
+    }
+
+    #[test]
+    fn assemble_current_keeps_saved_languages() {
+        let raw = serde_json::json!({ "version": 3, "games": [], "language": "ru", "videoLanguage": "ja" });
+        let cfg = assemble_current(&raw, 3, Vec::new());
+        assert_eq!(cfg.language, Language::Ru);
+        assert_eq!(cfg.video_language, VideoLanguage::Ja);
+    }
+
+    #[test]
+    fn assemble_current_uses_english_when_languages_are_absent_or_unknown() {
+        let absent = assemble_current(&serde_json::json!({ "version": 3, "games": [] }), 3, Vec::new());
+        assert_eq!((absent.language, absent.video_language), (Language::En, VideoLanguage::En));
+        let odd = assemble_current(&serde_json::json!({ "version": 3, "games": [], "language": "fr", "videoLanguage": 7 }), 3, Vec::new());
+        assert_eq!((odd.language, odd.video_language), (Language::En, VideoLanguage::En));
+    }
+
+    #[test]
+    fn languages_serialize_as_short_codes() {
+        let cfg = AppConfig { language: Language::Ru, video_language: VideoLanguage::Ja, ..AppConfig::default() };
+        let json = serde_json::to_value(&cfg).unwrap();
+        assert_eq!(json["language"], "ru");
+        assert_eq!(json["videoLanguage"], "ja");
+        assert_eq!(cfg.version, CURRENT_VERSION);
     }
 
     #[test]

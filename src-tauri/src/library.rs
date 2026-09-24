@@ -216,7 +216,7 @@ pub fn reorder(cfg: &mut AppConfig, ids: &[String]) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::config::{AppConfig, Behaviour, Game, Launch};
+    use crate::config::{AppConfig, Behaviour, Game, Language, Launch, VideoLanguage};
 
     fn cfg_with(ids: &[&str]) -> AppConfig {
         AppConfig {
@@ -227,6 +227,8 @@ mod tests {
             behaviour: Behaviour::default(),
             store_art: true,
             animation: true,
+            language: Language::En,
+            video_language: VideoLanguage::En,
             games: ids
                 .iter()
                 .map(|id| Game {

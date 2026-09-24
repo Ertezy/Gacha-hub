@@ -7,7 +7,7 @@
 use serde::Serialize;
 use tauri::{AppHandle, Manager};
 
-use crate::config::{self, Game, Launch};
+use crate::config::{self, Game, Language, Launch, VideoLanguage};
 use crate::hub;
 use crate::launch;
 
@@ -385,6 +385,33 @@ pub async fn get_animation(app: AppHandle) -> bool {
 pub async fn set_animation(app: AppHandle, enabled: bool) -> Result<(), String> {
     let mut cfg = config::load(&app);
     cfg.animation = enabled;
+    config::save(&app, &cfg)
+}
+
+#[tauri::command]
+pub async fn get_language(app: AppHandle) -> Language {
+    config::load(&app).language
+}
+
+/// Меню трея переименовывается сразу — как и страница, без перезапуска.
+#[tauri::command]
+pub async fn set_language(app: AppHandle, language: Language) -> Result<(), String> {
+    let mut cfg = config::load(&app);
+    cfg.language = language;
+    config::save(&app, &cfg)?;
+    crate::tray::apply_language(&app, language);
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn get_video_language(app: AppHandle) -> VideoLanguage {
+    config::load(&app).video_language
+}
+
+#[tauri::command]
+pub async fn set_video_language(app: AppHandle, language: VideoLanguage) -> Result<(), String> {
+    let mut cfg = config::load(&app);
+    cfg.video_language = language;
     config::save(&app, &cfg)
 }
 
