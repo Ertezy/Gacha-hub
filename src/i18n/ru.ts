@@ -2,11 +2,44 @@
 // формулировки — те, что были в коде до перевода (спека этапа 6 §4.1).
 
 import type { Dictionary } from "./en";
+import { plural } from "./format";
 
 export const ru: Dictionary = {
   language: {
     interface: "Язык интерфейса",
     video: "Язык видео",
+  },
+  time: {
+    expired: "истёк",
+    minutes: (m: number) => `${m} мин`,
+    hoursMinutes: (h: number, m: number) => `${h} ч ${m} мин`,
+    days: (n: number) => `${n} ${plural("ru", n, { one: "день", few: "дня", many: "дней", other: "дня" })}`,
+    fresh: "данные свежие",
+    dataFrom: (date: string) => `данные от ${date}`,
+  },
+  // Строки прежней панели дословно (было в src/lib/panel.ts и компонентах
+  // src/components/panel/*, src/components/SidePanel.tsx).
+  panel: {
+    noDataYet: "Коды, баннеры и видео появятся, когда заработает сервис данных.",
+    panelEmpty: "Пока нет кодов, баннеров и видео. Они появятся, когда заработает сервис данных.",
+    sources: { remote: "из сети", override: "из локальной подмены", cache: "из кеша", bundled: "из комплекта" },
+    unknownSource: "неизвестно",
+    dataStatus: (source: string, freshness: string) => `Источник — ${source}, ${freshness}.`,
+    settingsAndGames: "Настройки и игры",
+    disclaimer: "Не связано с разработчиками игр. Материалы принадлежат правообладателям.",
+    codes: "Промокоды",
+    noExpiry: "бессрочный",
+    expiresIn: (t: string) => `сгорит через ${t}`,
+    timeRemaining: (t: string) => `осталось ${t}`,
+    regionOnly: (region: string) => `только ${region}`,
+    copyCode: "Копировать код",
+    redeem: "Забрать на сайте",
+    banners: "Баннеры",
+    previousBanner: "Предыдущий баннер",
+    nextBanner: "Следующий баннер",
+    bannerDot: (i: number, n: number) => `Баннер ${i} из ${n}`,
+    videos: "Видео",
+    premiere: "премьера",
   },
   // Прежние тексты ошибок Rust дословно, переменная часть — подробность.
   errors: {

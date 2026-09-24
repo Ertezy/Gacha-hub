@@ -1,56 +1,59 @@
 import { describe, it, expect } from "vitest";
-import { plural, timeLeft, timeAgo, burnsToday, progress, hubFreshness } from "./time";
+import { timeLeft, timeAgo, burnsToday, progress, hubFreshness } from "./time";
 
 const HOUR = 3600;
 const DAY = 86400;
 const NOW = 1788091200; // 30 августа 2026, 12:00 UTC
 
-describe("plural", () => {
-  // Правило зависит от последней цифры, кроме 11–14, где не зависит.
-  const cases: [number, string][] = [
-    [1, "день"], [2, "дня"], [3, "дня"], [4, "дня"],
-    [5, "дней"], [9, "дней"], [10, "дней"],
-    [11, "дней"], [12, "дней"], [13, "дней"], [14, "дней"],
-    [21, "день"], [22, "дня"], [25, "дней"],
-    [101, "день"], [102, "дня"], [105, "дней"],
-    [111, "дней"], [112, "дней"], [114, "дней"],
-    [121, "день"],
-    [0, "дней"],
-  ];
-  for (const [n, expected] of cases) {
-    it(`${n} -> ${expected}`, () => {
-      expect(plural(n, "день", "дня", "дней")).toBe(expected);
-    });
-  }
-});
-
 describe("timeLeft", () => {
   it("часы и минуты, когда меньше суток", () => {
-    expect(timeLeft(NOW + 3 * HOUR + 52 * 60, NOW)).toBe("3 ч 52 мин");
+    expect(timeLeft(NOW + 3 * HOUR + 52 * 60, NOW, "ru")).toBe("3 ч 52 мин");
   });
   it("только минуты, когда меньше часа", () => {
-    expect(timeLeft(NOW + 7 * 60, NOW)).toBe("7 мин");
+    expect(timeLeft(NOW + 7 * 60, NOW, "ru")).toBe("7 мин");
   });
   it("дни, когда больше суток", () => {
-    expect(timeLeft(NOW + 9 * DAY, NOW)).toBe("9 дней");
+    expect(timeLeft(NOW + 9 * DAY, NOW, "ru")).toBe("9 дней");
   });
   it("один день склоняется верно", () => {
-    expect(timeLeft(NOW + 1 * DAY + HOUR, NOW)).toBe("1 день");
+    expect(timeLeft(NOW + 1 * DAY + HOUR, NOW, "ru")).toBe("1 день");
   });
   it("двадцать один день склоняется верно", () => {
-    expect(timeLeft(NOW + 21 * DAY, NOW)).toBe("21 день");
+    expect(timeLeft(NOW + 21 * DAY, NOW, "ru")).toBe("21 день");
   });
   it("истёкшее время", () => {
-    expect(timeLeft(NOW - HOUR, NOW)).toBe("истёк");
+    expect(timeLeft(NOW - HOUR, NOW, "ru")).toBe("истёк");
   });
 });
 
 describe("timeAgo", () => {
-  it("сегодня", () => expect(timeAgo(NOW - HOUR, NOW)).toBe("сегодня"));
-  it("вчера", () => expect(timeAgo(NOW - 1 * DAY, NOW)).toBe("вчера"));
-  it("несколько дней", () => expect(timeAgo(NOW - 4 * DAY, NOW)).toBe("4 дня назад"));
-  it("одиннадцать дней", () => expect(timeAgo(NOW - 11 * DAY, NOW)).toBe("11 дней назад"));
-  it("будущее — премьера", () => expect(timeAgo(NOW + 2 * DAY, NOW)).toBe("через 2 дня"));
+  it("сегодня", () => expect(timeAgo(NOW - HOUR, NOW, "ru")).toBe("сегодня"));
+  it("вчера", () => expect(timeAgo(NOW - 1 * DAY, NOW, "ru")).toBe("вчера"));
+  it("несколько дней", () => expect(timeAgo(NOW - 4 * DAY, NOW, "ru")).toBe("4 дня назад"));
+  it("одиннадцать дней", () => expect(timeAgo(NOW - 11 * DAY, NOW, "ru")).toBe("11 дней назад"));
+  it("будущее — премьера", () => expect(timeAgo(NOW + 2 * DAY, NOW, "ru")).toBe("через 2 дня"));
+});
+
+describe("время по-английски", () => {
+  const now = 1_000_000;
+  it("остаток", () => {
+    expect(timeLeft(now - 1, now, "en")).toBe("expired");
+    expect(timeLeft(now + 7 * 60, now, "en")).toBe("7 min");
+    expect(timeLeft(now + 3 * 3600 + 52 * 60, now, "en")).toBe("3 h 52 min");
+    expect(timeLeft(now + 86400, now, "en")).toBe("1 day");
+    expect(timeLeft(now + 9 * 86400, now, "en")).toBe("9 days");
+  });
+  it("давность", () => {
+    expect(timeAgo(now, now, "en")).toBe("today");
+    expect(timeAgo(now - 86400, now, "en")).toBe("yesterday");
+    expect(timeAgo(now - 4 * 86400, now, "en")).toBe("4 days ago");
+    expect(timeAgo(now + 2 * 86400, now, "en")).toBe("in 2 days");
+  });
+  it("свежесть данных", () => {
+    expect(hubFreshness(now - 100, now, "en")).toBe("data is fresh");
+    const aug28 = Date.UTC(2026, 7, 28, 12) / 1000;
+    expect(hubFreshness(aug28, aug28 + 3 * 86400, "en")).toBe("data from Aug 28");
+  });
 });
 
 describe("burnsToday", () => {
@@ -61,10 +64,10 @@ describe("burnsToday", () => {
 
 describe("hubFreshness", () => {
   it("данные внутри суток считаются свежими", () => {
-    expect(hubFreshness(NOW - HOUR, NOW)).toBe("данные свежие");
+    expect(hubFreshness(NOW - HOUR, NOW, "ru")).toBe("данные свежие");
   });
   it("данные старше суток показывают дату", () => {
-    expect(hubFreshness(NOW - 2 * DAY, NOW)).toBe("данные от 28 августа");
+    expect(hubFreshness(NOW - 2 * DAY, NOW, "ru")).toBe("данные от 28 августа");
   });
 });
 

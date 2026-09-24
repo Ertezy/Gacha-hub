@@ -1,4 +1,5 @@
 import { hubFreshness } from "./time";
+import { dictionary, type Dictionary, type Lang, type VideoLang } from "../i18n";
 import type { Banner, Code, HubData, Video } from "../types";
 
 /** Коды, которые ещё не сгорели, ближайшие к сгоранию первыми. */
@@ -31,26 +32,30 @@ export function panelIsEmpty(
   );
 }
 
-export const NO_DATA_YET = "Коды, баннеры и видео появятся, когда заработает сервис данных.";
-
-const SOURCE_LABELS: Record<string, string> = {
-  remote: "из сети",
-  override: "из локальной подмены",
-  cache: "из кеша",
-  bundled: "из комплекта",
-};
+/**
+ * Видео игры на выбранном языке; если их нет — английские этой игры (спека
+ * этапа 6 §3.3). Видео без `lang` — английское: так записаны файлы до этапа 6.
+ */
+export function videosFor(videos: Video[], gameId: string, lang: VideoLang): Video[] {
+  const ofGame = videos.filter((v) => v.gameId === gameId);
+  const langOf = (v: Video) => v.lang ?? "en";
+  const wanted = ofGame.filter((v) => langOf(v) === lang);
+  return wanted.length > 0 ? wanted : ofGame.filter((v) => langOf(v) === "en");
+}
 
 /** Откуда пришли данные — словами, одинаковыми на панели и во «Данных». */
-export function sourceLabel(source: string | undefined): string {
+export function sourceLabel(source: string | undefined, t: Dictionary): string {
   if (source === undefined) return "";
-  return SOURCE_LABELS[source] ?? "неизвестно";
+  const labels = t.panel.sources as unknown as Record<string, string | undefined>;
+  return labels[source] ?? t.panel.unknownSource;
 }
 
 /** Строка состояния на вкладке «Данные» (спека этапа 5, §7.5). */
-export function dataStatus(hub: HubData | null, nowSec: number): string {
-  if (!hub || hub._source === "bundled") return NO_DATA_YET;
+export function dataStatus(hub: HubData | null, nowSec: number, lang: Lang): string {
+  const t = dictionary(lang);
+  if (!hub || hub._source === "bundled") return t.panel.noDataYet;
   if (hub.codes.length === 0 && hub.banners.length === 0 && hub.videos.length === 0) {
-    return NO_DATA_YET;
+    return t.panel.noDataYet;
   }
-  return `Источник — ${sourceLabel(hub._source)}, ${hubFreshness(hub.updatedAt, nowSec)}.`;
+  return t.panel.dataStatus(sourceLabel(hub._source, t), hubFreshness(hub.updatedAt, nowSec, lang));
 }

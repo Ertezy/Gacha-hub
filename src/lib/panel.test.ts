@@ -1,5 +1,7 @@
 import { describe, it, expect } from "vitest";
-import { activeCodes, dataStatus, NO_DATA_YET, panelIsEmpty, runningBanners } from "./panel";
+import { activeCodes, dataStatus, panelIsEmpty, runningBanners, videosFor } from "./panel";
+import { en } from "../i18n/en";
+import { ru } from "../i18n/ru";
 import type { Banner, Code, HubData, Video } from "../types";
 
 const NOW = 1788091200;
@@ -72,15 +74,41 @@ describe("panelIsEmpty", () => {
 
 describe("dataStatus", () => {
   it("без данных говорит, что они появятся с сервисом", () => {
-    expect(dataStatus(null, NOW)).toBe(NO_DATA_YET);
+    expect(dataStatus(null, NOW, "ru")).toBe(ru.panel.noDataYet);
   });
   it("данные из комплекта — то же самое", () => {
-    expect(dataStatus(hub("bundled", [code(null)]), NOW)).toBe(NO_DATA_YET);
+    expect(dataStatus(hub("bundled", [code(null)]), NOW, "ru")).toBe(ru.panel.noDataYet);
   });
   it("пустые данные из сети — то же самое", () => {
-    expect(dataStatus(hub("remote"), NOW)).toBe(NO_DATA_YET);
+    expect(dataStatus(hub("remote"), NOW, "ru")).toBe(ru.panel.noDataYet);
   });
   it("живые данные называют источник и свежесть", () => {
-    expect(dataStatus(hub("remote", [code(null)]), NOW)).toBe("Источник — из сети, данные свежие.");
+    expect(dataStatus(hub("remote", [code(null)]), NOW, "ru")).toBe("Источник — из сети, данные свежие.");
+  });
+  it("то же по-английски", () => {
+    expect(dataStatus(null, NOW, "en")).toBe(en.panel.noDataYet);
+    expect(dataStatus(hub("remote", [code(null)]), NOW, "en")).toBe("Source: online, data is fresh.");
+  });
+});
+
+describe("видео по языку", () => {
+  const v = (id: string, gameId: string, lang?: string) =>
+    ({ gameId, lang, title: id, url: `https://www.youtube.com/watch?v=${id}`, thumb: null, publishedAt: 1, duration: null, premiere: false });
+
+  it("видео выбранного языка", () => {
+    const all = [v("a", "hsr", "en"), v("b", "hsr", "ja"), v("c", "zzz", "ja")];
+    expect(videosFor(all, "hsr", "ja").map((x) => x.title)).toEqual(["b"]);
+    expect(videosFor(all, "hsr", "en").map((x) => x.title)).toEqual(["a"]);
+  });
+
+  it("нет видео на языке — английские этой игры", () => {
+    const all = [v("a", "hsr", "en"), v("c", "zzz", "ja")];
+    expect(videosFor(all, "hsr", "ja").map((x) => x.title)).toEqual(["a"]);
+  });
+
+  it("видео без lang — английское", () => {
+    const all = [v("old", "hsr")];
+    expect(videosFor(all, "hsr", "en").map((x) => x.title)).toEqual(["old"]);
+    expect(videosFor(all, "hsr", "ja").map((x) => x.title)).toEqual(["old"]);
   });
 });

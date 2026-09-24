@@ -2,10 +2,42 @@
 // его форму: иначе проект не соберётся. Термины — по глоссарию спеки §4.5.
 // Разделы добавляют задачи перевода: panel, main, settings, errors.
 
+import { plural } from "./format";
+
 export const en = {
   language: {
     interface: "Interface language",
     video: "Video language",
+  },
+  time: {
+    expired: "expired",
+    minutes: (m: number) => `${m} min`,
+    hoursMinutes: (h: number, m: number) => `${h} h ${m} min`,
+    days: (n: number) => `${n} ${plural("en", n, { one: "day", other: "days" })}`,
+    fresh: "data is fresh",
+    dataFrom: (date: string) => `data from ${date}`,
+  },
+  panel: {
+    noDataYet: "Codes, banners and videos will appear once the data service is up.",
+    panelEmpty: "No codes, banners or videos yet. They will appear once the data service is up.",
+    sources: { remote: "online", override: "local override", cache: "from cache", bundled: "bundled" },
+    unknownSource: "unknown",
+    dataStatus: (source: string, freshness: string) => `Source: ${source}, ${freshness}.`,
+    settingsAndGames: "Settings and games",
+    disclaimer: "Not affiliated with the game developers. Content belongs to its rights holders.",
+    codes: "Codes",
+    noExpiry: "no expiry",
+    expiresIn: (t: string) => `expires in ${t}`,
+    timeRemaining: (t: string) => `${t} left`,
+    regionOnly: (region: string) => `${region} only`,
+    copyCode: "Copy code",
+    redeem: "Redeem on the website",
+    banners: "Banners",
+    previousBanner: "Previous banner",
+    nextBanner: "Next banner",
+    bannerDot: (i: number, n: number) => `Banner ${i} of ${n}`,
+    videos: "Videos",
+    premiere: "premiere",
   },
   // Ошибки из Rust: код → фраза, подробность подставляется (спека §6.2,
   // src/i18n/errors.ts). Имена полей — коды из src-tauri/src/error.rs.

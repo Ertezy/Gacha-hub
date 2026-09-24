@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { api } from "../../lib/api";
 import { dataStatus } from "../../lib/panel";
-import { useT } from "../../i18n";
+import { useLang, useT } from "../../i18n";
 import { errorText } from "../../i18n/errors";
 import type { About, Behaviour, HubData } from "../../types";
 import Switch from "./Switch";
@@ -84,6 +84,7 @@ function Data() {
   const [hub, setHub] = useState<HubData | null>(null);
   const [size, setSize] = useState(0);
   const [error, setError] = useState("");
+  const lang = useLang();
   const t = useT();
 
   const reload = () => {
@@ -109,7 +110,7 @@ function Data() {
       <div className="settings-card">
         <div className="settings-row">
           <div className="settings-row-text">
-            <span className="settings-row-title">{dataStatus(hub, nowSec)}</span>
+            <span className="settings-row-title">{dataStatus(hub, nowSec, lang)}</span>
           </div>
           <div className="settings-row-control">
             <button type="button" className="button" onClick={reload}>

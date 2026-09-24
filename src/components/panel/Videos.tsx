@@ -1,6 +1,7 @@
 import { api } from "../../lib/api";
 import CachedImage from "./CachedImage";
 import { timeAgo } from "../../lib/time";
+import { useLang, useT } from "../../i18n";
 import type { Video } from "../../types";
 
 interface Props {
@@ -20,6 +21,8 @@ function duration(seconds: number): string {
 }
 
 export default function Videos({ videos, nowSec }: Props) {
+  const lang = useLang();
+  const t = useT();
   const shown = [...videos]
     .sort((a, b) => b.publishedAt - a.publishedAt)
     .slice(0, SHOWN);
@@ -29,7 +32,7 @@ export default function Videos({ videos, nowSec }: Props) {
   return (
     <section className="panel-section">
       <div className="panel-label">
-        <span>Видео</span>
+        <span>{t.panel.videos}</span>
       </div>
 
       {shown.map((v) => (
@@ -51,13 +54,13 @@ export default function Videos({ videos, nowSec }: Props) {
             {/* Значок рисуется только когда данные есть: лента RSS не даёт
                 ни длительности, ни отметки премьеры. */}
             {v.premiere ? (
-              <span className="video-badge premiere">премьера</span>
+              <span className="video-badge premiere">{t.panel.premiere}</span>
             ) : v.duration !== null ? (
               <span className="video-badge">{duration(v.duration)}</span>
             ) : null}
           </div>
           <div className="video-title">{v.title}</div>
-          <div className="video-meta">{timeAgo(v.publishedAt, nowSec)}</div>
+          <div className="video-meta">{timeAgo(v.publishedAt, nowSec, lang)}</div>
         </div>
       ))}
     </section>

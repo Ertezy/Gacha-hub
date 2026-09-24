@@ -2,6 +2,7 @@ import { useState } from "react";
 import { api } from "../../lib/api";
 import { activeCodes } from "../../lib/panel";
 import { burnsToday, timeLeft } from "../../lib/time";
+import { useLang, useT } from "../../i18n";
 import type { Code, HubGame } from "../../types";
 
 interface Props {
@@ -19,6 +20,8 @@ interface Props {
  */
 export default function PromoCodes({ codes, games, nowSec }: Props) {
   const [copied, setCopied] = useState<string | null>(null);
+  const lang = useLang();
+  const t = useT();
 
   const active = activeCodes(codes, nowSec);
 
@@ -43,7 +46,7 @@ export default function PromoCodes({ codes, games, nowSec }: Props) {
   return (
     <section className="panel-section">
       <div className="panel-label">
-        <span>Промокоды</span>
+        <span>{t.panel.codes}</span>
         <span>{active.length}</span>
       </div>
 
@@ -77,14 +80,14 @@ export default function PromoCodes({ codes, games, nowSec }: Props) {
                 <code>{c.code}</code>
                 <div className={soon ? "code-timer soon" : "code-timer"}>
                   {c.expiresAt === null
-                    ? "бессрочный"
+                    ? t.panel.noExpiry
                     : soon
-                      ? `сгорит через ${timeLeft(c.expiresAt, nowSec)}`
-                      : `осталось ${timeLeft(c.expiresAt, nowSec)}`}
+                      ? t.panel.expiresIn(timeLeft(c.expiresAt, nowSec, lang))
+                      : t.panel.timeRemaining(timeLeft(c.expiresAt, nowSec, lang))}
                 </div>
                 {c.rewards && <div className="code-meta">{c.rewards}</div>}
                 {c.region !== "all" && (
-                  <div className="code-region">только {c.region}</div>
+                  <div className="code-region">{t.panel.regionOnly(c.region)}</div>
                 )}
               </div>
 
@@ -95,7 +98,7 @@ export default function PromoCodes({ codes, games, nowSec }: Props) {
                 <div className="code-buttons">
                   <button
                     type="button"
-                    aria-label="Копировать код"
+                    aria-label={t.panel.copyCode}
                     onClick={(e) => {
                       e.stopPropagation();
                       void copy(c.code);
@@ -107,7 +110,7 @@ export default function PromoCodes({ codes, games, nowSec }: Props) {
                     <button
                       type="button"
                       className="primary"
-                      aria-label="Забрать на сайте"
+                      aria-label={t.panel.redeem}
                       onClick={(e) => {
                         e.stopPropagation();
                         void redeem(c);

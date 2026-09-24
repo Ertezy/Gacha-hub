@@ -6,55 +6,29 @@
  * Время везде — unix-секунды, как в файле хаба.
  */
 
+import { dayMonth, relativeDays } from "../i18n/format";
+import { dictionary, type Lang } from "../i18n";
+
 const HOUR = 3600;
 const DAY = 86400;
 
-/**
- * Русское склонение по числу.
- * Форма зависит от последней цифры — кроме чисел, оканчивающихся на 11–14,
- * где она всегда «много»: «11 дней», но «21 день».
- */
-export function plural(n: number, one: string, few: string, many: string): string {
-  const abs = Math.abs(n) % 100;
-  if (abs >= 11 && abs <= 14) return many;
-  switch (abs % 10) {
-    case 1:
-      return one;
-    case 2:
-    case 3:
-    case 4:
-      return few;
-    default:
-      return many;
-  }
-}
-
-/** «3 ч 52 мин», «9 дней», «истёк». */
-export function timeLeft(untilSec: number, nowSec: number): string {
+/** «3 h 52 min», «9 days», «expired» — и то же по-русски. */
+export function timeLeft(untilSec: number, nowSec: number, lang: Lang): string {
+  const t = dictionary(lang).time;
   const left = untilSec - nowSec;
-  if (left <= 0) return "истёк";
-
-  if (left >= DAY) {
-    const days = Math.floor(left / DAY);
-    return `${days} ${plural(days, "день", "дня", "дней")}`;
-  }
+  if (left <= 0) return t.expired;
+  if (left >= DAY) return t.days(Math.floor(left / DAY));
   const hours = Math.floor(left / HOUR);
   const minutes = Math.floor((left % HOUR) / 60);
-  if (hours === 0) return `${minutes} мин`;
-  return `${hours} ч ${minutes} мин`;
+  if (hours === 0) return t.minutes(minutes);
+  return t.hoursMinutes(hours, minutes);
 }
 
-/** «сегодня», «вчера», «4 дня назад», «через 2 дня». */
-export function timeAgo(sinceSec: number, nowSec: number): string {
+/** «today», «yesterday», «4 days ago», «in 2 days» — и то же по-русски. */
+export function timeAgo(sinceSec: number, nowSec: number, lang: Lang): string {
   const diff = nowSec - sinceSec;
-  if (diff < 0) {
-    const days = Math.max(1, Math.round(-diff / DAY));
-    return `через ${days} ${plural(days, "день", "дня", "дней")}`;
-  }
-  const days = Math.floor(diff / DAY);
-  if (days === 0) return "сегодня";
-  if (days === 1) return "вчера";
-  return `${days} ${plural(days, "день", "дня", "дней")} назад`;
+  if (diff < 0) return relativeDays(lang, Math.max(1, Math.round(-diff / DAY)));
+  return relativeDays(lang, -Math.floor(diff / DAY));
 }
 
 /** Сгорает ли код в ближайшие сутки. Уже истёкшие — нет. */
@@ -72,16 +46,12 @@ export function progress(startSec: number, endSec: number, nowSec: number): numb
 }
 
 /**
- * «данные свежие» или «данные от 1 сентября» — единая формулировка
- * свежести данных хаба. Используется и в подвале панели, и в разделе
- * «Данные» настроек: два места не должны разойтись в словах.
+ * «data is fresh» или «data from Sep 1» — единая формулировка свежести
+ * данных хаба. Используется и в подвале панели, и в разделе «Данные»
+ * настроек: два места не должны разойтись в словах. И то же по-русски.
  */
-export function hubFreshness(updatedAt: number, nowSec: number): string {
-  const age = nowSec - updatedAt;
-  if (age <= DAY) return "данные свежие";
-  const date = new Date(updatedAt * 1000).toLocaleDateString("ru-RU", {
-    day: "numeric",
-    month: "long",
-  });
-  return `данные от ${date}`;
+export function hubFreshness(updatedAt: number, nowSec: number, lang: Lang): string {
+  const t = dictionary(lang).time;
+  if (nowSec - updatedAt <= DAY) return t.fresh;
+  return t.dataFrom(dayMonth(lang, updatedAt));
 }

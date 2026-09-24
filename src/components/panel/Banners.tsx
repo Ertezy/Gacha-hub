@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import CachedImage from "./CachedImage";
 import { runningBanners } from "../../lib/panel";
 import { progress, timeLeft } from "../../lib/time";
+import { useLang, useT } from "../../i18n";
 import type { Banner } from "../../types";
 
 interface Props {
@@ -17,6 +18,8 @@ interface Props {
  * ради чего арт и показывают.
  */
 export default function Banners({ banners, nowSec }: Props) {
+  const lang = useLang();
+  const t = useT();
   const running = runningBanners(banners, nowSec);
   const [index, setIndex] = useState(0);
 
@@ -40,13 +43,13 @@ export default function Banners({ banners, nowSec }: Props) {
   return (
     <section className="panel-section">
       <div className="panel-label">
-        <span>Баннеры</span>
+        <span>{t.panel.banners}</span>
         {running.length > 1 && (
           <span className="carousel-arrows">
-            <button type="button" aria-label="Предыдущий баннер" onClick={() => step(-1)}>
+            <button type="button" aria-label={t.panel.previousBanner} onClick={() => step(-1)}>
               ‹
             </button>
-            <button type="button" aria-label="Следующий баннер" onClick={() => step(1)}>
+            <button type="button" aria-label={t.panel.nextBanner} onClick={() => step(1)}>
               ›
             </button>
           </span>
@@ -70,7 +73,7 @@ export default function Banners({ banners, nowSec }: Props) {
           </div>
           <div className="banner-line">
             <span className="banner-title">{b.title}</span>
-            <span className="banner-left">{timeLeft(b.endsAt, nowSec)}</span>
+            <span className="banner-left">{timeLeft(b.endsAt, nowSec, lang)}</span>
           </div>
         </div>
       </div>
@@ -82,7 +85,7 @@ export default function Banners({ banners, nowSec }: Props) {
               key={`${r.gameId}:${r.startsAt}`}
               type="button"
               className={i === safeIndex ? "dot active" : "dot"}
-              aria-label={`Баннер ${i + 1} из ${running.length}`}
+              aria-label={t.panel.bannerDot(i + 1, running.length)}
               onClick={() => setIndex(i)}
             />
           ))}

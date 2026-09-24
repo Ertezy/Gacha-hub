@@ -2,8 +2,10 @@ import { useEffect, useState } from "react";
 import PromoCodes from "./panel/PromoCodes";
 import Banners from "./panel/Banners";
 import Videos from "./panel/Videos";
-import { panelIsEmpty, sourceLabel } from "../lib/panel";
+import { panelIsEmpty, sourceLabel, videosFor } from "../lib/panel";
 import { hubFreshness } from "../lib/time";
+import { useLang, useT } from "../i18n";
+import { useVideoLanguage } from "../lib/videoLanguage";
 import type { HubData } from "../types";
 
 interface Props {
@@ -22,6 +24,10 @@ const DAY = 86400;
 const TICK_MS = 30_000;
 
 export default function SidePanel({ hub, contentIds, selectedContentId, onOpenSettings }: Props) {
+  const lang = useLang();
+  const t = useT();
+  const videoLang = useVideoLanguage();
+
   // Часы держатся в состоянии, а не вычисляются при отрисовке.
   //
   // Иначе таймеры замерзают: «сгорит через 3 ч 52 мин» висит неизменным, пока
@@ -52,7 +58,7 @@ export default function SidePanel({ hub, contentIds, selectedContentId, onOpenSe
   const banners = !hub || tooOld ? [] : hub.banners.filter((b) => selected(b.gameId));
   // Видео остаются даже на протухших данных: устаревший список роликов
   // просто устаревший, он никого не обманывает.
-  const videos = !hub ? [] : hub.videos.filter((v) => selected(v.gameId));
+  const videos = !hub || selectedContentId === null ? [] : videosFor(hub.videos, selectedContentId, videoLang);
   // Хаб ещё не пришёл (null) — это не то же самое, что «пришёл и пуст»:
   // тихая пауза до первого ответа, а не сообщение «кодов нет», которое
   // тут же сменится настоящими данными и будет выглядеть как ложная тревога.
@@ -61,7 +67,7 @@ export default function SidePanel({ hub, contentIds, selectedContentId, onOpenSe
   // Источник данных виден в интерфейсе — требование общей спеки §9.4.
   // Без него невозможно отличить «сеть отвалилась, показываю прошлогодний
   // комплект» от «всё свежее», а это первое, что спросят при разборе жалобы.
-  const origin = sourceLabel(hub?._source);
+  const origin = sourceLabel(hub?._source, t);
 
   return (
     <aside className="panel">
@@ -71,11 +77,7 @@ export default function SidePanel({ hub, contentIds, selectedContentId, onOpenSe
         {hub && <PromoCodes codes={codes} games={hub.games} nowSec={nowSec} />}
         <Banners banners={banners} nowSec={nowSec} />
         <Videos videos={videos} nowSec={nowSec} />
-        {empty && (
-          <p className="panel-empty">
-            Пока нет кодов, баннеров и видео. Они появятся, когда заработает сервис данных.
-          </p>
-        )}
+        {empty && <p className="panel-empty">{t.panel.panelEmpty}</p>}
       </div>
 
       <div className="panel-foot">
@@ -86,8 +88,8 @@ export default function SidePanel({ hub, contentIds, selectedContentId, onOpenSe
           type="button"
           className="panel-gear"
           onClick={onOpenSettings}
-          aria-label="Настройки и игры"
-          title="Настройки и игры"
+          aria-label={t.panel.settingsAndGames}
+          title={t.panel.settingsAndGames}
         >
           <svg viewBox="0 0 24 24" aria-hidden="true">
             <circle
@@ -105,15 +107,13 @@ export default function SidePanel({ hub, contentIds, selectedContentId, onOpenSe
         </button>
         {hub && (
           <div className="panel-stale">
-            {hubFreshness(hub.updatedAt, nowSec)}
+            {hubFreshness(hub.updatedAt, nowSec, lang)}
             {origin && ` · ${origin}`}
           </div>
         )}
         {/* Материалы принадлежат издателям игр — так помечают себя все
             фанатские источники, из которых мы берём данные. */}
-        <div className="panel-disclaimer">
-          Не связано с разработчиками игр. Материалы принадлежат правообладателям.
-        </div>
+        <div className="panel-disclaimer">{t.panel.disclaimer}</div>
       </div>
     </aside>
   );
