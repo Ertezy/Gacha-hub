@@ -508,6 +508,28 @@ mod tests {
     }
 
     #[test]
+    fn store_fresh_writes_the_cache_and_a_matching_meta() {
+        // Обратная сторона `a_failed_cache_write_leaves_the_meta_file_unchanged`:
+        // на рабочих путях обязаны записаться оба файла, а не только не
+        // сломаться порядок. Без этого теста пропавший вызов `write_meta`
+        // внутри `store_fresh` не ловится ничем — остальные тесты его не видят.
+        let dir = temp_hub_dir("store-fresh-success");
+        let cache_path = dir.join("hub_cache.json");
+        let meta_path = dir.join("hub_cache.meta.json");
+
+        store_fresh(&cache_path, &meta_path, DEFAULT_HUB_URL, &data(9), Some("\"tag9\"".to_string()));
+
+        let cached = read_json_file(&cache_path).expect("кеш обязан записаться");
+        assert_eq!(cached.version, 9);
+
+        let meta = read_meta(&meta_path).expect("метка обязана записаться");
+        assert_eq!(meta.url, DEFAULT_HUB_URL);
+        assert_eq!(meta.etag.as_deref(), Some("\"tag9\""));
+
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
     fn a_fresh_answer_is_used_with_its_tag() {
         match decide(Remote::Fresh { data: data(2), etag: Some("\"v3\"".into()) }, None) {
             Outcome::UseFresh(d, tag) => {
