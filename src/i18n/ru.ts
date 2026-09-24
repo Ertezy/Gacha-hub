@@ -52,7 +52,6 @@ export const ru: Dictionary = {
     },
     play: "▶ Играть",
     launching: "Запускаю…",
-    settings: "Настройки и игры",
     gameFileMissing: "Файл игры не найден",
     dockFileMissing: (title: string) => `${title} — файл игры не найден`,
     noGameSelected: "игра не выбрана",

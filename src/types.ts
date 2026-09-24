@@ -1,7 +1,5 @@
 // Зеркала Rust-схем. На проводе camelCase (serde rename_all = "camelCase").
 
-export type LaunchKind = "steam" | "epic" | "exe";
-
 /** Вид запуска кодом — слово на языке интерфейса подставляет страница
  *  (спека этапа 6 §6.3). */
 export type SourceKind = "steam" | "epic" | "exe";

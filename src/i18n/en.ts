@@ -48,7 +48,6 @@ export const en = {
     },
     play: "▶ Play",
     launching: "Launching…",
-    settings: "Settings and games",
     gameFileMissing: "Game file not found",
     dockFileMissing: (title: string) => `${title} — game file not found`,
     noGameSelected: "No game selected",
