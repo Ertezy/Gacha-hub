@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
 import { api } from "../../lib/api";
-import { useT } from "../../i18n";
+import { currentLang, dictionary, setLanguage, useLang, useT, type Lang } from "../../i18n";
 import { errorText } from "../../i18n/errors";
+import { LANGS, LANG_SHORT, LANGUAGE_BLOCK_TITLE } from "../../i18n/native";
+import Segmented from "./Segmented";
 import type { FoundGame } from "../../types";
 
 interface Props {
@@ -14,6 +16,21 @@ export default function FirstRunView({ onDone }: Props) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const t = useT();
+  const lang = useLang();
+
+  // Выбор применяется сразу — страница перерисовывается на новом языке, — а
+  // сохраняется следом. Не сохранился — язык возвращается, ошибка на прежнем.
+  async function chooseLanguage(next: Lang) {
+    const before = currentLang();
+    setLanguage(next);
+    try {
+      await api.setLanguage(next);
+      setError("");
+    } catch (e) {
+      setLanguage(before);
+      setError(errorText(dictionary(before), e));
+    }
+  }
 
   useEffect(() => {
     void (async () => {
@@ -75,25 +92,30 @@ export default function FirstRunView({ onDone }: Props) {
         />
         <span className="found-title">{g.title}</span>
         <span className="found-source">{t.main.launch.from[g.sourceKind]}</span>
-        {g.alreadyAdded && <span className="found-note">уже добавлена</span>}
+        {g.alreadyAdded && <span className="found-note">{t.settings.firstRun.alreadyAdded}</span>}
       </label>
     ));
 
   return (
     <div>
-      <h2 className="settings-section-title">Что нашлось на компьютере</h2>
+      <div className="first-run-head">
+        <h2 className="settings-section-title">{t.settings.firstRun.title}</h2>
+        <Segmented
+          options={LANGS.map((l) => ({ value: l, label: LANG_SHORT[l] }))}
+          value={lang}
+          label={LANGUAGE_BLOCK_TITLE}
+          onChange={(next) => void chooseLanguage(next)}
+        />
+      </div>
 
       {error && <div className="settings-error">{error}</div>}
 
-      <p className="settings-hint">По этим играм есть коды, баннеры и видео.</p>
+      <p className="settings-hint">{t.settings.firstRun.knownHint}</p>
       {rows(known)}
 
       {rest.length > 0 && (
         <>
-          <p className="settings-hint">
-            Остальное установленное. Эти игры запустятся, но новостей и кодов
-            по ним не будет.
-          </p>
+          <p className="settings-hint">{t.settings.firstRun.restHint}</p>
           {rows(rest)}
         </>
       )}
@@ -125,10 +147,10 @@ export default function FirstRunView({ onDone }: Props) {
             })()
           }
         >
-          Добавить отмеченные
+          {t.settings.firstRun.addChecked}
         </button>
         <button type="button" className="button" disabled={busy} onClick={skip}>
-          Пропустить
+          {t.settings.firstRun.skip}
         </button>
       </div>
     </div>

@@ -5,9 +5,12 @@ import { api } from "../../lib/api";
 import { gradientFor } from "../../lib/gradient";
 import { hasOwnBackground, sourceText, videoSizeProblem } from "../../lib/background";
 import { setMotion } from "../../lib/motion";
-import { currentT, useT } from "../../i18n";
+import { setVideoLanguage, useVideoLanguage, videoLanguage } from "../../lib/videoLanguage";
+import { currentLang, currentT, dictionary, setLanguage, useLang, useT, type Lang, type VideoLang } from "../../i18n";
 import { errorText } from "../../i18n/errors";
+import { LANGS, LANG_NAMES, LANGUAGE_BLOCK_TITLE, VIDEO_LANGS, VIDEO_LANG_NAMES } from "../../i18n/native";
 import Switch from "./Switch";
+import Segmented from "./Segmented";
 import type { GameView } from "../../types";
 
 /** Вкладка «Вид»: всё про фоны в одном месте (спека этапа 5, §7.3). */
@@ -18,6 +21,34 @@ export default function LookSection() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const t = useT();
+  const lang = useLang();
+  const videoLang = useVideoLanguage();
+
+  // Выбор применяется сразу — страница перерисовывается на новом языке, — а
+  // сохраняется следом. Не сохранился — язык возвращается, ошибка на прежнем.
+  async function chooseLanguage(next: Lang) {
+    const before = currentLang();
+    setLanguage(next);
+    try {
+      await api.setLanguage(next);
+      setError("");
+    } catch (e) {
+      setLanguage(before);
+      setError(errorText(dictionary(before), e));
+    }
+  }
+
+  async function chooseVideoLanguage(next: VideoLang) {
+    const before = videoLanguage();
+    setVideoLanguage(next);
+    try {
+      await api.setVideoLanguage(next);
+      setError("");
+    } catch (e) {
+      setVideoLanguage(before);
+      setError(errorText(t, e));
+    }
+  }
 
   const reload = useCallback(async () => {
     try {
@@ -90,23 +121,50 @@ export default function LookSection() {
 
   return (
     <div>
-      <h2 className="settings-section-title">Вид</h2>
+      <h2 className="settings-section-title">{t.settings.tabs.look}</h2>
       {error && <div className="settings-error">{error}</div>}
+
+      <div className="settings-card-caption">{LANGUAGE_BLOCK_TITLE}</div>
+      <div className="settings-card">
+        <div className="settings-row">
+          <div className="settings-row-text">
+            <span className="settings-row-title">{t.language.interface}</span>
+          </div>
+          <div className="settings-row-control">
+            <Segmented
+              options={LANGS.map((l) => ({ value: l, label: LANG_NAMES[l] }))}
+              value={lang}
+              label={t.language.interface}
+              onChange={(next) => void chooseLanguage(next)}
+            />
+          </div>
+        </div>
+        <div className="settings-row">
+          <div className="settings-row-text">
+            <span className="settings-row-title">{t.language.video}</span>
+          </div>
+          <div className="settings-row-control">
+            <Segmented
+              options={VIDEO_LANGS.map((l) => ({ value: l, label: VIDEO_LANG_NAMES[l] }))}
+              value={videoLang}
+              label={t.language.video}
+              onChange={(next) => void chooseVideoLanguage(next)}
+            />
+          </div>
+        </div>
+      </div>
 
       <div className="settings-card">
         <div className="settings-row">
           <div className="settings-row-text">
-            <span className="settings-row-title">Брать фоны из магазинов</span>
-            <span className="settings-row-hint">
-              Для игр из Steam и Epic Games берётся картинка из самого магазина. Своя
-              картинка или видео всегда важнее.
-            </span>
+            <span className="settings-row-title">{t.settings.look.storeArt}</span>
+            <span className="settings-row-hint">{t.settings.look.storeArtHint}</span>
           </div>
           <div className="settings-row-control">
             {storeArt !== null && (
               <Switch
                 checked={storeArt}
-                label="Брать фоны из магазинов"
+                label={t.settings.look.storeArt}
                 disabled={busy}
                 onChange={(next) => void run(() => api.setStoreArt(next))}
               />
@@ -116,17 +174,14 @@ export default function LookSection() {
 
         <div className="settings-row">
           <div className="settings-row-text">
-            <span className="settings-row-title">Анимация</span>
-            <span className="settings-row-hint">
-              Видео фона, медленное движение картинки, увеличение иконок в доке и
-              поворот шестерёнки. Настройка Windows на приложение не влияет.
-            </span>
+            <span className="settings-row-title">{t.settings.look.animation}</span>
+            <span className="settings-row-hint">{t.settings.look.animationHint}</span>
           </div>
           <div className="settings-row-control">
             {animation !== null && (
               <Switch
                 checked={animation}
-                label="Анимация"
+                label={t.settings.look.animation}
                 disabled={busy}
                 onChange={(next) =>
                   void run(async () => {
@@ -142,7 +197,7 @@ export default function LookSection() {
       </div>
 
       {games.length === 0 ? (
-        <p className="settings-note">Игр пока нет — добавьте их в разделе «Игры».</p>
+        <p className="settings-note">{t.settings.look.noGames}</p>
       ) : (
         <div className="settings-card">
           {games.map((g) => (
@@ -161,7 +216,7 @@ export default function LookSection() {
                   disabled={busy}
                   onClick={() => pick(g.id, "background")}
                 >
-                  Картинка…
+                  {t.settings.look.pickImage}
                 </button>
                 <button
                   type="button"
@@ -169,7 +224,7 @@ export default function LookSection() {
                   disabled={busy}
                   onClick={() => pick(g.id, "video")}
                 >
-                  Видео…
+                  {t.settings.look.pickVideo}
                 </button>
                 <button
                   type="button"
@@ -179,7 +234,7 @@ export default function LookSection() {
                     void run(() => api.updateGame({ gameId: g.id, background: "", video: "" }))
                   }
                 >
-                  Убрать
+                  {t.settings.look.removeBackground}
                 </button>
               </div>
             </div>

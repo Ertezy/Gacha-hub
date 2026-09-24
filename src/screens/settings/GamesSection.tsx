@@ -77,11 +77,8 @@ export default function GamesSection() {
 
   return (
     <div>
-      <h2 className="settings-section-title">Игры</h2>
-      <p className="settings-hint">
-        Порядок в списке — это порядок в доке внизу главного экрана.
-        Перетащите строку, чтобы поменять.
-      </p>
+      <h2 className="settings-section-title">{t.settings.tabs.games}</h2>
+      <p className="settings-hint">{t.settings.games.hint}</p>
 
       {error && <div className="settings-error">{error}</div>}
 
@@ -111,7 +108,7 @@ export default function GamesSection() {
             void (async () => {
               const exe = await api.pickExe();
               if (!exe) return;
-              const guessed = exe.split(/[\\/]/).pop()?.replace(/\.exe$/i, "") ?? "Игра";
+              const guessed = exe.split(/[\\/]/).pop()?.replace(/\.exe$/i, "") ?? t.settings.games.defaultTitle;
               try {
                 await api.addGame(guessed, exe);
                 await reload();
@@ -121,10 +118,10 @@ export default function GamesSection() {
             })()
           }
         >
-          + Добавить игру вручную
+          {t.settings.games.addManually}
         </button>
         <button type="button" className="button" onClick={() => setScanning(true)}>
-          Найти установленные игры
+          {t.settings.games.scanInstalled}
         </button>
       </div>
     </div>

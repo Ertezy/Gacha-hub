@@ -38,39 +38,37 @@ function Behaviours() {
 
   return (
     <div>
-      <h2 className="settings-section-title">Поведение</h2>
+      <h2 className="settings-section-title">{t.settings.tabs.behaviour}</h2>
       {error && <div className="settings-error">{error}</div>}
       <div className="settings-card">
         <div className="settings-row">
           <div className="settings-row-text">
-            <span className="settings-row-title">Крестик прячет окно в трей</span>
-            <span className="settings-row-hint">
-              Приложение продолжает работать, вернуть окно можно из значка в трее.
-            </span>
+            <span className="settings-row-title">{t.settings.behaviour.closeToTray}</span>
+            <span className="settings-row-hint">{t.settings.behaviour.closeToTrayHint}</span>
           </div>
           <div className="settings-row-control">
             <Switch
               checked={b.closeToTray}
-              label="Крестик прячет окно в трей"
+              label={t.settings.behaviour.closeToTray}
               onChange={(next) => save({ ...b, closeToTray: next })}
             />
           </div>
         </div>
         <div className="settings-row">
           <div className="settings-row-text">
-            <span className="settings-row-title">Уходить в трей после запуска игры</span>
-            <span className="settings-row-hint">Окно не мешает игре.</span>
+            <span className="settings-row-title">{t.settings.behaviour.trayOnLaunch}</span>
+            <span className="settings-row-hint">{t.settings.behaviour.trayOnLaunchHint}</span>
           </div>
           <div className="settings-row-control">
             <Switch
               checked={b.trayOnLaunch}
-              label="Уходить в трей после запуска игры"
+              label={t.settings.behaviour.trayOnLaunch}
               onChange={(next) => save({ ...b, trayOnLaunch: next })}
             />
           </div>
         </div>
       </div>
-      <p className="settings-note">Автозапуск вместе с Windows появится в следующем обновлении.</p>
+      <p className="settings-note">{t.settings.behaviour.autostartNote}</p>
     </div>
   );
 }
@@ -104,7 +102,7 @@ function Data() {
 
   return (
     <div>
-      <h2 className="settings-section-title">Данные</h2>
+      <h2 className="settings-section-title">{t.settings.tabs.data}</h2>
       {error && <div className="settings-error">{error}</div>}
 
       <div className="settings-card">
@@ -114,16 +112,16 @@ function Data() {
           </div>
           <div className="settings-row-control">
             <button type="button" className="button" onClick={reload}>
-              Обновить сейчас
+              {t.settings.data.refreshNow}
             </button>
           </div>
         </div>
 
         <div className="settings-row">
           <div className="settings-row-text">
-            <span className="settings-row-title">Кеш картинок</span>
+            <span className="settings-row-title">{t.settings.data.imageCache}</span>
             <span className="settings-row-hint">
-              Занимает {(size / 1024 / 1024).toFixed(1)} МБ: иконки, фоны и картинки панели.
+              {t.settings.data.imageCacheHint((size / 1024 / 1024).toFixed(1))}
             </span>
           </div>
           <div className="settings-row-control">
@@ -137,7 +135,7 @@ function Data() {
                   .catch((e) => setError(errorText(t, e)))
               }
             >
-              Очистить кеш картинок
+              {t.settings.data.clearCache}
             </button>
           </div>
         </div>
@@ -145,20 +143,18 @@ function Data() {
         {/* Поле адреса свёрнуто (спека §7.5): человеку со стороны вписывать туда
             нечего, а открытое поле на виду читается как обязательное. */}
         <details className="settings-extra">
-          <summary>Дополнительно</summary>
+          <summary>{t.settings.advanced}</summary>
           <div className="settings-row">
             <div className="settings-row-text">
-              <span className="settings-row-title">Адрес источника данных</span>
-              <span className="settings-row-hint">
-                Нужен только для своего источника. Обычно поле пустое.
-              </span>
+              <span className="settings-row-title">{t.settings.data.hubUrl}</span>
+              <span className="settings-row-hint">{t.settings.data.hubUrlHint}</span>
             </div>
             <div className="settings-row-control">
               <input
                 className="input editor-input"
-                aria-label="Адрес источника данных"
+                aria-label={t.settings.data.hubUrl}
                 value={url}
-                placeholder="https://…"
+                placeholder={t.settings.data.hubUrlPlaceholder}
                 onChange={(e) => setUrl(e.target.value)}
               />
               <button
@@ -176,7 +172,7 @@ function Data() {
                     .catch((e) => setError(errorText(t, e)))
                 }
               >
-                Сохранить
+                {t.settings.save}
               </button>
             </div>
           </div>
@@ -197,12 +193,12 @@ function AboutSection() {
 
   return (
     <div>
-      <h2 className="settings-section-title">О программе</h2>
+      <h2 className="settings-section-title">{t.settings.tabs.about}</h2>
       {error && <div className="settings-error">{error}</div>}
       <div className="settings-card">
         <div className="settings-row">
           <div className="settings-row-text">
-            <span className="settings-row-title">Версия {about?.version ?? "…"}</span>
+            <span className="settings-row-title">{t.settings.about.version(about?.version ?? "…")}</span>
           </div>
           <div className="settings-row-control">
             <button
@@ -210,17 +206,14 @@ function AboutSection() {
               className="button"
               onClick={() => void api.openSafeUrl("https://github.com/Ertezy/Gacha-hub")}
             >
-              Репозиторий
+              {t.settings.about.repository}
             </button>
           </div>
         </div>
         <div className="settings-row">
           <div className="settings-row-text">
-            <span className="settings-row-title">Журнал</span>
-            <span className="settings-row-hint">
-              Лежит в {about?.logPath ?? "…"}. Если что-то не работает, приложите его к
-              сообщению о проблеме.
-            </span>
+            <span className="settings-row-title">{t.settings.about.log}</span>
+            <span className="settings-row-hint">{t.settings.about.logHint(about?.logPath ?? "…")}</span>
           </div>
           <div className="settings-row-control">
             <button
@@ -228,15 +221,12 @@ function AboutSection() {
               className="button"
               onClick={() => void api.openLogFolder().catch((e) => setError(errorText(t, e)))}
             >
-              Показать журнал
+              {t.settings.about.showLog}
             </button>
           </div>
         </div>
       </div>
-      <p className="settings-note">
-        Приложение не связано с разработчиками игр. Названия, изображения и другие
-        материалы принадлежат правообладателям.
-      </p>
+      <p className="settings-note">{t.settings.about.disclaimer}</p>
     </div>
   );
 }

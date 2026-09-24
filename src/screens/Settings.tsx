@@ -2,16 +2,9 @@ import { useState } from "react";
 import GamesSection from "./settings/GamesSection";
 import LookSection from "./settings/LookSection";
 import SmallSections from "./settings/SmallSections";
+import { useT } from "../i18n";
 
 type Tab = "games" | "look" | "behaviour" | "data" | "about";
-
-const TABS: { id: Tab; label: string }[] = [
-  { id: "games", label: "Игры" },
-  { id: "look", label: "Вид" },
-  { id: "behaviour", label: "Поведение" },
-  { id: "data", label: "Данные" },
-  { id: "about", label: "О программе" },
-];
 
 interface Props {
   onClose: () => void;
@@ -19,21 +12,30 @@ interface Props {
 
 export default function Settings({ onClose }: Props) {
   const [tab, setTab] = useState<Tab>("games");
+  const t = useT();
+
+  const TABS: { id: Tab; label: string }[] = [
+    { id: "games", label: t.settings.tabs.games },
+    { id: "look", label: t.settings.tabs.look },
+    { id: "behaviour", label: t.settings.tabs.behaviour },
+    { id: "data", label: t.settings.tabs.data },
+    { id: "about", label: t.settings.tabs.about },
+  ];
 
   return (
     <div className="settings">
       <nav className="settings-nav">
         <button type="button" className="settings-back" onClick={onClose}>
-          ← Назад
+          {t.settings.back}
         </button>
-        {TABS.map((t) => (
+        {TABS.map((tb) => (
           <button
-            key={t.id}
+            key={tb.id}
             type="button"
-            className={t.id === tab ? "settings-tab active" : "settings-tab"}
-            onClick={() => setTab(t.id)}
+            className={tb.id === tab ? "settings-tab active" : "settings-tab"}
+            onClick={() => setTab(tb.id)}
           >
-            {t.label}
+            {tb.label}
           </button>
         ))}
       </nav>

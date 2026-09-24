@@ -3,12 +3,7 @@ import { confirm } from "@tauri-apps/plugin-dialog";
 import { api } from "../../lib/api";
 import { useT } from "../../i18n";
 import { errorText } from "../../i18n/errors";
-import type { GameView, HubGame, SourceKind } from "../../types";
-
-// Тот же текст, что раньше лежал в GameView.sourceLabel — код перевёл на
-// sourceKind (Task 5, спека §6.3), а собственно перевод этой строки ждёт
-// своей задачи (Task 6).
-const SOURCE_LABEL: Record<SourceKind, string> = { steam: "Steam", epic: "Epic Games", exe: "напрямую" };
+import type { GameView, HubGame } from "../../types";
 
 interface Props {
   game: GameView;
@@ -43,12 +38,12 @@ export default function GameEditor({ game, hubGames, onChanged }: Props) {
 
       <div className="settings-row">
         <div className="settings-row-text">
-          <span className="settings-row-title">Название</span>
+          <span className="settings-row-title">{t.settings.editor.name}</span>
         </div>
         <div className="settings-row-control">
           <input
             className="input editor-input"
-            aria-label="Название"
+            aria-label={t.settings.editor.name}
             value={title}
             onChange={(e) => setTitle(e.target.value)}
           />
@@ -58,17 +53,15 @@ export default function GameEditor({ game, hubGames, onChanged }: Props) {
             disabled={busy || title.trim() === "" || title === game.title}
             onClick={() => void run(() => api.updateGame({ gameId: game.id, title }))}
           >
-            Сохранить
+            {t.settings.save}
           </button>
         </div>
       </div>
 
       <div className="settings-row">
         <div className="settings-row-text">
-          <span className="settings-row-title">Файл игры</span>
-          <span className="settings-row-hint">
-            Указанный вручную файл запускается напрямую, а не через магазин.
-          </span>
+          <span className="settings-row-title">{t.settings.editor.gameFile}</span>
+          <span className="settings-row-hint">{t.settings.editor.gameFileHint}</span>
         </div>
         <div className="settings-row-control">
           <button
@@ -82,15 +75,15 @@ export default function GameEditor({ game, hubGames, onChanged }: Props) {
               })
             }
           >
-            Выбрать…
+            {t.settings.choose}
           </button>
         </div>
       </div>
 
       <div className="settings-row">
         <div className="settings-row-text">
-          <span className="settings-row-title">Иконка</span>
-          <span className="settings-row-hint">Пусто — иконка берётся из файла игры.</span>
+          <span className="settings-row-title">{t.settings.editor.icon}</span>
+          <span className="settings-row-hint">{t.settings.editor.iconHint}</span>
         </div>
         <div className="settings-row-control">
           <button
@@ -105,7 +98,7 @@ export default function GameEditor({ game, hubGames, onChanged }: Props) {
               })()
             }
           >
-            Выбрать…
+            {t.settings.choose}
           </button>
           <button
             type="button"
@@ -113,29 +106,27 @@ export default function GameEditor({ game, hubGames, onChanged }: Props) {
             disabled={busy}
             onClick={() => void run(() => api.updateGame({ gameId: game.id, icon: "" }))}
           >
-            Сбросить
+            {t.settings.editor.reset}
           </button>
         </div>
       </div>
 
       <div className="settings-row">
         <div className="settings-row-text">
-          <span className="settings-row-title">Показывать контент как</span>
-          <span className="settings-row-hint">
-            Коды, баннеры и видео на панели слева берутся для этой игры.
-          </span>
+          <span className="settings-row-title">{t.settings.editor.showContentAs}</span>
+          <span className="settings-row-hint">{t.settings.editor.showContentAsHint}</span>
         </div>
         <div className="settings-row-control">
           <select
             className="input"
-            aria-label="Показывать контент как"
+            aria-label={t.settings.editor.showContentAs}
             value={game.contentId ?? ""}
             disabled={busy}
             onChange={(e) =>
               void run(() => api.updateGame({ gameId: game.id, contentId: e.target.value }))
             }
           >
-            <option value="">нет — коды и баннеры не показывать</option>
+            <option value="">{t.settings.editor.noContent}</option>
             {hubGames.map((h) => (
               <option key={h.id} value={h.id}>
                 {h.title}
@@ -155,7 +146,7 @@ export default function GameEditor({ game, hubGames, onChanged }: Props) {
               disabled={busy}
               onClick={() => void run(() => api.relocateGame(game.id))}
             >
-              Найти заново
+              {t.main.relocate}
             </button>
           )}
           <button
@@ -164,38 +155,36 @@ export default function GameEditor({ game, hubGames, onChanged }: Props) {
             disabled={busy}
             onClick={() => {
               void (async () => {
-                const yes = await confirm(`Удалить «${game.title}» из списка?`, {
-                  title: "Удаление игры",
+                const yes = await confirm(t.settings.editor.removeConfirm(game.title), {
+                  title: t.settings.editor.removeConfirmTitle,
                   kind: "warning",
-                  okLabel: "Удалить",
-                  cancelLabel: "Отмена",
+                  okLabel: t.settings.editor.removeOk,
+                  cancelLabel: t.settings.editor.removeCancel,
                 });
                 if (yes) await run(() => api.removeGame(game.id));
               })();
             }}
           >
-            Удалить игру
+            {t.settings.editor.remove}
           </button>
         </div>
       </div>
 
       <details className="settings-extra">
-        <summary>Дополнительно</summary>
+        <summary>{t.settings.advanced}</summary>
         {game.sourceKind === "exe" ? (
           <div className="settings-row">
             <div className="settings-row-text">
-              <span className="settings-row-title">Аргументы запуска</span>
-              <span className="settings-row-hint">
-                Передаются игре как есть. Неверное значение может помешать ей запуститься.
-              </span>
+              <span className="settings-row-title">{t.settings.editor.args}</span>
+              <span className="settings-row-hint">{t.settings.editor.argsHint}</span>
             </div>
             <div className="settings-row-control">
               <input
                 className="input editor-input"
-                aria-label="Аргументы запуска"
+                aria-label={t.settings.editor.args}
                 value={args}
                 onChange={(e) => setArgs(e.target.value)}
-                placeholder="например, -window"
+                placeholder={t.settings.editor.argsPlaceholder}
               />
               <button
                 type="button"
@@ -203,14 +192,13 @@ export default function GameEditor({ game, hubGames, onChanged }: Props) {
                 disabled={busy || args === game.args}
                 onClick={() => void run(() => api.updateGame({ gameId: game.id, args }))}
               >
-                Сохранить
+                {t.settings.save}
               </button>
             </div>
           </div>
         ) : (
           <p className="settings-row-hint">
-            Аргументы запуска здесь недоступны: игру открывает {SOURCE_LABEL[game.sourceKind]} по
-            собственной ссылке, и передать ей что-то дополнительное нельзя.
+            {t.settings.editor.argsUnavailable(t.settings.launchKind[game.sourceKind])}
           </p>
         )}
       </details>

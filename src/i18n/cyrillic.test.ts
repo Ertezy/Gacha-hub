@@ -2,10 +2,6 @@ import { describe, expect, it } from "vitest";
 
 // Сторож кириллицы (спека этапа 6 §7.1): русские буквы в коде страницы живут
 // только в словаре ru.ts и в native.ts. Комментарии и файлы тестов не в счёт.
-//
-// PENDING — файлы, которые ещё не переведены. Задачи перевода убирают из него
-// свои файлы; последняя удаляет список целиком. Второй тест не даёт держать в
-// списке уже чистый файл — иначе он бы тихо выпал из-под надзора.
 
 const FILES = import.meta.glob<string>(["/src/**/*.{ts,tsx}", "!/src/**/*.test.{ts,tsx}", "!/src/**/*.d.ts"], {
   query: "?raw",
@@ -14,16 +10,6 @@ const FILES = import.meta.glob<string>(["/src/**/*.{ts,tsx}", "!/src/**/*.test.{
 });
 
 const ALLOWED = new Set(["/src/i18n/ru.ts", "/src/i18n/native.ts"]);
-
-const PENDING = new Set<string>([
-  "/src/screens/Settings.tsx",
-  "/src/screens/settings/FirstRunView.tsx",
-  "/src/screens/settings/GameEditor.tsx",
-  "/src/screens/settings/GameRow.tsx",
-  "/src/screens/settings/GamesSection.tsx",
-  "/src/screens/settings/LookSection.tsx",
-  "/src/screens/settings/SmallSections.tsx",
-]);
 
 const CYRILLIC = /[Ѐ-ӿ]/;
 
@@ -45,14 +31,9 @@ function withoutComments(text: string): string {
 const hasCyrillic = (path: string) => CYRILLIC.test(withoutComments(FILES[path] ?? ""));
 
 describe("сторож кириллицы", () => {
-  it("русские буквы — только в словаре и в ещё не переведённых файлах", () => {
-    const offenders = Object.keys(FILES).filter((p) => !ALLOWED.has(p) && !PENDING.has(p) && hasCyrillic(p));
+  it("русские буквы — только в словаре", () => {
+    const offenders = Object.keys(FILES).filter((p) => !ALLOWED.has(p) && hasCyrillic(p));
     expect(offenders).toEqual([]);
-  });
-
-  it("в списке ожидающих нет уже чистых файлов", () => {
-    const clean = [...PENDING].filter((p) => !hasCyrillic(p));
-    expect(clean).toEqual([]);
   });
 
   it("строчный комментарий срезается и на CRLF-файле, адрес не портится", () => {

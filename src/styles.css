@@ -1028,8 +1028,58 @@ body {
   cursor: default;
 }
 
+/* Выбор одного из вариантов — язык интерфейса и видео (спека этапа 6 §5.2). */
+.segmented {
+  display: inline-flex;
+  gap: 2px;
+  padding: 2px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--card);
+}
+
+.segmented-option {
+  min-width: 64px;
+  padding: 6px 12px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--ink-dim);
+  font: inherit;
+  cursor: pointer;
+  transition: background var(--move) ease, color var(--move) ease;
+}
+
+.segmented-option.active {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+
+.segmented-option:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* Подпись над карточкой — «Language · Язык». */
+.settings-card-caption {
+  margin: 0 0 8px;
+  font-size: var(--s-hint, 13px);
+  color: var(--ink-faint);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+/* Шапка экрана первого запуска: заголовок слева, EN / RU справа. */
+.first-run-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
 /* Видимый фокус с клавиатуры у всех элементов управления настроек. */
-.settings :is(button, input, select, summary, [role="button"]):focus-visible {
+.settings :is(button, input, select, summary, [role="button"]):focus-visible,
+.segmented-option:focus-visible {
   outline: 2px solid var(--ink-dim);
   outline-offset: 2px;
 }
