@@ -53,7 +53,10 @@ export default function SidePanel({ hub, contentIds, selectedContentId, onOpenSe
   // Видео остаются даже на протухших данных: устаревший список роликов
   // просто устаревший, он никого не обманывает.
   const videos = !hub ? [] : hub.videos.filter((v) => selected(v.gameId));
-  const empty = !hub || panelIsEmpty(codes, banners, videos, nowSec);
+  // Хаб ещё не пришёл (null) — это не то же самое, что «пришёл и пуст»:
+  // тихая пауза до первого ответа, а не сообщение «кодов нет», которое
+  // тут же сменится настоящими данными и будет выглядеть как ложная тревога.
+  const empty = hub !== null && panelIsEmpty(codes, banners, videos, nowSec);
 
   // Источник данных виден в интерфейсе — требование общей спеки §9.4.
   // Без него невозможно отличить «сеть отвалилась, показываю прошлогодний
