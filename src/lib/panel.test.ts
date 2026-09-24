@@ -111,4 +111,9 @@ describe("видео по языку", () => {
     expect(videosFor(all, "hsr", "en").map((x) => x.title)).toEqual(["old"]);
     expect(videosFor(all, "hsr", "ja").map((x) => x.title)).toEqual(["old"]);
   });
+
+  it("нет ни выбранного языка, ни английских — идут любые видео игры", () => {
+    const all = [v("a", "hsr", "ja"), v("b", "zzz", "en")];
+    expect(videosFor(all, "hsr", "en").map((x) => x.title)).toEqual(["a"]);
+  });
 });

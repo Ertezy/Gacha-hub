@@ -34,13 +34,17 @@ export function panelIsEmpty(
 
 /**
  * Видео игры на выбранном языке; если их нет — английские этой игры (спека
- * этапа 6 §3.3). Видео без `lang` — английское: так записаны файлы до этапа 6.
+ * этапа 6 §3.3); если и английских нет (лента для этого языка ни разу не
+ * сработала) — любые видео игры, лишь бы секция не пропадала совсем. Видео
+ * без `lang` — английское: так записаны файлы до этапа 6.
  */
 export function videosFor(videos: Video[], gameId: string, lang: VideoLang): Video[] {
   const ofGame = videos.filter((v) => v.gameId === gameId);
   const langOf = (v: Video) => v.lang ?? "en";
   const wanted = ofGame.filter((v) => langOf(v) === lang);
-  return wanted.length > 0 ? wanted : ofGame.filter((v) => langOf(v) === "en");
+  if (wanted.length > 0) return wanted;
+  const english = ofGame.filter((v) => langOf(v) === "en");
+  return english.length > 0 ? english : ofGame;
 }
 
 /** Откуда пришли данные — словами, одинаковыми на панели и во «Данных». */

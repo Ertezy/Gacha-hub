@@ -17,14 +17,11 @@ const ALLOWED = new Set(["/src/i18n/ru.ts", "/src/i18n/native.ts"]);
 
 const PENDING = new Set<string>([
   "/src/App.tsx",
-  "/src/components/GameArt.tsx",
   "/src/components/GameDock.tsx",
   "/src/components/PlayButton.tsx",
   "/src/lib/api.ts",
   "/src/lib/background.ts",
-  "/src/lib/gradient.ts",
   "/src/lib/launch.ts",
-  "/src/lib/motion.ts",
   "/src/screens/Settings.tsx",
   "/src/screens/settings/FirstRunView.tsx",
   "/src/screens/settings/GameEditor.tsx",
@@ -32,17 +29,21 @@ const PENDING = new Set<string>([
   "/src/screens/settings/GamesSection.tsx",
   "/src/screens/settings/LookSection.tsx",
   "/src/screens/settings/SmallSections.tsx",
-  "/src/types.ts",
 ]);
 
 const CYRILLIC = /[Ѐ-ӿ]/;
 
 /** Код без комментариев. Строчный комментарий — от `//`, перед которым не
- *  двоеточие: иначе резались бы адреса вида https://. */
+ *  двоеточие: иначе резались бы адреса вида https://.
+ *
+ *  Разбивка по `/\r?\n/`, а не по `"\n"`: на файле с CRLF (Windows,
+ *  `core.autocrlf=true` возвращает такие файлы при каждом чекауте) в конце
+ *  строки остаётся `\r`, и `//.*$` не дотягивается до конца строки — комментарий
+ *  не срезается, и сторож ложно ругается на уже переведённый файл. */
 function withoutComments(text: string): string {
   return text
     .replace(/\/\*[\s\S]*?\*\//g, "")
-    .split("\n")
+    .split(/\r?\n/)
     .map((line) => line.replace(/(^|[^:])\/\/.*$/, "$1"))
     .join("\n");
 }
@@ -58,5 +59,12 @@ describe("сторож кириллицы", () => {
   it("в списке ожидающих нет уже чистых файлов", () => {
     const clean = [...PENDING].filter((p) => !hasCyrillic(p));
     expect(clean).toEqual([]);
+  });
+
+  it("строчный комментарий срезается и на CRLF-файле, адрес не портится", () => {
+    const text = 'const a = 1; // комментарий\r\nconst b = "https://x";\r\n';
+    const result = withoutComments(text);
+    expect(CYRILLIC.test(result)).toBe(false);
+    expect(result).toContain('const b = "https://x";');
   });
 });
