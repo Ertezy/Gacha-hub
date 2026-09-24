@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { api } from "../lib/api";
+import { useT } from "../i18n";
+import { errorText } from "../i18n/errors";
 import type { LaunchResult } from "../types";
 
 interface Props {
@@ -17,6 +19,7 @@ export default function PlayButton({ gameId, note, onLaunch, onFixed, disabled }
   const [busy, setBusy] = useState(false);
   const [fixing, setFixing] = useState(false);
   const [failure, setFailure] = useState<string | null>(null);
+  const t = useT();
 
   const click = async () => {
     setBusy(true);
@@ -36,7 +39,7 @@ export default function PlayButton({ gameId, note, onLaunch, onFixed, disabled }
       setFailure(null);
       onFixed();
     } catch (e) {
-      setFailure(String(e));
+      setFailure(errorText(t, e));
     } finally {
       setFixing(false);
     }

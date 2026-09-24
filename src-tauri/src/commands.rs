@@ -3,13 +3,24 @@
 //!
 //! Все команды асинхронные: синхронные в Tauri выполняются в главном потоке
 //! и подмораживали бы окно на чтении файлов и запуске процессов.
+//!
+//! Команда, ошибку которой страница показывает человеку, возвращает
+//! `AppError` — код и подробность; фразу на выбранном языке собирает страница
+//! (спека этапа 6 §6.2). Команды, чьи ошибки страница не показывает
+//! (`get_config_dir`, `get_hub`, `cache_image`), отдают текст, как раньше.
 
 use serde::Serialize;
 use tauri::{AppHandle, Manager};
 
 use crate::config::{self, Game, Language, Launch, VideoLanguage};
+use crate::error::{code, AppError};
 use crate::hub;
 use crate::launch;
+
+/// Запись конфига из команды: текст ошибки сохранения уходит подробностью.
+fn save_config(app: &AppHandle, cfg: &config::AppConfig) -> Result<(), AppError> {
+    config::save(app, cfg).map_err(|e| AppError::with(code::CONFIG_SAVE_FAILED, e))
+}
 
 /// Игра в том виде, в каком её рисует интерфейс.
 #[derive(Debug, Clone, Serialize)]
@@ -102,14 +113,14 @@ pub async fn get_config_dir(app: AppHandle) -> Result<String, String> {
 
 /// Запустить игру. `lastPlayed` пишется только после удачного старта.
 #[tauri::command]
-pub async fn launch_game(app: AppHandle, game_id: String) -> Result<String, String> {
+pub async fn launch_game(app: AppHandle, game_id: String) -> Result<String, AppError> {
     let mut cfg = config::load(&app);
     let game = cfg
         .games
         .iter()
         .find(|g| g.id == game_id)
         .cloned()
-        .ok_or_else(|| format!("нет такой игры: {game_id}"))?;
+        .ok_or_else(|| AppError::with(code::GAME_NOT_FOUND, game_id.clone()))?;
 
     launch::launch(&app, &game)?;
 
@@ -198,12 +209,12 @@ pub async fn scan_installed(app: AppHandle) -> Vec<FoundGame> {
 /// запуска и пути из манифеста, и терять их, сводя всё к `Launch::Exe`,
 /// нельзя — тогда игра из Steam перестала бы запускаться через Steam.
 #[tauri::command]
-pub async fn add_game_from_scan(app: AppHandle, title: String) -> Result<String, String> {
+pub async fn add_game_from_scan(app: AppHandle, title: String) -> Result<String, AppError> {
     let hub_games = crate::hub::load_local(&app).games;
     let found = crate::stores::installed()
         .into_iter()
         .find(|g| g.title == title)
-        .ok_or_else(|| format!("игра больше не найдена: {title}"))?;
+        .ok_or_else(|| AppError::with(code::GAME_NOT_FOUND, title.clone()))?;
 
     let content_id = crate::catalog::content_id_for(&found, &hub_games);
     let mut cfg = config::load(&app);
@@ -215,7 +226,7 @@ pub async fn add_game_from_scan(app: AppHandle, title: String) -> Result<String,
         found.install_path,
         found.exe_path,
     )?;
-    config::save(&app, &cfg)?;
+    save_config(&app, &cfg)?;
     Ok(id)
 }
 
@@ -223,10 +234,10 @@ pub async fn add_game_from_scan(app: AppHandle, title: String) -> Result<String,
 /// человек что-то с экрана предложений или нажал «Пропустить». Пропуск это
 /// тоже осознанное решение, и повторно спрашивать нельзя.
 #[tauri::command]
-pub async fn mark_seeded(app: AppHandle) -> Result<(), String> {
+pub async fn mark_seeded(app: AppHandle) -> Result<(), AppError> {
     let mut cfg = config::load(&app);
     cfg.seeded = true;
-    config::save(&app, &cfg)
+    save_config(&app, &cfg)
 }
 
 /// Нужно ли показать экран первого запуска вместо главного экрана.
@@ -236,30 +247,33 @@ pub async fn needs_first_run(app: AppHandle) -> bool {
 }
 
 /// Общий помощник: прочитать конфиг, изменить, записать.
-fn with_config<F>(app: &AppHandle, f: F) -> Result<(), String>
+///
+/// Отказ правки — `GAME_NOT_FOUND` без подробности: помощник не знает, какая
+/// игра имелась в виду (у `reorder_games` их целый список).
+fn with_config<F>(app: &AppHandle, f: F) -> Result<(), AppError>
 where
     F: FnOnce(&mut config::AppConfig) -> bool,
 {
     let mut cfg = config::load(app);
     if !f(&mut cfg) {
-        return Err("игра не найдена или правка невозможна".to_string());
+        return Err(AppError::new(code::GAME_NOT_FOUND));
     }
-    config::save(app, &cfg)
+    save_config(app, &cfg)
 }
 
 #[tauri::command]
-pub async fn add_game(app: AppHandle, title: String, exe: String) -> Result<String, String> {
+pub async fn add_game(app: AppHandle, title: String, exe: String) -> Result<String, AppError> {
     let exe = std::path::PathBuf::from(exe);
     // Путь вводит человек, значит это недоверенный ввод: проверяем, что файл
     // существует, до того как записать его в конфиг.
     if !exe.is_file() {
-        return Err(format!("файла нет: {}", exe.display()));
+        return Err(AppError::with(code::FILE_MISSING, exe.display().to_string()));
     }
     // Название тоже вводит человек — проверяем перед записью в конфиг.
     crate::library::validate_title(&title)?;
     let mut cfg = config::load(&app);
     let id = crate::library::add(&mut cfg, title, exe);
-    config::save(&app, &cfg)?;
+    save_config(&app, &cfg)?;
     Ok(id)
 }
 
@@ -285,12 +299,12 @@ pub async fn update_game(
     // целиком. Пустая строка здесь не признак стирания, а обычное значение
     // «нет аргументов».
     args: Option<String>,
-) -> Result<(), String> {
+) -> Result<(), AppError> {
     let exe_path = match exe {
         Some(p) => {
             let p = std::path::PathBuf::from(p);
             if !p.is_file() {
-                return Err(format!("файла нет: {}", p.display()));
+                return Err(AppError::with(code::FILE_MISSING, p.display().to_string()));
             }
             Some(p)
         }
@@ -323,17 +337,17 @@ pub async fn update_game(
 }
 
 #[tauri::command]
-pub async fn remove_game(app: AppHandle, game_id: String) -> Result<(), String> {
+pub async fn remove_game(app: AppHandle, game_id: String) -> Result<(), AppError> {
     with_config(&app, |cfg| crate::library::remove(cfg, &game_id))
 }
 
 #[tauri::command]
-pub async fn reorder_games(app: AppHandle, ids: Vec<String>) -> Result<(), String> {
+pub async fn reorder_games(app: AppHandle, ids: Vec<String>) -> Result<(), AppError> {
     with_config(&app, |cfg| crate::library::reorder(cfg, &ids))
 }
 
 #[tauri::command]
-pub async fn relocate_game(app: AppHandle, game_id: String) -> Result<(), String> {
+pub async fn relocate_game(app: AppHandle, game_id: String) -> Result<(), AppError> {
     let hub_games = crate::hub::load_local(&app).games;
     let installed = crate::stores::installed();
     with_config(&app, |cfg| {
@@ -355,13 +369,13 @@ pub async fn set_behaviour(
     app: AppHandle,
     close_to_tray: bool,
     tray_on_launch: bool,
-) -> Result<(), String> {
+) -> Result<(), AppError> {
     let mut cfg = config::load(&app);
     cfg.behaviour = config::Behaviour {
         close_to_tray,
         tray_on_launch,
     };
-    config::save(&app, &cfg)
+    save_config(&app, &cfg)
 }
 
 #[tauri::command]
@@ -370,10 +384,10 @@ pub async fn get_store_art(app: AppHandle) -> bool {
 }
 
 #[tauri::command]
-pub async fn set_store_art(app: AppHandle, enabled: bool) -> Result<(), String> {
+pub async fn set_store_art(app: AppHandle, enabled: bool) -> Result<(), AppError> {
     let mut cfg = config::load(&app);
     cfg.store_art = enabled;
-    config::save(&app, &cfg)
+    save_config(&app, &cfg)
 }
 
 #[tauri::command]
@@ -382,10 +396,10 @@ pub async fn get_animation(app: AppHandle) -> bool {
 }
 
 #[tauri::command]
-pub async fn set_animation(app: AppHandle, enabled: bool) -> Result<(), String> {
+pub async fn set_animation(app: AppHandle, enabled: bool) -> Result<(), AppError> {
     let mut cfg = config::load(&app);
     cfg.animation = enabled;
-    config::save(&app, &cfg)
+    save_config(&app, &cfg)
 }
 
 #[tauri::command]
@@ -395,10 +409,10 @@ pub async fn get_language(app: AppHandle) -> Language {
 
 /// Меню трея переименовывается сразу — как и страница, без перезапуска.
 #[tauri::command]
-pub async fn set_language(app: AppHandle, language: Language) -> Result<(), String> {
+pub async fn set_language(app: AppHandle, language: Language) -> Result<(), AppError> {
     let mut cfg = config::load(&app);
     cfg.language = language;
-    config::save(&app, &cfg)?;
+    save_config(&app, &cfg)?;
     crate::tray::apply_language(&app, language);
     Ok(())
 }
@@ -409,10 +423,13 @@ pub async fn get_video_language(app: AppHandle) -> VideoLanguage {
 }
 
 #[tauri::command]
-pub async fn set_video_language(app: AppHandle, language: VideoLanguage) -> Result<(), String> {
+pub async fn set_video_language(
+    app: AppHandle,
+    language: VideoLanguage,
+) -> Result<(), AppError> {
     let mut cfg = config::load(&app);
     cfg.video_language = language;
-    config::save(&app, &cfg)
+    save_config(&app, &cfg)
 }
 
 /// Проверяет выбранный файл видео и, если он годится, разрешает окну его
@@ -421,29 +438,29 @@ pub async fn set_video_language(app: AppHandle, language: VideoLanguage) -> Resu
 /// Разбор mp4 и webm на стороне Rust ради одних только размеров кадра
 /// пришлось бы писать вручную — своего парсера в зависимостях нет.
 #[tauri::command]
-pub async fn check_video(app: AppHandle, path: String) -> Result<(), String> {
+pub async fn check_video(app: AppHandle, path: String) -> Result<(), AppError> {
     let path = std::path::PathBuf::from(path);
     if let Some(problem) = crate::art::video_file_problem(&path) {
         return Err(problem);
     }
     app.asset_protocol_scope()
         .allow_file(&path)
-        .map_err(|e| format!("Окну не открыть видео: {e}"))?;
+        .map_err(|e| AppError::with(code::VIDEO_PICK_FAILED, e.to_string()))?;
     Ok(())
 }
 
 #[tauri::command]
-pub async fn set_hub_url(app: AppHandle, url: Option<String>) -> Result<(), String> {
+pub async fn set_hub_url(app: AppHandle, url: Option<String>) -> Result<(), AppError> {
     // Пустая строка означает «нет адреса», а не адрес из пустой строки.
     let url = url.filter(|u| !u.trim().is_empty());
     if let Some(u) = &url {
         if !crate::hub::is_safe_https(u) {
-            return Err("адрес должен начинаться с https://".to_string());
+            return Err(AppError::new(code::HUB_URL_NOT_HTTPS));
         }
     }
     let mut cfg = config::load(&app);
     cfg.hub_url = url;
-    config::save(&app, &cfg)
+    save_config(&app, &cfg)
 }
 
 /// Размер файлов в одной папке кеша, в байтах. Общая часть для картинок хаба
@@ -464,8 +481,9 @@ fn dir_size(dir: &std::path::Path) -> u64 {
 }
 
 /// Удаляет файлы из одной папки кеша. Возвращает количество удалённых.
-fn clear_dir(dir: &std::path::Path) -> Result<usize, String> {
-    let entries = std::fs::read_dir(dir).map_err(|e| format!("не читается кеш: {e}"))?;
+fn clear_dir(dir: &std::path::Path) -> Result<usize, AppError> {
+    let entries = std::fs::read_dir(dir)
+        .map_err(|e| AppError::with(code::CACHE_READ_FAILED, e.to_string()))?;
     let mut removed = 0;
     for entry in entries.flatten() {
         if entry.metadata().map(|m| m.is_file()).unwrap_or(false)
@@ -500,12 +518,15 @@ pub async fn image_cache_size(app: AppHandle) -> u64 {
 /// кеше есть, и пересоздают его, если нет, а картинки Epic — при следующем
 /// запуске.
 #[tauri::command]
-pub async fn clear_image_cache(app: AppHandle) -> Result<usize, String> {
+pub async fn clear_image_cache(app: AppHandle) -> Result<usize, AppError> {
+    // Папку кеша не найти или не создать — своего кода у такой ошибки нет:
+    // страница покажет общую фразу с текстом ошибки.
+    let internal = |e: String| AppError::with(code::INTERNAL, e);
     let mut removed = 0;
     for dir in [
-        crate::images::cache_dir(&app)?,
-        crate::icons::cache_dir(&app)?,
-        crate::art::cache_dir(&app)?,
+        crate::images::cache_dir(&app).map_err(internal)?,
+        crate::icons::cache_dir(&app).map_err(internal)?,
+        crate::art::cache_dir(&app).map_err(internal)?,
     ] {
         removed += clear_dir(&dir)?;
     }
@@ -536,7 +557,7 @@ pub async fn get_about(app: AppHandle) -> About {
 
 /// Открыть папку журнала в проводнике.
 #[tauri::command]
-pub async fn open_log_folder(app: AppHandle) -> Result<(), String> {
+pub async fn open_log_folder(app: AppHandle) -> Result<(), AppError> {
     // `open_path` — метод на `Opener`, а не свободная функция; добраться до
     // него можно только через расширение `OpenerExt`.
     use tauri_plugin_opener::OpenerExt;
@@ -544,10 +565,10 @@ pub async fn open_log_folder(app: AppHandle) -> Result<(), String> {
     let dir = app
         .path()
         .app_log_dir()
-        .map_err(|e| format!("не найдена папка журнала: {e}"))?;
+        .map_err(|e| AppError::with(code::LOG_FOLDER_MISSING, e.to_string()))?;
     app.opener()
         .open_path(dir.to_string_lossy(), None::<&str>)
-        .map_err(|e| format!("не удалось открыть папку: {e}"))
+        .map_err(|e| AppError::with(code::OPEN_FOLDER_FAILED, e.to_string()))
 }
 
 #[cfg(test)]
@@ -623,8 +644,9 @@ mod tests {
 
     #[test]
     fn clear_dir_on_a_missing_folder_is_an_error_not_a_panic() {
-        let err = clear_dir(std::path::Path::new(r"C:\nope\never\missing"));
-        assert!(err.is_err());
+        let err = clear_dir(std::path::Path::new(r"C:\nope\never\missing")).unwrap_err();
+        assert_eq!(err.code, code::CACHE_READ_FAILED);
+        assert!(err.detail.is_some(), "текст ошибки чтения должен дойти до страницы");
     }
 
     #[test]

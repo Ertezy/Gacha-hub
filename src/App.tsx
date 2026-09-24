@@ -10,6 +10,8 @@ import PlayButton from "./components/PlayButton";
 import GameDock from "./components/GameDock";
 import Settings from "./screens/Settings";
 import FirstRunView from "./screens/settings/FirstRunView";
+import { currentT, useT } from "./i18n";
+import { errorText } from "./i18n/errors";
 import type { GameView, HubData, LaunchResult } from "./types";
 
 type Screen = "loading" | "firstRun" | "main" | "settings";
@@ -22,6 +24,7 @@ export default function App() {
   // "loading" — пока не узнали, был ли уже первый запуск: не показывать
   // главный экран, чтобы не мигнуть им перед экраном первого запуска.
   const [screen, setScreen] = useState<Screen>("loading");
+  const t = useT();
 
   // Когда данные панели проверялись последний раз — для проверки при возвращении окна.
   const lastHubCheck = useRef(0);
@@ -55,7 +58,10 @@ export default function App() {
       setSelectedId(last);
       setError("");
     } catch (e) {
-      setError(String(e));
+      // `currentT()`, а не `t`: с `t` в зависимостях `load` менялась бы при
+      // смене языка, и эффект первого запуска ниже срабатывал бы заново —
+      // уводил бы из настроек на главный экран.
+      setError(errorText(currentT(), e));
     }
     void refreshHub();
   }, [refreshHub]);
@@ -67,7 +73,9 @@ export default function App() {
       setGames(await api.getGames());
       setError("");
     } catch (e) {
-      setError(String(e));
+      // `currentT()` по той же причине, что и в `load`: подписка ниже не
+      // должна пересоздаваться при смене языка.
+      setError(errorText(currentT(), e));
     }
   }, []);
 
@@ -150,9 +158,9 @@ export default function App() {
       await api.launchGame(selected.id);
       return { ok: true, msg: "" };
     } catch (e) {
-      return { ok: false, msg: String(e) };
+      return { ok: false, msg: errorText(t, e) };
     }
-  }, [selected]);
+  }, [selected, t]);
 
   // Возврат из настроек обязан перечитать список игр: человек мог там всё
   // поменять (добавить, убрать, переименовать, отвязать от хаба, сменить фон).

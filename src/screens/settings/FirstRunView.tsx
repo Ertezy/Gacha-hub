@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import { api } from "../../lib/api";
+import { useT } from "../../i18n";
+import { errorText } from "../../i18n/errors";
 import type { FoundGame } from "../../types";
 
 interface Props {
@@ -11,6 +13,7 @@ export default function FirstRunView({ onDone }: Props) {
   const [checked, setChecked] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const t = useT();
 
   useEffect(() => {
     void (async () => {
@@ -55,7 +58,7 @@ export default function FirstRunView({ onDone }: Props) {
       try {
         await markSeededAndClose();
       } catch (e) {
-        setError(String(e));
+        setError(errorText(t, e));
       } finally {
         setBusy(false);
       }
@@ -112,7 +115,7 @@ export default function FirstRunView({ onDone }: Props) {
                 }
                 await markSeededAndClose();
               } catch (e) {
-                setError(String(e));
+                setError(errorText(t, e));
               } finally {
                 // Разблокировать кнопки при любом исходе: иначе провал
                 // на середине списка запирает экран первого запуска

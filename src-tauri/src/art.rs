@@ -11,6 +11,7 @@ use serde::Serialize;
 use tauri::{AppHandle, Emitter, Manager};
 
 use crate::config::Game;
+use crate::error::{code, AppError};
 use crate::stores::{InstalledGame, StoreRef};
 
 /// Папка кеша фонов.
@@ -201,22 +202,25 @@ fn exceeds_video_limit(len: u64) -> bool {
     len > MAX_VIDEO_BYTES
 }
 
-/// Первая найденная проблема с файлом своего видео фона — фраза для показа
-/// человеку, или `None`, если файл годится. Проверяется и до выбора (окно
-/// зовёт `check_video`), и при записи в конфиг (`update_game`): страница не
-/// единственная защита (спека §12).
-pub fn video_file_problem(path: &Path) -> Option<String> {
+/// Первая найденная проблема с файлом своего видео фона — ошибка для показа
+/// человеку (фразу собирает страница, спека этапа 6 §6.2), или `None`, если
+/// файл годится. Проверяется и до выбора (окно зовёт `check_video`), и при
+/// записи в конфиг (`update_game`): страница не единственная защита (спека §12).
+pub fn video_file_problem(path: &Path) -> Option<AppError> {
     if !is_video_file_name(path) {
-        return Some("Видео должно быть в формате mp4 или webm.".to_string());
+        return Some(AppError::new(code::VIDEO_WRONG_FORMAT));
     }
     let Ok(meta) = std::fs::metadata(path) else {
-        return Some("Файл видео не найден.".to_string());
+        return Some(AppError::new(code::VIDEO_FILE_MISSING));
     };
     if !meta.is_file() {
-        return Some("Файл видео не найден.".to_string());
+        return Some(AppError::new(code::VIDEO_FILE_MISSING));
     }
     if exceeds_video_limit(meta.len()) {
-        return Some("Видео тяжелее 300 МБ — выберите файл поменьше.".to_string());
+        // Подробность — потолок в мегабайтах: число живёт здесь, в одном
+        // месте, а не повторяется в словарях страницы.
+        let limit_mb = MAX_VIDEO_BYTES / (1024 * 1024);
+        return Some(AppError::with(code::VIDEO_TOO_LARGE, limit_mb.to_string()));
     }
     None
 }
@@ -658,10 +662,7 @@ mod tests {
         let dir = scratch("video-ext");
         let file = dir.join("clip.txt");
         std::fs::write(&file, b"x").unwrap();
-        assert_eq!(
-            video_file_problem(&file),
-            Some("Видео должно быть в формате mp4 или webm.".to_string())
-        );
+        assert_eq!(video_file_problem(&file), Some(AppError::new(code::VIDEO_WRONG_FORMAT)));
         std::fs::remove_dir_all(&dir).ok();
     }
 
@@ -669,7 +670,7 @@ mod tests {
     fn video_file_problem_flags_a_missing_file() {
         let dir = scratch("video-missing");
         let file = dir.join("nope.mp4");
-        assert_eq!(video_file_problem(&file), Some("Файл видео не найден.".to_string()));
+        assert_eq!(video_file_problem(&file), Some(AppError::new(code::VIDEO_FILE_MISSING)));
         std::fs::remove_dir_all(&dir).ok();
     }
 

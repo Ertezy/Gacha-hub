@@ -5,6 +5,8 @@ import { api } from "../../lib/api";
 import { gradientFor } from "../../lib/gradient";
 import { hasOwnBackground, sourceText, videoSizeProblem } from "../../lib/background";
 import { setMotion } from "../../lib/motion";
+import { currentT, useT } from "../../i18n";
+import { errorText } from "../../i18n/errors";
 import Switch from "./Switch";
 import type { GameView } from "../../types";
 
@@ -15,6 +17,7 @@ export default function LookSection() {
   const [animation, setAnimation] = useState<boolean | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const t = useT();
 
   const reload = useCallback(async () => {
     try {
@@ -28,7 +31,9 @@ export default function LookSection() {
       setAnimation(animationEnabled);
       setError("");
     } catch (e) {
-      setError(String(e));
+      // `currentT()`, а не `t`: `reload` не должна меняться при смене языка,
+      // иначе подписка ниже пересоздавалась бы.
+      setError(errorText(currentT(), e));
     }
   }, []);
 
@@ -56,7 +61,7 @@ export default function LookSection() {
       await fn();
       await reload();
     } catch (e) {
-      setError(String(e));
+      setError(errorText(t, e));
     } finally {
       setBusy(false);
     }

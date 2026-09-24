@@ -22,6 +22,7 @@ use tauri::AppHandle;
 use tauri_plugin_opener::OpenerExt;
 
 use crate::config::{Game, Launch};
+use crate::error::{code, AppError};
 
 /// Разбор строки аргументов по правилам Windows `CommandLineToArgvW`
 /// (НЕ по POSIX):
@@ -100,13 +101,15 @@ pub fn epic_uri(namespace: &str, catalog_item_id: &str, app_name: &str) -> Strin
     )
 }
 
-pub fn launch(app: &AppHandle, game: &Game) -> Result<(), String> {
+/// Ошибка — код с подробностью: фразу на языке интерфейса собирает страница
+/// (спека этапа 6 §6.2).
+pub fn launch(app: &AppHandle, game: &Game) -> Result<(), AppError> {
     match &game.launch {
         Launch::Steam { appid } => {
             let uri = format!("steam://rungameid/{appid}");
-            app.opener().open_url(&uri, None::<String>).map_err(|e| {
-                format!("не удалось открыть {uri}: {e}. Проверь, что Steam установлен и хотя бы раз запускался.")
-            })
+            app.opener()
+                .open_url(&uri, None::<String>)
+                .map_err(|e| AppError::with(code::STEAM_OPEN_FAILED, format!("{uri}: {e}")))
         }
         Launch::Epic {
             namespace,
@@ -114,27 +117,23 @@ pub fn launch(app: &AppHandle, game: &Game) -> Result<(), String> {
             app_name,
         } => {
             let uri = epic_uri(namespace, catalog_item_id, app_name);
-            app.opener().open_url(&uri, None::<String>).map_err(|e| {
-                format!("не удалось открыть Epic Games Launcher: {e}. Проверь, что он установлен.")
-            })
+            app.opener()
+                .open_url(&uri, None::<String>)
+                .map_err(|e| AppError::with(code::EPIC_OPEN_FAILED, e.to_string()))
         }
         Launch::Exe => {
             let exe = game
                 .exe_path
                 .clone()
                 .filter(|p| !p.as_os_str().is_empty())
-                .ok_or_else(|| "путь к игре не задан".to_string())?;
+                .ok_or_else(|| AppError::new(code::EXE_PATH_MISSING))?;
 
             if !exe.is_file() {
-                return Err(format!("файл не найден: {}", exe.display()));
+                return Err(AppError::with(code::FILE_MISSING, exe.display().to_string()));
             }
 
-            let parsed = split_args(&game.args).ok_or_else(|| {
-                format!(
-                    "не удалось разобрать аргументы «{}»: незакрытая кавычка.",
-                    game.args
-                )
-            })?;
+            let parsed = split_args(&game.args)
+                .ok_or_else(|| AppError::with(code::ARGS_UNCLOSED_QUOTE, game.args.clone()))?;
 
             let cwd = exe
                 .parent()
@@ -146,7 +145,9 @@ pub fn launch(app: &AppHandle, game: &Game) -> Result<(), String> {
                 .current_dir(&cwd)
                 .spawn()
                 .map(|_| ())
-                .map_err(|e| format!("не удалось запустить {}: {e}", exe.display()))
+                .map_err(|e| {
+                    AppError::with(code::EXE_START_FAILED, format!("{}: {e}", exe.display()))
+                })
         }
     }
 }

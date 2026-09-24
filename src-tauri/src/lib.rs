@@ -2,6 +2,7 @@ mod art;
 mod catalog;
 mod commands;
 mod config;
+mod error;
 mod hub;
 mod i18n;
 mod ico;

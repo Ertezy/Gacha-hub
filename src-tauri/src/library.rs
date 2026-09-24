@@ -8,6 +8,7 @@ use std::collections::HashSet;
 use std::path::PathBuf;
 
 use crate::config::{AppConfig, Game, Launch};
+use crate::error::{code, AppError};
 
 /// Что менять у игры. `None` означает «не трогать это поле».
 ///
@@ -38,9 +39,9 @@ pub struct GamePatch {
 
 /// Проверяет, что названий игры не пусто. Пустым считается пустая строка
 /// и строка из одних пробелов.
-pub fn validate_title(title: &str) -> Result<(), String> {
+pub fn validate_title(title: &str) -> Result<(), AppError> {
     if title.trim().is_empty() {
-        Err("название не может быть пустым".to_string())
+        Err(AppError::new(code::EMPTY_TITLE))
     } else {
         Ok(())
     }
@@ -107,7 +108,7 @@ pub fn add_found(
     launch: Launch,
     install_path: PathBuf,
     exe_path: Option<PathBuf>,
-) -> Result<String, String> {
+) -> Result<String, AppError> {
     validate_title(&title)?;
     let base = content_id
         .clone()
@@ -311,7 +312,7 @@ mod tests {
             None,
         )
         .expect_err("пустое название обязано отклоняться");
-        assert!(err.contains("пуст"));
+        assert_eq!(err, AppError::new(code::EMPTY_TITLE));
         assert!(cfg.games.is_empty(), "запись не должна попасть в конфиг");
     }
 
@@ -508,7 +509,7 @@ mod tests {
     fn validate_title_rejects_empty_and_whitespace() {
         // Пустое названий не должно попадать в конфиг — иначе в списке
         // будет пустая строка, которая рисуется без подписи.
-        assert!(validate_title("").is_err());
+        assert_eq!(validate_title(""), Err(AppError::new(code::EMPTY_TITLE)));
         assert!(validate_title("   ").is_err());
         assert!(validate_title("\t\n").is_err());
         // Названий с хоть каким-то текстом проходят.

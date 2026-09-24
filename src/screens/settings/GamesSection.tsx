@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "../../lib/api";
+import { currentT, useT } from "../../i18n";
+import { errorText } from "../../i18n/errors";
 import GameRow from "./GameRow";
 import GameEditor from "./GameEditor";
 import FirstRunView from "./FirstRunView";
@@ -15,13 +17,16 @@ export default function GamesSection() {
   const [scanning, setScanning] = useState(false);
   const dragFrom = useRef<number | null>(null);
   const dragTo = useRef<number | null>(null);
+  const t = useT();
 
   const reload = useCallback(async () => {
     try {
       setGames(await api.getGames());
       setError("");
     } catch (e) {
-      setError(String(e));
+      // `currentT()`, а не `t`: `reload` не должна меняться при смене языка,
+      // иначе эффект ниже заново перечитает список и каталог.
+      setError(errorText(currentT(), e));
     }
   }, []);
 
@@ -53,11 +58,11 @@ export default function GamesSection() {
     try {
       await api.reorderGames(next.map((g) => g.id));
     } catch (e) {
-      setError(String(e));
+      setError(errorText(t, e));
       // Порядок на экране разошёлся с конфигом — перечитываем правду.
       void reload();
     }
-  }, [games, reload]);
+  }, [games, reload, t]);
 
   if (scanning) {
     return (
@@ -111,7 +116,7 @@ export default function GamesSection() {
                 await api.addGame(guessed, exe);
                 await reload();
               } catch (e) {
-                setError(String(e));
+                setError(errorText(t, e));
               }
             })()
           }

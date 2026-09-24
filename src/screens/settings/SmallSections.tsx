@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { api } from "../../lib/api";
 import { dataStatus } from "../../lib/panel";
+import { useT } from "../../i18n";
+import { errorText } from "../../i18n/errors";
 import type { About, Behaviour, HubData } from "../../types";
 import Switch from "./Switch";
 
@@ -11,6 +13,7 @@ interface Props {
 function Behaviours() {
   const [b, setB] = useState<Behaviour | null>(null);
   const [error, setError] = useState("");
+  const t = useT();
 
   useEffect(() => {
     void api.getBehaviour().then(setB);
@@ -28,7 +31,7 @@ function Behaviours() {
     setB(next);
     setError("");
     void api.setBehaviour(next).catch((e) => {
-      setError(String(e));
+      setError(errorText(t, e));
       setB(prev);
     });
   };
@@ -81,6 +84,7 @@ function Data() {
   const [hub, setHub] = useState<HubData | null>(null);
   const [size, setSize] = useState(0);
   const [error, setError] = useState("");
+  const t = useT();
 
   const reload = () => {
     void api.getHub().then(setHub).catch(() => setHub(null));
@@ -129,7 +133,7 @@ function Data() {
                 void api
                   .clearImageCache()
                   .then(reload)
-                  .catch((e) => setError(String(e)))
+                  .catch((e) => setError(errorText(t, e)))
               }
             >
               Очистить кеш картинок
@@ -168,7 +172,7 @@ function Data() {
                       setSavedUrl(url);
                       reload();
                     })
-                    .catch((e) => setError(String(e)))
+                    .catch((e) => setError(errorText(t, e)))
                 }
               >
                 Сохранить
@@ -184,6 +188,7 @@ function Data() {
 function AboutSection() {
   const [about, setAbout] = useState<About | null>(null);
   const [error, setError] = useState("");
+  const t = useT();
 
   useEffect(() => {
     void api.getAbout().then(setAbout);
@@ -220,7 +225,7 @@ function AboutSection() {
             <button
               type="button"
               className="button"
-              onClick={() => void api.openLogFolder().catch((e) => setError(String(e)))}
+              onClick={() => void api.openLogFolder().catch((e) => setError(errorText(t, e)))}
             >
               Показать журнал
             </button>

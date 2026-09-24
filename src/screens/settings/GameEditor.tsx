@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { confirm } from "@tauri-apps/plugin-dialog";
 import { api } from "../../lib/api";
+import { useT } from "../../i18n";
+import { errorText } from "../../i18n/errors";
 import type { GameView, HubGame } from "../../types";
 
 interface Props {
@@ -15,6 +17,7 @@ export default function GameEditor({ game, hubGames, onChanged }: Props) {
   const [args, setArgs] = useState(game.args);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const t = useT();
 
   const run = async (fn: () => Promise<unknown>) => {
     setBusy(true);
@@ -23,7 +26,7 @@ export default function GameEditor({ game, hubGames, onChanged }: Props) {
       await fn();
       onChanged();
     } catch (e) {
-      setError(String(e));
+      setError(errorText(t, e));
     } finally {
       setBusy(false);
     }
