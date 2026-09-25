@@ -86,10 +86,12 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
         // Видимость окна решает код приложения (старт в трей при автозапуске,
-        // спека этапа 7 §4.2), плагин — только размер и положение.
+        // спека этапа 7 §4.2), плагин хранит только размер и положение: сам
+        // восстановленный «развёрнуто» на скрытом автозапуском окне на миг
+        // показал бы и активировал его при входе в систему.
         .plugin(
             tauri_plugin_window_state::Builder::default()
-                .with_state_flags(StateFlags::all() - StateFlags::VISIBLE)
+                .with_state_flags(StateFlags::SIZE | StateFlags::POSITION)
                 .build(),
         )
         .plugin(tauri_plugin_clipboard_manager::init())
