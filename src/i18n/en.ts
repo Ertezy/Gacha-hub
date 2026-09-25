@@ -62,7 +62,7 @@ export const en = {
     },
     filters: {
       program: "Program",
-      image: "Picture",
+      image: "Image",
       video: "Video",
     },
     refuseNonHttps: (url: string) => `refusing to open a non-https link: ${url}`,
@@ -142,7 +142,7 @@ export const en = {
       animation: "Animation",
       animationHint: "Background video, slow image movement, dock icon zoom and the gear spinning. The Windows setting doesn't affect the app.",
       noGames: "No games yet — add them in the Games section.",
-      pickImage: "Picture…",
+      pickImage: "Image…",
       pickVideo: "Video…",
       removeBackground: "Remove",
     },
