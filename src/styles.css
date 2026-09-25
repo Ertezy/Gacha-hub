@@ -635,6 +635,9 @@ body {
 .carousel-arrow:focus-visible { opacity: 1; background: rgba(10, 10, 14, 0.7); }
 
 .carousel-dots .dot.upcoming { background: rgba(255, 255, 255, 0.12); }
+/* Текущая точка всегда яркая, даже у будущего баннера: иначе пропадает,
+   где ты в карусели. */
+.carousel-dots .dot.active.upcoming { background: var(--content); }
 .banner-soon { font-size: 11px; color: var(--content); }
 
 /* Видео */
