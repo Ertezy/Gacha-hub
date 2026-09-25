@@ -112,6 +112,12 @@ export default function App() {
     };
   }, []);
 
+  // Выбор другой игры гасит чужую ошибку трея: иначе при возврате к прежней
+  // игре она всплыла бы снова, хотя могла давно устареть (правка ревью 1).
+  useEffect(() => {
+    setTrayFailure((current) => (current && current.gameId !== selectedId ? null : current));
+  }, [selectedId]);
+
   // Приложение живёт в трее днями: данные панели проверяются раз в 3 часа и
   // при возвращении окна, если с прошлой проверки прошёл час (спека сборщика §9).
   useEffect(() => {
@@ -221,6 +227,10 @@ export default function App() {
         <GameArt game={selected} />
         {selected && (
           <PlayButton
+            // key: при смене игры кнопка пересоздаётся, а не переиспользуется —
+            // иначе её состояние ошибки осталось бы висеть под новой игрой
+            // (правка ревью 1).
+            key={selected.id}
             gameId={selected.id}
             note={launchNote(t, selected)}
             onLaunch={launch}
