@@ -1,32 +1,13 @@
 import { useEffect, useRef, useState, type Ref } from "react";
 import { convertFileSrc } from "@tauri-apps/api/core";
-import { listen } from "@tauri-apps/api/event";
 import { gradientFor } from "../lib/gradient";
 import { layerFor, layerKey, type Layer } from "../lib/background";
 import { useMotionOn } from "../lib/motion";
+import { useWindowVisible } from "../lib/windowVisible";
 import type { GameView } from "../types";
 
 interface Props {
   game: GameView | null;
-}
-
-/**
- * Видно ли окно. Уход в трей сообщает Rust (`tray::hide_main_window`), а
- * сворачивание страница видит сама через `visibilitychange` (спека §6.3).
- */
-function useWindowVisible(): boolean {
-  const [shown, setShown] = useState(true);
-  const [pageVisible, setPageVisible] = useState(() => document.visibilityState === "visible");
-  useEffect(() => {
-    const unlisten = listen<boolean>("window-visibility", (e) => setShown(e.payload));
-    const onVisibility = () => setPageVisible(document.visibilityState === "visible");
-    document.addEventListener("visibilitychange", onVisibility);
-    return () => {
-      void unlisten.then((stop) => stop());
-      document.removeEventListener("visibilitychange", onVisibility);
-    };
-  }, []);
-  return shown && pageVisible;
 }
 
 export default function GameArt({ game }: Props) {

@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
-import { listen } from "@tauri-apps/api/event";
 import CachedImage from "./CachedImage";
 import { shownBanners } from "../../lib/panel";
 import { progress, timeLeft } from "../../lib/time";
 import { useMotionOn } from "../../lib/motion";
+import { useWindowVisible } from "../../lib/windowVisible";
 import { useLang, useT, type Lang } from "../../i18n";
 import type { Banner } from "../../types";
 
@@ -32,7 +32,7 @@ export default function Banners({ banners, nowSec }: Props) {
   const [restart, setRestart] = useState(0);
   const [hovered, setHovered] = useState(false);
   const [focused, setFocused] = useState(false);
-  const [windowShown, setWindowShown] = useState(true);
+  const windowShown = useWindowVisible();
 
   // Сброс навешен на СОДЕРЖИМОЕ списка, а не на ссылку на массив.
   //
@@ -43,14 +43,7 @@ export default function Banners({ banners, nowSec }: Props) {
   const shownKey = shown.map((b) => `${b.gameId}:${b.startsAt}`).join("|");
   useEffect(() => setIndex(0), [shownKey]);
 
-  // Окно спрятано в трей — карусель стоит (спека этапа 7 §3.3).
-  useEffect(() => {
-    const unlisten = listen<boolean>("window-visibility", (e) => setWindowShown(e.payload));
-    return () => {
-      void unlisten.then((stop) => stop());
-    };
-  }, []);
-
+  // Окно спрятано в трей или свёрнуто — карусель стоит (спека этапа 7 §3.3).
   const count = shown.length;
   const paused = hovered || focused || !windowShown || !motion;
 
