@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { api } from "../lib/api";
 import { useT } from "../i18n";
 import { errorText } from "../i18n/errors";
@@ -13,13 +13,20 @@ interface Props {
    *  и значок пропажи исчезли (спека §3.4). */
   onFixed: () => void;
   disabled?: boolean;
+  /** Ошибка запуска из меню трея (спека этапа 7 §5) — показывается так же,
+   *  как ошибка кнопки. */
+  externalFailure?: string | null;
 }
 
-export default function PlayButton({ gameId, note, onLaunch, onFixed, disabled }: Props) {
+export default function PlayButton({ gameId, note, onLaunch, onFixed, disabled, externalFailure }: Props) {
   const [busy, setBusy] = useState(false);
   const [fixing, setFixing] = useState(false);
   const [failure, setFailure] = useState<string | null>(null);
   const t = useT();
+
+  useEffect(() => {
+    if (externalFailure) setFailure(externalFailure);
+  }, [externalFailure]);
 
   const click = async () => {
     setBusy(true);

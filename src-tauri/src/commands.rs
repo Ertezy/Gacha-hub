@@ -115,29 +115,35 @@ pub async fn get_config_dir(app: AppHandle) -> Result<String, String> {
     Ok(config::config_dir(&app)?.to_string_lossy().into_owned())
 }
 
-/// Запустить игру. `lastPlayed` пишется только после удачного старта.
-#[tauri::command]
-pub async fn launch_game(app: AppHandle, game_id: String) -> Result<String, AppError> {
-    let mut cfg = config::load(&app);
+/// Запуск игры и запоминание «последней» — общий путь для кнопки Play и
+/// меню трея (спека этапа 7 §5).
+pub fn launch_and_remember(app: &AppHandle, game_id: &str) -> Result<(), AppError> {
+    let mut cfg = config::load(app);
     let game = cfg
         .games
         .iter()
         .find(|g| g.id == game_id)
         .cloned()
-        .ok_or_else(|| AppError::with(code::GAME_NOT_FOUND, game_id.clone()))?;
+        .ok_or_else(|| AppError::with(code::GAME_NOT_FOUND, game_id.to_string()))?;
 
-    launch::launch(&app, &game)?;
+    launch::launch(app, &game)?;
 
-    cfg.last_played = Some(game_id.clone());
-    if let Err(e) = config::save(&app, &cfg) {
+    cfg.last_played = Some(game_id.to_string());
+    if let Err(e) = config::save(app, &cfg) {
         log::error!("[config] не удалось сохранить lastPlayed: {e}");
     }
 
     // Проверка трея и сообщение странице живут в одном месте.
     if cfg.behaviour.tray_on_launch {
-        crate::tray::hide_main_window(&app);
+        crate::tray::hide_main_window(app);
     }
+    Ok(())
+}
 
+/// Запустить игру. `lastPlayed` пишется только после удачного старта.
+#[tauri::command]
+pub async fn launch_game(app: AppHandle, game_id: String) -> Result<String, AppError> {
+    launch_and_remember(&app, &game_id)?;
     Ok(game_id)
 }
 
@@ -225,6 +231,7 @@ pub async fn add_game_from_scan(app: AppHandle, title: String) -> Result<String,
         found.exe_path,
     )?;
     save_config(&app, &cfg)?;
+    crate::tray::rebuild_menu(&app);
     Ok(id)
 }
 
@@ -256,7 +263,9 @@ where
     if !f(&mut cfg) {
         return Err(AppError::new(code::GAME_NOT_FOUND));
     }
-    save_config(app, &cfg)
+    save_config(app, &cfg)?;
+    crate::tray::rebuild_menu(app);
+    Ok(())
 }
 
 #[tauri::command]
@@ -272,6 +281,7 @@ pub async fn add_game(app: AppHandle, title: String, exe: String) -> Result<Stri
     let mut cfg = config::load(&app);
     let id = crate::library::add(&mut cfg, title, exe);
     save_config(&app, &cfg)?;
+    crate::tray::rebuild_menu(&app);
     Ok(id)
 }
 
@@ -411,7 +421,7 @@ pub async fn set_language(app: AppHandle, language: Language) -> Result<(), AppE
     let mut cfg = config::load(&app);
     cfg.language = language;
     save_config(&app, &cfg)?;
-    crate::tray::apply_language(&app, language);
+    crate::tray::rebuild_menu(&app);
     Ok(())
 }
 

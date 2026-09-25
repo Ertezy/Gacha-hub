@@ -21,6 +21,9 @@ export default function App() {
   const [hub, setHub] = useState<HubData | null>(null);
   const [error, setError] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  // Ошибка запуска из трея: держим отдельно от `error`, чтобы она показывалась
+  // у кнопки Play, а не общим баннером (спека этапа 7 §5).
+  const [trayFailure, setTrayFailure] = useState<{ gameId: string; text: string } | null>(null);
   // "loading" — пока не узнали, был ли уже первый запуск: не показывать
   // главный экран, чтобы не мигнуть им перед экраном первого запуска.
   const [screen, setScreen] = useState<Screen>("loading");
@@ -96,6 +99,18 @@ export default function App() {
       void unlisten.then((stop) => stop());
     };
   }, [reloadGames]);
+
+  // Запуск из трея не удался: окно уже открыто Rust — выбрать игру и
+  // показать ошибку у кнопки Play (спека этапа 7 §5).
+  useEffect(() => {
+    const unlisten = listen<{ gameId: string; error: unknown }>("tray-launch-failed", (e) => {
+      setSelectedId(e.payload.gameId);
+      setTrayFailure({ gameId: e.payload.gameId, text: errorText(currentT(), e.payload.error) });
+    });
+    return () => {
+      void unlisten.then((stop) => stop());
+    };
+  }, []);
 
   // Приложение живёт в трее днями: данные панели проверяются раз в 3 часа и
   // при возвращении окна, если с прошлой проверки прошёл час (спека сборщика §9).
@@ -210,6 +225,7 @@ export default function App() {
             note={launchNote(t, selected)}
             onLaunch={launch}
             onFixed={load}
+            externalFailure={trayFailure?.gameId === selected.id ? trayFailure.text : null}
           />
         )}
         {error && <div className="banner">{t.main.loadFailed(error)}</div>}

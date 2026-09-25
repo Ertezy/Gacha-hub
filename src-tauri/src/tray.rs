@@ -1,18 +1,103 @@
 //! Значок в трее и перехват закрытия окна.
 //!
-//! Меню намеренно состоит из двух пунктов. Запуск игр отсюда — отложенная
-//! возможность (§12 общей спеки, «удобство поверх работающего лаунчера»), и
-//! соблазн добавить её велик именно потому, что меню уже создано. Не добавлять.
+//! Меню: все игры в порядке дока, черта, «показать окно», «выход» (спека
+//! этапа 7 §5). Запуск игр из трея добавлен решением владельца на этапе 7 —
+//! раньше меню намеренно было из двух пунктов.
 
-use tauri::menu::{Menu, MenuItem};
+use serde::Serialize;
+use tauri::menu::{Menu, MenuItem, PredefinedMenuItem};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
 use tauri::{AppHandle, Emitter, Manager, Wry};
 
-use crate::config::{self, Language};
+use crate::config::{self, Game, Language};
+use crate::error::AppError;
 use crate::i18n;
 
 /// Событие для страницы: окно показано (`true`) или спрятано (`false`).
 pub const VISIBILITY_EVENT: &str = "window-visibility";
+
+/// Событие для страницы: запуск из трея не удался (спека этапа 7 §5).
+pub const TRAY_LAUNCH_FAILED: &str = "tray-launch-failed";
+
+const GAME_PREFIX: &str = "game:";
+
+/// Пункт меню — чистые данные, чтобы список проверялся без окна.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Entry {
+    Game { id: String, text: String, enabled: bool },
+    Separator,
+    Show(&'static str),
+    Quit(&'static str),
+}
+
+/// Все игры в порядке дока, черта, «показать окно», «выход». Игра без файла
+/// видна, но неактивна, с пометкой на языке интерфейса.
+pub fn entries(games: &[Game], lang: Language) -> Vec<Entry> {
+    let texts = i18n::tray(lang);
+    let mut list: Vec<Entry> = games
+        .iter()
+        .map(|g| {
+            let present = config::is_present(g);
+            let text = if present { g.title.clone() } else { format!("{} {}", g.title, texts.file_missing) };
+            Entry::Game { id: g.id.clone(), text, enabled: present }
+        })
+        .collect();
+    if !list.is_empty() {
+        list.push(Entry::Separator);
+    }
+    list.push(Entry::Show(texts.show));
+    list.push(Entry::Quit(texts.quit));
+    list
+}
+
+fn build_menu(app: &AppHandle) -> tauri::Result<Menu<Wry>> {
+    let cfg = config::load(app);
+    let menu = Menu::new(app)?;
+    for entry in entries(&cfg.games, cfg.language) {
+        match entry {
+            Entry::Game { id, text, enabled } => {
+                menu.append(&MenuItem::with_id(app, format!("{GAME_PREFIX}{id}"), text, enabled, None::<&str>)?)?
+            }
+            Entry::Separator => menu.append(&PredefinedMenuItem::separator(app)?)?,
+            Entry::Show(text) => menu.append(&MenuItem::with_id(app, "show", text, true, None::<&str>)?)?,
+            Entry::Quit(text) => menu.append(&MenuItem::with_id(app, "quit", text, true, None::<&str>)?)?,
+        }
+    }
+    Ok(menu)
+}
+
+/// Пересобирает меню: после любой записи списка игр и после смены языка.
+/// Без трея — ничего не делает.
+pub fn rebuild_menu(app: &AppHandle) {
+    let Some(tray) = app.tray_by_id("main") else {
+        return;
+    };
+    match build_menu(app) {
+        Ok(menu) => {
+            let _ = tray.set_menu(Some(menu));
+        }
+        Err(e) => log::error!("[tray] не удалось пересобрать меню: {e}"),
+    }
+}
+
+#[derive(Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct TrayLaunchFailed {
+    game_id: String,
+    error: AppError,
+}
+
+/// Запуск из трея — в своём потоке, чтобы меню не ждало. Неудача: окно
+/// открывается, страница показывает ошибку у кнопки Play.
+fn launch_from_tray(app: &AppHandle, game_id: String) {
+    let app = app.clone();
+    std::thread::spawn(move || {
+        if let Err(error) = crate::commands::launch_and_remember(&app, &game_id) {
+            restore(&app);
+            let _ = app.emit(TRAY_LAUNCH_FAILED, TrayLaunchFailed { game_id, error });
+        }
+    });
+}
 
 /// Прячет главное окно. Единственное место в приложении, где это делается.
 ///
@@ -37,28 +122,8 @@ pub fn hide_main_window(app: &AppHandle) -> bool {
     true
 }
 
-/// Пункты меню трея — чтобы переименовать их при смене языка без перезапуска.
-pub struct TrayMenu {
-    show: MenuItem<Wry>,
-    quit: MenuItem<Wry>,
-}
-
-/// Переименовывает пункты меню на новый язык. Без трея — ничего не делает.
-pub fn apply_language(app: &AppHandle, lang: Language) {
-    let Some(menu) = app.try_state::<TrayMenu>() else {
-        return;
-    };
-    let texts = i18n::tray(lang);
-    let _ = menu.show.set_text(texts.show);
-    let _ = menu.quit.set_text(texts.quit);
-}
-
 pub fn setup(app: &AppHandle) -> tauri::Result<()> {
-    let texts = i18n::tray(config::load(app).language);
-    let show = MenuItem::with_id(app, "show", texts.show, true, None::<&str>)?;
-    let quit = MenuItem::with_id(app, "quit", texts.quit, true, None::<&str>)?;
-    let menu = Menu::with_items(app, &[&show, &quit])?;
-    app.manage(TrayMenu { show: show.clone(), quit: quit.clone() });
+    let menu = build_menu(app)?;
 
     // Мягкий отказ вместо паники: без значка не собрать окно, но приложение
     // не обязано падать — оно просто останется без трея (см. lib.rs).
@@ -76,7 +141,11 @@ pub fn setup(app: &AppHandle) -> tauri::Result<()> {
         .on_menu_event(|app, event| match event.id.as_ref() {
             "show" => restore(app),
             "quit" => app.exit(0),
-            _ => {}
+            id => {
+                if let Some(game_id) = id.strip_prefix(GAME_PREFIX) {
+                    launch_from_tray(app, game_id.to_string());
+                }
+            }
         })
         .on_tray_icon_event(|tray, event| {
             // Возврат окна — обычный левый клик по значку (§8 общей спеки).
@@ -100,5 +169,61 @@ pub fn restore(app: &AppHandle) {
         let _ = window.unminimize();
         let _ = window.set_focus();
         let _ = app.emit(VISIBILITY_EVENT, true);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::config::{Game, Language, Launch};
+
+    fn game(id: &str, title: &str, exe: Option<&str>) -> Game {
+        Game {
+            id: id.into(),
+            title: title.into(),
+            content_id: None,
+            launch: Launch::Exe,
+            install_path: None,
+            exe_path: exe.map(std::path::PathBuf::from),
+            args: String::new(),
+            background: None,
+            icon: None,
+            video: None,
+        }
+    }
+
+    #[test]
+    fn games_come_first_in_dock_order_then_show_and_quit() {
+        let exe = std::env::current_exe().unwrap();
+        let exe = exe.to_str().unwrap();
+        let list = entries(&[game("a", "Alpha", Some(exe)), game("b", "Beta", Some(exe))], Language::En);
+        assert_eq!(
+            list,
+            vec![
+                Entry::Game { id: "a".into(), text: "Alpha".into(), enabled: true },
+                Entry::Game { id: "b".into(), text: "Beta".into(), enabled: true },
+                Entry::Separator,
+                Entry::Show("Show window"),
+                Entry::Quit("Quit"),
+            ]
+        );
+    }
+
+    #[test]
+    fn a_game_without_its_file_is_disabled_and_marked_in_the_language() {
+        let missing = game("m", "Gone", Some(r"C:\nope\never\gone.exe"));
+        assert_eq!(
+            entries(&[missing.clone()], Language::En)[0],
+            Entry::Game { id: "m".into(), text: "Gone — file not found".into(), enabled: false }
+        );
+        assert_eq!(
+            entries(&[missing], Language::Ru)[0],
+            Entry::Game { id: "m".into(), text: "Gone — файл не найден".into(), enabled: false }
+        );
+    }
+
+    #[test]
+    fn no_games_means_no_separator() {
+        assert_eq!(entries(&[], Language::Ru), vec![Entry::Show("Показать окно"), Entry::Quit("Выход")]);
     }
 }
