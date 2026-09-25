@@ -38,6 +38,7 @@ export const ru: Dictionary = {
     previousBanner: "Предыдущий баннер",
     nextBanner: "Следующий баннер",
     bannerDot: (i: number, n: number) => `Баннер ${i} из ${n}`,
+    soonIn: (time: string) => `Скоро · через ${time}`,
     videos: "Видео",
     premiere: "премьера",
   },

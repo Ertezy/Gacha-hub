@@ -36,6 +36,7 @@ export const en = {
     previousBanner: "Previous banner",
     nextBanner: "Next banner",
     bannerDot: (i: number, n: number) => `Banner ${i} of ${n}`,
+    soonIn: (time: string) => `Soon · in ${time}`,
     videos: "Videos",
     premiere: "premiere",
   },

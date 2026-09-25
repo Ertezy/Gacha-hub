@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { activeCodes, dataStatus, panelIsEmpty, runningBanners, videosFor } from "./panel";
+import { activeCodes, dataStatus, panelIsEmpty, runningBanners, shownBanners, videosFor } from "./panel";
 import { en } from "../i18n/en";
 import { ru } from "../i18n/ru";
 import type { Banner, Code, HubData, Video } from "../types";
@@ -115,5 +115,25 @@ describe("видео по языку", () => {
   it("нет ни выбранного языка, ни английских — идут любые видео игры", () => {
     const all = [v("a", "hsr", "ja"), v("b", "zzz", "en")];
     expect(videosFor(all, "hsr", "en").map((x) => x.title)).toEqual(["a"]);
+  });
+});
+
+describe("баннеры в карусели", () => {
+  const b = (title: string, startsAt: number, endsAt: number) =>
+    ({ gameId: "hsr", title, featured: [], rarity: 5, image: null, startsAt, endsAt, url: null });
+
+  it("сначала идущие — ближайшие к концу, потом будущие — ближайшие к началу; кончившихся нет", () => {
+    const now = 1000;
+    const list = [b("late-end", 0, 5000), b("soon-end", 500, 2000), b("far", 4000, 9000), b("near", 1500, 9000), b("over", 0, 900)];
+    expect(shownBanners(list, now).map((x) => x.title)).toEqual(["soon-end", "late-end", "near", "far"]);
+  });
+
+  it("одни будущие баннеры — панель не пуста", () => {
+    expect(panelIsEmpty([], [b("next", 2000, 3000)], [], 1000)).toBe(false);
+  });
+
+  it("метка будущего баннера на обоих языках", () => {
+    expect(en.panel.soonIn("3 days")).toBe("Soon · in 3 days");
+    expect(ru.panel.soonIn("3 дня")).toBe("Скоро · через 3 дня");
   });
 });

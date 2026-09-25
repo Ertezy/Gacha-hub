@@ -15,9 +15,21 @@ export function runningBanners(banners: Banner[], nowSec: number): Banner[] {
 }
 
 /**
+ * Баннеры для карусели (спека этапа 7 §3.1): сначала идущие — ближайшие к
+ * окончанию первыми, затем будущие — ближайшие к началу первыми. Кончившиеся
+ * не показываются.
+ */
+export function shownBanners(banners: Banner[], nowSec: number): Banner[] {
+  const running = runningBanners(banners, nowSec).sort((a, b) => a.endsAt - b.endsAt);
+  const upcoming = banners.filter((b) => b.startsAt > nowSec).sort((a, b) => a.startsAt - b.startsAt);
+  return [...running, ...upcoming];
+}
+
+/**
  * Панели нечего показать (спека этапа 5, §8). Считается теми же функциями,
  * которыми секции решают, рисоваться ли: отдельная проверка разошлась бы с ними,
  * и панель то молчала бы при пустых секциях, то писала «пусто» под кодами.
+ * Будущие баннеры тоже считаются содержимым (этап 7).
  */
 export function panelIsEmpty(
   codes: Code[],
@@ -27,7 +39,7 @@ export function panelIsEmpty(
 ): boolean {
   return (
     activeCodes(codes, nowSec).length === 0 &&
-    runningBanners(banners, nowSec).length === 0 &&
+    shownBanners(banners, nowSec).length === 0 &&
     videos.length === 0
   );
 }
