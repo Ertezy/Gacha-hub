@@ -23,12 +23,17 @@ export default function FirstRunView({ onDone }: Props) {
   async function chooseLanguage(next: Lang) {
     const before = currentLang();
     setLanguage(next);
+    // Тот же busy, что блокирует кнопки ниже: переключатель не должен принять
+    // второй клик, пока этот запрос или другое сохранение ещё выполняется.
+    setBusy(true);
     try {
       await api.setLanguage(next);
       setError("");
     } catch (e) {
       setLanguage(before);
       setError(errorText(dictionary(before), e));
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -104,6 +109,7 @@ export default function FirstRunView({ onDone }: Props) {
           options={LANGS.map((l) => ({ value: l, label: LANG_SHORT[l] }))}
           value={lang}
           label={LANGUAGE_BLOCK_TITLE}
+          disabled={busy}
           onChange={(next) => void chooseLanguage(next)}
         />
       </div>

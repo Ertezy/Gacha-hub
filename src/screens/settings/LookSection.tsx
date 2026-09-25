@@ -29,24 +29,32 @@ export default function LookSection() {
   async function chooseLanguage(next: Lang) {
     const before = currentLang();
     setLanguage(next);
+    // Тот же busy, что блокирует кнопки фонов: переключатель языка не должен
+    // принять второй клик, пока это или другое сохранение ещё выполняется.
+    setBusy(true);
     try {
       await api.setLanguage(next);
       setError("");
     } catch (e) {
       setLanguage(before);
       setError(errorText(dictionary(before), e));
+    } finally {
+      setBusy(false);
     }
   }
 
   async function chooseVideoLanguage(next: VideoLang) {
     const before = videoLanguage();
     setVideoLanguage(next);
+    setBusy(true);
     try {
       await api.setVideoLanguage(next);
       setError("");
     } catch (e) {
       setVideoLanguage(before);
       setError(errorText(t, e));
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -135,6 +143,7 @@ export default function LookSection() {
               options={LANGS.map((l) => ({ value: l, label: LANG_NAMES[l] }))}
               value={lang}
               label={t.language.interface}
+              disabled={busy}
               onChange={(next) => void chooseLanguage(next)}
             />
           </div>
@@ -148,6 +157,7 @@ export default function LookSection() {
               options={VIDEO_LANGS.map((l) => ({ value: l, label: VIDEO_LANG_NAMES[l] }))}
               value={videoLang}
               label={t.language.video}
+              disabled={busy}
               onChange={(next) => void chooseVideoLanguage(next)}
             />
           </div>
