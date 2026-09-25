@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { REFRESH_EVERY_MS, REFRESH_ON_SHOW_AFTER_MS, sameHub, shouldRefreshOnShow } from "./hubRefresh";
+import { REFRESH_EVERY_MS, REFRESH_ON_SHOW_AFTER_MS, ONLINE_REFRESH_AFTER_MS, sameHub, shouldRefreshOnShow, shouldRefreshOnOnline } from "./hubRefresh";
 import type { HubData } from "../types";
 
 const hub = (updatedAt: number): HubData => ({
@@ -17,6 +17,12 @@ describe("hubRefresh", () => {
     expect(REFRESH_EVERY_MS).toBe(10_800_000);
     expect(shouldRefreshOnShow(0, REFRESH_ON_SHOW_AFTER_MS - 1)).toBe(false);
     expect(shouldRefreshOnShow(0, REFRESH_ON_SHOW_AFTER_MS)).toBe(true);
+  });
+
+  it("при появлении сети проверяет, если с прошлой проверки прошло больше минуты", () => {
+    expect(ONLINE_REFRESH_AFTER_MS).toBe(60_000);
+    expect(shouldRefreshOnOnline(0, 60_000)).toBe(false);
+    expect(shouldRefreshOnOnline(0, 60_001)).toBe(true);
   });
 
   it("одинаковые данные не считаются новыми", () => {

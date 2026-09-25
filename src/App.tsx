@@ -3,7 +3,7 @@ import { listen } from "@tauri-apps/api/event";
 import { api } from "./lib/api";
 import { launchNote } from "./lib/launch";
 import { setMotion } from "./lib/motion";
-import { REFRESH_EVERY_MS, sameHub, shouldRefreshOnShow } from "./lib/hubRefresh";
+import { REFRESH_EVERY_MS, sameHub, shouldRefreshOnShow, shouldRefreshOnOnline } from "./lib/hubRefresh";
 import SidePanel from "./components/SidePanel";
 import GameArt from "./components/GameArt";
 import PlayButton from "./components/PlayButton";
@@ -111,10 +111,15 @@ export default function App() {
       if (document.visibilityState === "visible") onShown();
     };
     document.addEventListener("visibilitychange", onVisibility);
+    const onOnline = () => {
+      if (shouldRefreshOnOnline(lastHubCheck.current, Date.now())) void refreshHub();
+    };
+    window.addEventListener("online", onOnline);
     return () => {
       window.clearInterval(timer);
       void unlisten.then((stop) => stop());
       document.removeEventListener("visibilitychange", onVisibility);
+      window.removeEventListener("online", onOnline);
     };
   }, [refreshHub]);
 

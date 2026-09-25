@@ -10,6 +10,15 @@ export function shouldRefreshOnShow(lastCheckMs: number, nowMs: number): boolean
   return nowMs - lastCheckMs >= REFRESH_ON_SHOW_AFTER_MS;
 }
 
+/** Сеть появилась — данные проверяются, если с прошлой проверки прошло больше
+ *  минуты (спека этапа 7 §4.4): автозапуск мог стартовать раньше, чем
+ *  подключился Wi-Fi. */
+export const ONLINE_REFRESH_AFTER_MS = 60 * 1000;
+
+export function shouldRefreshOnOnline(lastCheckMs: number, nowMs: number): boolean {
+  return nowMs - lastCheckMs > ONLINE_REFRESH_AFTER_MS;
+}
+
 /** Те же ли данные. Сервер ответил «не изменилось» — панель перерисовывать незачем. */
 export function sameHub(a: HubData | null, b: HubData | null): boolean {
   return JSON.stringify(a) === JSON.stringify(b);
