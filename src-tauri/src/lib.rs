@@ -19,8 +19,20 @@ mod storeart;
 mod tray;
 mod vdf;
 
+use std::sync::{Arc, Mutex};
+
 use tauri::Manager;
 use tauri_plugin_window_state::StateFlags;
+
+/// Слот на время между стартом ответчика и появлением `AppHandle`: значок
+/// трея и окно ещё не созданы, когда мог прийти первый запрос показать окно
+/// (спека этапа 7 §4.3). Пока `handle` нет, запрос откладывается в `pending`
+/// и выполняется, как только `setup()` отдаст сюда `AppHandle`.
+#[derive(Default)]
+struct ShowSlot {
+    handle: Option<tauri::AppHandle>,
+    pending: bool,
+}
 
 /// Дополняет уже существующие записи данными из манифестов магазинов (важно
 /// для тех, что перенеслись из v1 без данных о запуске: см.
@@ -43,14 +55,32 @@ fn sync_games_with_stores(app: &tauri::AppHandle) {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    let identity = instance::current_identity();
     // Второй запуск передаёт просьбу показать окно первому и закрывается
     // (спека этапа 7 §4.3).
-    let listener = match instance::claim(instance::PORT) {
+    let listener = match instance::claim(instance::PORT, &identity) {
         instance::Start::Handed => return,
         instance::Start::First(listener) => Some(listener),
         instance::Start::Alone => None,
     };
     let autostarted = autostart::launched_by(std::env::args());
+
+    // Отвечать на просьбы показать окно начинаем сразу здесь, а не в конце
+    // setup(): второй экземпляр ждёт ответа всего 500 мс (`instance::WAIT`),
+    // а до трея и окна путь длиннее — WebView2, сканирование магазинов, чистка
+    // кеша картинок. `AppHandle` появится только в setup(), поэтому до тех пор
+    // запрос просто откладывается в `ShowSlot::pending`.
+    let show_slot: Arc<Mutex<ShowSlot>> = Arc::default();
+    if let Some(listener) = listener {
+        let slot = show_slot.clone();
+        instance::serve(listener, identity, move || {
+            let mut slot = slot.lock().unwrap();
+            match &slot.handle {
+                Some(handle) => tray::restore(handle),
+                None => slot.pending = true,
+            }
+        });
+    }
 
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
@@ -101,15 +131,19 @@ pub fn run() {
                     false
                 }
             };
-            // Окно создаётся скрытым (tauri.conf.json). Показать его, если это не
-            // автозапуск — или если трея нет: иначе приложение было бы нечем
-            // вернуть (спека этапа 7 §4.2).
-            if !autostarted || !tray_ok {
+            // Отдаём AppHandle в слот и забираем просьбу показать окно, если
+            // она успела прийти, пока ответчик ещё не мог её выполнить.
+            let pending = {
+                let mut slot = show_slot.lock().unwrap();
+                slot.handle = Some(handle.clone());
+                std::mem::take(&mut slot.pending)
+            };
+            // Окно создаётся скрытым (tauri.conf.json). Показать его, если это
+            // не автозапуск, если трея нет, или если во время старта уже
+            // пришла просьба показать окно — иначе приложение было бы нечем
+            // вернуть (спека этапа 7 §4.2, §4.3).
+            if !autostarted || !tray_ok || pending {
                 tray::restore(&handle);
-            }
-            if let Some(listener) = listener {
-                let shown = handle.clone();
-                instance::serve(listener, move || tray::restore(&shown));
             }
             if let Ok(exe) = std::env::current_exe() {
                 autostart::refresh_path(&exe);
