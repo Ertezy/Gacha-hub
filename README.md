@@ -34,7 +34,12 @@ source. A different address can be set in Settings → Data → Data source URL.
 ## Building from source
 
 Requirements: Node.js 24, Rust (stable, MSVC toolchain) and the Tauri 2 prerequisites
-for Windows.
+for Windows (https://tauri.app/start/prerequisites/). On a clean machine:
+
+    winget install Rustlang.Rustup
+    winget install Microsoft.VisualStudio.2022.BuildTools --override "add --wait --passive --modify Microsoft.VisualStudio.Workload.VCTools --includeRecommended"
+
+Then:
 
     npm install
     npm run tauri dev      # run with hot reload
