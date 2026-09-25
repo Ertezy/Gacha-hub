@@ -41,11 +41,21 @@ pub fn effective_url(hub_url: Option<&str>) -> &str {
     }
 }
 
+/// Формат кеша: меняется при любой правке `HubData`/`Video`, из-за которой
+/// уже записанный кеш перестаёт годиться как есть. Сборка, не знавшая об этом
+/// поле (до появления `lang` у видео), пишет метку без него — при разборе оно
+/// читается как 0 и не совпадает с текущим значением, поэтому `etag_for`
+/// такую метку отдаёт как несуществующую.
+const CACHE_FORMAT: u32 = 2;
+
 /// Метка версии последнего удачного ответа и адрес, для которого она получена.
 #[derive(Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 struct CacheMeta {
     url: String,
     etag: Option<String>,
+    /// Отсутствует в файле — читается как 0, что не равно `CACHE_FORMAT`.
+    #[serde(default)]
+    format: u32,
 }
 
 fn read_meta(path: &Path) -> Option<CacheMeta> {
@@ -58,10 +68,14 @@ fn write_meta(path: &Path, meta: &CacheMeta) {
     }
 }
 
-/// Метка отправляется только тому адресу, от которого пришла: после смены
-/// адреса в настройках чужая метка дала бы ложное «не изменилось».
+/// Метка отправляется только тому адресу, от которого пришла, и только если
+/// кеш записан текущим форматом: после смены адреса в настройках чужая метка
+/// дала бы ложное «не изменилось», а метка от старого формата означает кеш
+/// без полей, которые умеет читать нынешняя сборка (например, без `lang` у
+/// видео) — его нельзя молча выдавать за актуальный.
 fn etag_for<'a>(meta: Option<&'a CacheMeta>, url: &str) -> Option<&'a str> {
-    meta.filter(|m| m.url == url).and_then(|m| m.etag.as_deref())
+    meta.filter(|m| m.url == url && m.format == CACHE_FORMAT)
+        .and_then(|m| m.etag.as_deref())
 }
 
 /// Пишет свежий ответ в кеш и, только если это удалось, — метку версии рядом.
@@ -82,7 +96,7 @@ fn store_fresh(cache_path: &Path, meta_path: &Path, url: &str, data: &HubData, e
     if fs::write(cache_path, json).is_err() {
         return;
     }
-    write_meta(meta_path, &CacheMeta { url: url.to_string(), etag });
+    write_meta(meta_path, &CacheMeta { url: url.to_string(), etag, format: CACHE_FORMAT });
 }
 
 enum Remote {
@@ -468,7 +482,7 @@ mod tests {
 
     #[test]
     fn a_version_tag_is_sent_only_for_the_address_it_came_from() {
-        let meta = CacheMeta { url: DEFAULT_HUB_URL.to_string(), etag: Some("\"v1\"".to_string()) };
+        let meta = CacheMeta { url: DEFAULT_HUB_URL.to_string(), etag: Some("\"v1\"".to_string()), format: CACHE_FORMAT };
         assert_eq!(etag_for(Some(&meta), DEFAULT_HUB_URL), Some("\"v1\""));
         assert_eq!(etag_for(Some(&meta), "https://example.test/hub.json"), None);
         assert_eq!(etag_for(None, DEFAULT_HUB_URL), None);
@@ -478,11 +492,38 @@ mod tests {
     fn cache_meta_survives_a_round_trip_and_garbage_reads_as_none() {
         let dir = temp_hub_dir("meta");
         let path = dir.join("hub_cache.meta.json");
-        let meta = CacheMeta { url: DEFAULT_HUB_URL.to_string(), etag: Some("\"v2\"".to_string()) };
+        let meta = CacheMeta { url: DEFAULT_HUB_URL.to_string(), etag: Some("\"v2\"".to_string()), format: CACHE_FORMAT };
         write_meta(&path, &meta);
         assert_eq!(read_meta(&path), Some(meta));
         std::fs::write(&path, "{broken").unwrap();
         assert_eq!(read_meta(&path), None);
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn a_meta_without_a_format_field_gives_no_etag_even_for_the_same_url() {
+        // Ровно та метка, что осталась бы на диске от сборки до этой правки:
+        // поля format в ней никогда не было. serde читает его как 0, что не
+        // совпадает с CACHE_FORMAT, — значит метка не уйдёт на сервер, и
+        // первый запрос после обновления вернёт полный файл, а не 304 на
+        // кеш без lang у видео.
+        let json = format!(r#"{{"url":"{DEFAULT_HUB_URL}","etag":"\"old\""}}"#);
+        let meta: CacheMeta = serde_json::from_str(&json).expect("это валидный JSON без format");
+        assert_eq!(meta.format, 0);
+        assert_eq!(etag_for(Some(&meta), DEFAULT_HUB_URL), None);
+    }
+
+    #[test]
+    fn a_meta_written_by_store_fresh_gives_the_etag_back() {
+        let dir = temp_hub_dir("format-roundtrip");
+        let cache_path = dir.join("hub_cache.json");
+        let meta_path = dir.join("hub_cache.meta.json");
+
+        store_fresh(&cache_path, &meta_path, DEFAULT_HUB_URL, &data(4), Some("\"tag4\"".to_string()));
+
+        let meta = read_meta(&meta_path).expect("метка обязана записаться");
+        assert_eq!(meta.format, CACHE_FORMAT);
+        assert_eq!(etag_for(Some(&meta), DEFAULT_HUB_URL), Some("\"tag4\""));
         std::fs::remove_dir_all(&dir).ok();
     }
 
@@ -498,7 +539,7 @@ mod tests {
         let dir = temp_hub_dir("meta-guard");
         let cache_path = dir.join("nonexistent").join("hub_cache.json");
         let meta_path = dir.join("hub_cache.meta.json");
-        let old_meta = CacheMeta { url: DEFAULT_HUB_URL.to_string(), etag: Some("\"old\"".to_string()) };
+        let old_meta = CacheMeta { url: DEFAULT_HUB_URL.to_string(), etag: Some("\"old\"".to_string()), format: CACHE_FORMAT };
         write_meta(&meta_path, &old_meta);
 
         store_fresh(&cache_path, &meta_path, DEFAULT_HUB_URL, &data(3), Some("\"new\"".to_string()));
