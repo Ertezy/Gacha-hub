@@ -29,7 +29,7 @@ describe("текст ошибки", () => {
       "gameNotFound", "fileMissing", "exePathMissing", "argsUnclosedQuote", "exeStartFailed",
       "steamOpenFailed", "epicOpenFailed", "emptyTitle", "hubUrlNotHttps", "videoPickFailed",
       "videoWrongFormat", "videoFileMissing", "videoTooLarge",
-      "cacheReadFailed", "logFolderMissing", "openFolderFailed", "configSaveFailed", "internal",
+      "cacheReadFailed", "logFolderMissing", "openFolderFailed", "configSaveFailed", "autostartFailed", "internal",
     ];
     for (const code of codes) {
       const english = errorText(en, { code, detail: "d" });

@@ -91,6 +91,7 @@ export const en = {
     logFolderMissing: (d?: string) => (d ? `The log folder was not found: ${d}` : "The log folder was not found"),
     openFolderFailed: (d?: string) => (d ? `Couldn't open the folder: ${d}` : "Couldn't open the folder"),
     configSaveFailed: (d?: string) => (d ? `Couldn't save the settings: ${d}` : "Couldn't save the settings"),
+    autostartFailed: (d?: string) => (d ? `Couldn't change autostart: ${d}` : "Couldn't change autostart"),
   },
   // Экран настроек и первый запуск (спека этапа 6, Task 6). Термины — по
   // глоссарию §4.5; повторяющиеся надписи (вкладки, «Дополнительно»,
@@ -152,7 +153,8 @@ export const en = {
       closeToTrayHint: "The app keeps running; bring the window back from the tray icon.",
       trayOnLaunch: "Hide to tray after launching a game",
       trayOnLaunchHint: "The window doesn't get in the game's way.",
-      autostartNote: "Autostart with Windows is coming in a future update.",
+      autostart: "Launch with Windows",
+      autostartHint: "Starts hidden in the tray and keeps codes and banners fresh.",
     },
     data: {
       refreshNow: "Refresh now",

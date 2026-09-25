@@ -19,6 +19,24 @@ function Behaviours() {
     void api.getBehaviour().then(setB);
   }, []);
 
+  const [autostart, setAutostart] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    void api.getAutostart().then(setAutostart).catch(() => setAutostart(false));
+  }, []);
+
+  // Как и галочки выше: переключается сразу, откатывается, если запись в
+  // реестр не прошла.
+  const toggleAutostart = (next: boolean) => {
+    const prev = autostart;
+    setAutostart(next);
+    setError("");
+    void api.setAutostart(next).catch((e) => {
+      setError(errorText(t, e));
+      setAutostart(prev);
+    });
+  };
+
   if (!b) return null;
 
   // Галочка переключается сразу, для отзывчивости. Но если запись в конфиг
@@ -67,8 +85,21 @@ function Behaviours() {
             />
           </div>
         </div>
+        <div className="settings-row">
+          <div className="settings-row-text">
+            <span className="settings-row-title">{t.settings.behaviour.autostart}</span>
+            <span className="settings-row-hint">{t.settings.behaviour.autostartHint}</span>
+          </div>
+          <div className="settings-row-control">
+            <Switch
+              checked={autostart === true}
+              label={t.settings.behaviour.autostart}
+              disabled={autostart === null}
+              onChange={toggleAutostart}
+            />
+          </div>
+        </div>
       </div>
-      <p className="settings-note">{t.settings.behaviour.autostartNote}</p>
     </div>
   );
 }

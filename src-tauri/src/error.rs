@@ -24,6 +24,7 @@ pub mod code {
     pub const LOG_FOLDER_MISSING: &str = "logFolderMissing";
     pub const OPEN_FOLDER_FAILED: &str = "openFolderFailed";
     pub const CONFIG_SAVE_FAILED: &str = "configSaveFailed";
+    pub const AUTOSTART_FAILED: &str = "autostartFailed";
     pub const INTERNAL: &str = "internal";
 }
 

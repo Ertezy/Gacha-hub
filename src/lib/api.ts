@@ -84,6 +84,8 @@ export const api = {
   setLanguage: (language: Lang) => invoke<void>("set_language", { language }),
   getVideoLanguage: () => invoke<VideoLang>("get_video_language"),
   setVideoLanguage: (language: VideoLang) => invoke<void>("set_video_language", { language }),
+  getAutostart: () => invoke<boolean>("get_autostart"),
+  setAutostart: (enabled: boolean) => invoke<void>("set_autostart", { enabled }),
 
   /** Проверяет выбранный файл видео (формат, вес) и разрешает окну читать его. */
   checkVideo: (path: string) => invoke<void>("check_video", { path }),

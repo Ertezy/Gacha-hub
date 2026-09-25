@@ -430,6 +430,22 @@ pub async fn set_video_language(
     save_config(&app, &cfg)
 }
 
+/// Включён ли автозапуск — по реестру, а не по конфигу (спека этапа 7 §4.1).
+#[tauri::command]
+pub async fn get_autostart() -> bool {
+    crate::autostart::read().is_some()
+}
+
+#[tauri::command]
+pub async fn set_autostart(enabled: bool) -> Result<(), AppError> {
+    let result = if enabled {
+        std::env::current_exe().and_then(|exe| crate::autostart::enable(&exe))
+    } else {
+        crate::autostart::disable()
+    };
+    result.map_err(|e| AppError::with(code::AUTOSTART_FAILED, e.to_string()))
+}
+
 /// Проверяет выбранный файл видео и, если он годится, разрешает окну его
 /// прочитать — до записи в конфиг странице ещё нужно измерить размер кадра в
 /// точках, открыв файл детачнутым `<video>` (см. `LookSection.tsx`, §1.2).

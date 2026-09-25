@@ -1,4 +1,5 @@
 mod art;
+mod autostart;
 mod catalog;
 mod commands;
 mod config;
@@ -8,6 +9,7 @@ mod i18n;
 mod ico;
 mod icons;
 mod images;
+mod instance;
 mod launch;
 mod library;
 mod localcopy;
@@ -18,6 +20,7 @@ mod tray;
 mod vdf;
 
 use tauri::Manager;
+use tauri_plugin_window_state::StateFlags;
 
 /// Дополняет уже существующие записи данными из манифестов магазинов (важно
 /// для тех, что перенеслись из v1 без данных о запуске: см.
@@ -40,10 +43,25 @@ fn sync_games_with_stores(app: &tauri::AppHandle) {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    // Второй запуск передаёт просьбу показать окно первому и закрывается
+    // (спека этапа 7 §4.3).
+    let listener = match instance::claim(instance::PORT) {
+        instance::Start::Handed => return,
+        instance::Start::First(listener) => Some(listener),
+        instance::Start::Alone => None,
+    };
+    let autostarted = autostart::launched_by(std::env::args());
+
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
-        .plugin(tauri_plugin_window_state::Builder::default().build())
+        // Видимость окна решает код приложения (старт в трей при автозапуске,
+        // спека этапа 7 §4.2), плагин — только размер и положение.
+        .plugin(
+            tauri_plugin_window_state::Builder::default()
+                .with_state_flags(StateFlags::all() - StateFlags::VISIBLE)
+                .build(),
+        )
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(
             tauri_plugin_log::Builder::new()
@@ -62,7 +80,7 @@ pub fn run() {
                 .build(),
         )
         .manage(art::StoreArtDownloads::default())
-        .setup(|app| {
+        .setup(move |app| {
             sync_games_with_stores(&app.handle().clone());
             // Уборка кеша картинок при запуске: дёшево, и без неё папка
             // за год превращается в свалку.
@@ -72,11 +90,29 @@ pub fn run() {
                     log::info!("[images] убрано из кеша: {removed}");
                 }
             }
+            let handle = app.handle().clone();
             // Провал трея не должен мешать запуску: без значка крестик просто
             // закроет приложение вместо того, чтобы прятать его (см. tray.rs
             // и обработчик CloseRequested ниже).
-            if let Err(e) = tray::setup(&app.handle().clone()) {
-                log::error!("[tray] не удалось создать значок в трее: {e}");
+            let tray_ok = match tray::setup(&handle) {
+                Ok(()) => true,
+                Err(e) => {
+                    log::error!("[tray] не удалось создать значок в трее: {e}");
+                    false
+                }
+            };
+            // Окно создаётся скрытым (tauri.conf.json). Показать его, если это не
+            // автозапуск — или если трея нет: иначе приложение было бы нечем
+            // вернуть (спека этапа 7 §4.2).
+            if !autostarted || !tray_ok {
+                tray::restore(&handle);
+            }
+            if let Some(listener) = listener {
+                let shown = handle.clone();
+                instance::serve(listener, move || tray::restore(&shown));
+            }
+            if let Ok(exe) = std::env::current_exe() {
+                autostart::refresh_path(&exe);
             }
             Ok(())
         })
@@ -117,6 +153,8 @@ pub fn run() {
             commands::set_language,
             commands::get_video_language,
             commands::set_video_language,
+            commands::get_autostart,
+            commands::set_autostart,
             commands::check_video,
             commands::set_hub_url,
             commands::image_cache_size,
