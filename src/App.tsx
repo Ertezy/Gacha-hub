@@ -22,8 +22,12 @@ export default function App() {
   const [error, setError] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   // Ошибка запуска из трея: держим отдельно от `error`, чтобы она показывалась
-  // у кнопки Play, а не общим баннером (спека этапа 7 §5).
-  const [trayFailure, setTrayFailure] = useState<{ gameId: string; text: string } | null>(null);
+  // у кнопки Play, а не общим баннером (спека этапа 7 §5). `id` растёт с
+  // каждым провалом — иначе повторный провал того же текста не отличался бы
+  // от предыдущего и PlayButton не показал бы его снова (правка финальной
+  // ревизии этапа 7).
+  const [trayFailure, setTrayFailure] = useState<{ gameId: string; text: string; id: number } | null>(null);
+  const trayFailureId = useRef(0);
   // "loading" — пока не узнали, был ли уже первый запуск: не показывать
   // главный экран, чтобы не мигнуть им перед экраном первого запуска.
   const [screen, setScreen] = useState<Screen>("loading");
@@ -105,7 +109,8 @@ export default function App() {
   useEffect(() => {
     const unlisten = listen<{ gameId: string; error: unknown }>("tray-launch-failed", (e) => {
       setSelectedId(e.payload.gameId);
-      setTrayFailure({ gameId: e.payload.gameId, text: errorText(currentT(), e.payload.error) });
+      trayFailureId.current += 1;
+      setTrayFailure({ gameId: e.payload.gameId, text: errorText(currentT(), e.payload.error), id: trayFailureId.current });
     });
     return () => {
       void unlisten.then((stop) => stop());
@@ -235,7 +240,7 @@ export default function App() {
             note={launchNote(t, selected)}
             onLaunch={launch}
             onFixed={load}
-            externalFailure={trayFailure?.gameId === selected.id ? trayFailure.text : null}
+            externalFailure={trayFailure?.gameId === selected.id ? { id: trayFailure.id, text: trayFailure.text } : null}
           />
         )}
         {error && <div className="banner">{t.main.loadFailed(error)}</div>}

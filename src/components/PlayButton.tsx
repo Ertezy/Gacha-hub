@@ -14,8 +14,10 @@ interface Props {
   onFixed: () => void;
   disabled?: boolean;
   /** Ошибка запуска из меню трея (спека этапа 7 §5) — показывается так же,
-   *  как ошибка кнопки. */
-  externalFailure?: string | null;
+   *  как ошибка кнопки. `id` растёт с каждым новым провалом трея: без него
+   *  повторный провал того же текста не отличался бы от предыдущего и эффект
+   *  ниже не сработал бы повторно (правка финальной ревизии этапа 7). */
+  externalFailure?: { id: number; text: string } | null;
 }
 
 export default function PlayButton({ gameId, note, onLaunch, onFixed, disabled, externalFailure }: Props) {
@@ -25,8 +27,11 @@ export default function PlayButton({ gameId, note, onLaunch, onFixed, disabled, 
   const t = useT();
 
   useEffect(() => {
-    if (externalFailure) setFailure(externalFailure);
-  }, [externalFailure]);
+    if (externalFailure) setFailure(externalFailure.text);
+    // Зависимость только от `id`: тот же провал трея не должен переигрывать
+    // эффект при каждой перерисовке родителя, а новый — обязан, даже если
+    // текст ошибки совпал с прошлым разом.
+  }, [externalFailure?.id]);
 
   const click = async () => {
     setBusy(true);
