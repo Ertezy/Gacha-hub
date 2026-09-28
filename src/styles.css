@@ -144,6 +144,7 @@ body {
   font-size: 10px;
   color: var(--ink-dim);
   margin-top: 3px;
+  overflow-wrap: anywhere;
 }
 
 /* Прибита к низу: прокручивается только .panel-scroll над ней. */
@@ -589,6 +590,7 @@ body {
   white-space: nowrap;
   /* Название баннера — чистое содержимое, приглушённый розовый. */
   color: var(--content-soft);
+  overflow-wrap: anywhere;
 }
 .banner-left { flex: none; }
 
@@ -640,7 +642,8 @@ body {
 }
 .video-badge.premiere { background: #c0392b; }
 
-.video-title { font-size: 12.5px; margin-top: 6px; line-height: 1.35; }
+/* Слово из данных без пробелов должно переноситься, а не раздвигать панель. */
+.video-title { font-size: 12.5px; margin-top: 6px; line-height: 1.35; overflow-wrap: anywhere; }
 .video-meta { font-size: 11px; color: var(--ink-dim); margin-top: 3px; }
 
 /* Заглушка вместо картинки */

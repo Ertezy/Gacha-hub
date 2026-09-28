@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { api } from "../../lib/api";
-import { activeCodes } from "../../lib/panel";
+import { activeCodes, plainSpaces } from "../../lib/panel";
 import { burnsToday, timeLeft } from "../../lib/time";
 import { useLang, useT } from "../../i18n";
 import type { Code, HubGame } from "../../types";
@@ -86,7 +86,7 @@ export default function PromoCodes({ codes, games, nowSec }: Props) {
                       ? t.panel.expiresIn(timeLeft(c.expiresAt, nowSec, lang))
                       : t.panel.timeRemaining(timeLeft(c.expiresAt, nowSec, lang))}
                 </div>
-                {c.rewards && <div className="code-meta">{c.rewards}</div>}
+                {c.rewards && <div className="code-meta">{plainSpaces(c.rewards)}</div>}
                 {c.region !== "all" && (
                   <div className="code-region">{t.panel.regionOnly(c.region)}</div>
                 )}

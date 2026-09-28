@@ -87,6 +87,17 @@ export function codesFor(codes: Code[], gameId: string | null): Code[] {
   return gameId === null ? [] : codes.filter((c) => c.gameId === gameId);
 }
 
+/**
+ * Заменяет неразрывные и цифровые пробелы (U+00A0, U+2007, U+202F) обычным.
+ * Заголовки из данных коллектора бывают склеены такими пробелами: браузер не
+ * переносит строку между словами, весь заголовок становится одним нерезаемым
+ * куском и раздвигает панель вбок. Меняется только показываемый текст —
+ * ключи, ссылки и обработчики остаются на исходных данных.
+ */
+export function plainSpaces(text: string): string {
+  return text.replace(/[\u00A0\u2007\u202F]/g, " ");
+}
+
 /** Откуда пришли данные — словами, одинаковыми на панели и во «Данных». */
 export function sourceLabel(source: string | undefined, t: Dictionary): string {
   if (source === undefined) return "";

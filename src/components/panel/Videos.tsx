@@ -1,5 +1,6 @@
 import { api } from "../../lib/api";
 import CachedImage from "./CachedImage";
+import { plainSpaces } from "../../lib/panel";
 import { timeAgo } from "../../lib/time";
 import { useLang, useT } from "../../i18n";
 import type { Video } from "../../types";
@@ -50,7 +51,7 @@ export default function Videos({ videos, nowSec }: Props) {
           }}
         >
           <div className="video-thumb-wrap">
-            <CachedImage className="video-thumb" url={v.thumb} fallbackText={v.title} />
+            <CachedImage className="video-thumb" url={v.thumb} fallbackText={plainSpaces(v.title)} />
             {/* Значок рисуется только когда данные есть: лента RSS не даёт
                 ни длительности, ни отметки премьеры. */}
             {v.premiere ? (
@@ -59,7 +60,7 @@ export default function Videos({ videos, nowSec }: Props) {
               <span className="video-badge">{duration(v.duration)}</span>
             ) : null}
           </div>
-          <div className="video-title">{v.title}</div>
+          <div className="video-title">{plainSpaces(v.title)}</div>
           <div className="video-meta">{timeAgo(v.publishedAt, nowSec, lang)}</div>
         </div>
       ))}

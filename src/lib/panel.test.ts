@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { activeCodes, bannerKeys, codesFor, dataStatus, panelIsEmpty, runningBanners, shownBanners, videosFor } from "./panel";
+import { activeCodes, bannerKeys, codesFor, dataStatus, panelIsEmpty, plainSpaces, runningBanners, shownBanners, videosFor } from "./panel";
 import { en } from "../i18n/en";
 import { ru } from "../i18n/ru";
 import type { Banner, Code, HubData, Video } from "../types";
@@ -172,5 +172,29 @@ describe("bannerKeys", () => {
   it("тот же список — те же ключи", () => {
     const list = [b("A", 100, 200), b("A", 100, 200), b("B", 500, 600)];
     expect(bannerKeys(list)).toEqual(bannerKeys(list));
+  });
+});
+
+describe("plainSpaces", () => {
+  it("неразрывный пробел U+00A0 становится обычным", () => {
+    expect(plainSpaces("a\u00A0b")).toBe("a b");
+  });
+
+  it("цифровой пробел U+2007 становится обычным", () => {
+    expect(plainSpaces("a\u2007b")).toBe("a b");
+  });
+
+  it("узкий неразрывный пробел U+202F становится обычным", () => {
+    expect(plainSpaces("a\u202Fb")).toBe("a b");
+  });
+
+  it("настоящий заголовок из данных разбивается на слова", () => {
+    const title = "6th\u00A0Anniversary\u00A0Theme\u00A0Song:\u00A0\"A\u00A0Letter\u00A0From\u00A0the\u00A0Wind\"\u00A0|\u00A0Genshin\u00A0Impact\u00A0#GenshinImpact";
+    expect(plainSpaces(title)).toBe("6th Anniversary Theme Song: \"A Letter From the Wind\" | Genshin Impact #GenshinImpact");
+  });
+
+  it("обычный текст не меняется", () => {
+    expect(plainSpaces("Genshin Impact — 5★ banner, тест")).toBe("Genshin Impact — 5★ banner, тест");
+    expect(plainSpaces("")).toBe("");
   });
 });

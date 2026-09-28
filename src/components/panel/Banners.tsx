@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import CachedImage from "./CachedImage";
-import { bannerKeys, shownBanners } from "../../lib/panel";
+import { bannerKeys, plainSpaces, shownBanners } from "../../lib/panel";
 import { progress, timeLeft } from "../../lib/time";
 import { useMotionOn } from "../../lib/motion";
 import { useWindowVisible } from "../../lib/windowVisible";
@@ -143,10 +143,10 @@ function BannerCard({ banner: b, nowSec, lang, hidden }: CardProps) {
     <div className="carousel-slide" aria-hidden={hidden}>
       <div className="banner-card">
         <div className="banner-art-wrap">
-          <CachedImage className="banner-art" url={b.image} fallbackText={b.title} />
+          <CachedImage className="banner-art" url={b.image} fallbackText={plainSpaces(b.title)} />
           {b.featured.length > 0 && (
             <div className="banner-names">
-              <div className="banner-who">{b.featured.join(" · ")}</div>
+              <div className="banner-who">{plainSpaces(b.featured.join(" · "))}</div>
               {b.rarity !== null && <div className="banner-rarity">{b.rarity}★</div>}
             </div>
           )}
@@ -161,7 +161,7 @@ function BannerCard({ banner: b, nowSec, lang, hidden }: CardProps) {
             </div>
           )}
           <div className="banner-line">
-            <span className="banner-title">{b.title}</span>
+            <span className="banner-title">{plainSpaces(b.title)}</span>
             {!upcoming && <span className="banner-left">{timeLeft(b.endsAt, nowSec, lang)}</span>}
           </div>
         </div>
