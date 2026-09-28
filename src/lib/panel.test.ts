@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { activeCodes, bannerKeys, dataStatus, panelIsEmpty, runningBanners, shownBanners, videosFor } from "./panel";
+import { activeCodes, bannerKeys, codesFor, dataStatus, panelIsEmpty, runningBanners, shownBanners, videosFor } from "./panel";
 import { en } from "../i18n/en";
 import { ru } from "../i18n/ru";
 import type { Banner, Code, HubData, Video } from "../types";
@@ -115,6 +115,21 @@ describe("видео по языку", () => {
   it("нет ни выбранного языка, ни английских — идут любые видео игры", () => {
     const all = [v("a", "hsr", "ja"), v("b", "zzz", "en")];
     expect(videosFor(all, "hsr", "en").map((x) => x.title)).toEqual(["a"]);
+  });
+});
+
+describe("коды выбранной игры", () => {
+  const c = (gameId: string, name: string): Code => ({ ...code(null, name), gameId });
+
+  it("возвращаются только коды выбранной игры", () => {
+    const all = [c("hsr", "A"), c("zzz", "B"), c("hsr", "C")];
+    expect(codesFor(all, "hsr").map((x) => x.code)).toEqual(["A", "C"]);
+    expect(codesFor(all, "zzz").map((x) => x.code)).toEqual(["B"]);
+    expect(codesFor(all, "gi")).toEqual([]);
+  });
+
+  it("без выбранной игры — пустой список", () => {
+    expect(codesFor([c("hsr", "A")], null)).toEqual([]);
   });
 });
 

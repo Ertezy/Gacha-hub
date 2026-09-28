@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import PromoCodes from "./panel/PromoCodes";
 import Banners from "./panel/Banners";
 import Videos from "./panel/Videos";
-import { panelIsEmpty, sourceLabel, videosFor } from "../lib/panel";
+import { codesFor, panelIsEmpty, sourceLabel, videosFor } from "../lib/panel";
 import { hubFreshness } from "../lib/time";
 import { useLang, useT } from "../i18n";
 import { useVideoLanguage } from "../lib/videoLanguage";
@@ -10,9 +10,7 @@ import type { HubData } from "../types";
 
 interface Props {
   hub: HubData | null;
-  /** Идентификаторы контента для всех добавленных игр. */
-  contentIds: string[];
-  /** Игра, выбранная в доке. Баннеры и видео — только по ней. */
+  /** Игра, выбранная в доке. Коды, баннеры и видео — только по ней. */
   selectedContentId: string | null;
   /** Открыть экран настроек — вызывается по клику на шестерёнку. */
   onOpenSettings: () => void;
@@ -23,7 +21,7 @@ const DAY = 86400;
 /** Как часто пересчитывается «сейчас». */
 const TICK_MS = 30_000;
 
-export default function SidePanel({ hub, contentIds, selectedContentId, onOpenSettings }: Props) {
+export default function SidePanel({ hub, selectedContentId, onOpenSettings }: Props) {
   const lang = useLang();
   const t = useT();
   const videoLang = useVideoLanguage();
@@ -51,10 +49,9 @@ export default function SidePanel({ hub, contentIds, selectedContentId, onOpenSe
   // таймер на протухших данных — это враньё в лицо (спека §6).
   const tooOld = hub !== null && age > 7 * DAY;
 
-  const mine = (gameId: string) => contentIds.includes(gameId);
   const selected = (gameId: string) => gameId === selectedContentId;
 
-  const codes = !hub || tooOld ? [] : hub.codes.filter((c) => mine(c.gameId));
+  const codes = !hub || tooOld ? [] : codesFor(hub.codes, selectedContentId);
   const banners = !hub || tooOld ? [] : hub.banners.filter((b) => selected(b.gameId));
   // Видео остаются даже на протухших данных: устаревший список роликов
   // просто устаревший, он никого не обманывает.

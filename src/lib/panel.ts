@@ -77,6 +77,16 @@ export function videosFor(videos: Video[], gameId: string, lang: VideoLang): Vid
   return english.length > 0 ? english : ofGame;
 }
 
+/**
+ * Промокоды выбранной в доке игры; без выбранной игры — пусто. Так же, как
+ * баннеры и видео, а не по всем играм сразу: решение владельца на этапе 7
+ * (29 сентября), оно отменило решение этапа 2. Правило протухания данных
+ * здесь не проверяется — его держит панель.
+ */
+export function codesFor(codes: Code[], gameId: string | null): Code[] {
+  return gameId === null ? [] : codes.filter((c) => c.gameId === gameId);
+}
+
 /** Откуда пришли данные — словами, одинаковыми на панели и во «Данных». */
 export function sourceLabel(source: string | undefined, t: Dictionary): string {
   if (source === undefined) return "";

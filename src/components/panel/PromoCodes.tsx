@@ -12,11 +12,12 @@ interface Props {
 }
 
 /**
- * Промокоды — по всем играм сразу, отсортированные по сгоранию.
+ * Промокоды выбранной в доке игры, отсортированные по сгоранию.
  *
- * Не по выбранной игре, в отличие от баннеров и видео: код — это список
- * бесплатного, которое пропадает. Показывай мы только выбранную игру,
- * человек прозевал бы код, потому что кликает то, во что играет.
+ * Отбор по игре делает панель, как для баннеров и видео: такое решение
+ * владельца на этапе 7 (29 сентября), оно отменило решение этапа 2 «коды всех
+ * игр сразу». Поэтому на карточке нет значка игры. Список игр нужен только
+ * для ссылки «забрать»: шаблон адреса лежит в записи игры.
  */
 export default function PromoCodes({ codes, games, nowSec }: Props) {
   const [copied, setCopied] = useState<string | null>(null);
@@ -92,9 +93,6 @@ export default function PromoCodes({ codes, games, nowSec }: Props) {
               </div>
 
               <div className="code-side">
-                <span className="game-chip" title={game?.title ?? c.gameId}>
-                  {(game?.title ?? c.gameId).slice(0, 3).toUpperCase()}
-                </span>
                 <div className="code-buttons">
                   <button
                     type="button"

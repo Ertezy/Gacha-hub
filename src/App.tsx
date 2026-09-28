@@ -173,10 +173,6 @@ export default function App() {
     void load();
   }, [load]);
 
-  const contentIds = games
-    .map((g) => g.contentId)
-    .filter((id): id is string => id !== null);
-
   const selected = games.find((g) => g.id === selectedId) ?? games[0] ?? null;
 
   const select = useCallback((id: string) => {
@@ -224,7 +220,6 @@ export default function App() {
     <div className="screen">
       <SidePanel
         hub={hub}
-        contentIds={contentIds}
         selectedContentId={selected?.contentId ?? null}
         onOpenSettings={() => setScreen("settings")}
       />

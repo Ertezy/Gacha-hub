@@ -508,9 +508,9 @@ body {
   transition: none;
 }
 
-/* Коробка кодов: потолок и своя прокрутка. Коды показываются по всем играм
-   сразу, а игр может быть двадцать — без потолка список выдавил бы баннеры
-   и видео за нижний край панели (спека §2.4). */
+/* Коробка кодов: потолок и своя прокрутка. У одной игры кодов бывает
+   десяток, а без потолка список выдавил бы баннеры и видео за нижний край
+   панели (спека §2.4). */
 .codes-box {
   max-height: 260px;
   overflow-y: auto;
@@ -559,18 +559,6 @@ body {
   background: var(--accent);
   color: var(--accent-ink);
   border-color: transparent;
-}
-
-.game-chip {
-  width: 26px;
-  height: 26px;
-  border-radius: 6px;
-  background: rgba(255, 255, 255, 0.1);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 9px;
-  letter-spacing: 0.04em;
 }
 
 /* Баннер */
