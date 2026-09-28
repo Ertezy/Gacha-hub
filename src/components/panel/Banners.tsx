@@ -74,7 +74,13 @@ export default function Banners({ banners, nowSec }: Props) {
         className="carousel"
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
-        onFocus={() => setFocused(true)}
+        // Клик мышью тоже фокусирует кнопку в WebView2 и не шлёт focusout при
+        // уходе курсора — карусель встала бы навсегда после клика по стрелке
+        // или точке. Спека ставит на паузу только клавиатурный фокус, поэтому
+        // считаем его через :focus-visible (правка финальной ревизии этапа 7).
+        onFocus={(e) => {
+          if ((e.target as Element).matches(":focus-visible")) setFocused(true);
+        }}
         onBlur={(e) => {
           if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setFocused(false);
         }}
