@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { activeCodes, dataStatus, panelIsEmpty, runningBanners, shownBanners, videosFor } from "./panel";
+import { activeCodes, bannerKeys, dataStatus, panelIsEmpty, runningBanners, shownBanners, videosFor } from "./panel";
 import { en } from "../i18n/en";
 import { ru } from "../i18n/ru";
 import type { Banner, Code, HubData, Video } from "../types";
@@ -135,5 +135,27 @@ describe("баннеры в карусели", () => {
   it("метка будущего баннера на обоих языках", () => {
     expect(en.panel.soonIn("3 days")).toBe("Soon · in 3 days");
     expect(ru.panel.soonIn("3 дня")).toBe("Скоро · через 3 дня");
+  });
+});
+
+describe("bannerKeys", () => {
+  const b = (title: string, startsAt: number, endsAt: number) =>
+    ({ gameId: "hsr", title, featured: [], rarity: 5, image: null, startsAt, endsAt, url: null });
+
+  it("два баннера одной игры с общим стартом получают разные ключи", () => {
+    const list = [b("A", 100, 200), b("B", 100, 300)];
+    const keys = bannerKeys(list);
+    expect(keys[0]).not.toBe(keys[1]);
+  });
+
+  it("точные повторы (тот же заголовок тоже) тоже расходятся", () => {
+    const list = [b("A", 100, 200), b("A", 100, 200)];
+    const keys = bannerKeys(list);
+    expect(keys[0]).not.toBe(keys[1]);
+  });
+
+  it("тот же список — те же ключи", () => {
+    const list = [b("A", 100, 200), b("A", 100, 200), b("B", 500, 600)];
+    expect(bannerKeys(list)).toEqual(bannerKeys(list));
   });
 });

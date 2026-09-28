@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import CachedImage from "./CachedImage";
-import { shownBanners } from "../../lib/panel";
+import { bannerKeys, shownBanners } from "../../lib/panel";
 import { progress, timeLeft } from "../../lib/time";
 import { useMotionOn } from "../../lib/motion";
 import { useWindowVisible } from "../../lib/windowVisible";
@@ -27,6 +27,9 @@ export default function Banners({ banners, nowSec }: Props) {
   const t = useT();
   const motion = useMotionOn();
   const shown = shownBanners(banners, nowSec);
+  // Один расчёт на отрисовку — слайды, точки и shownKey берут ключи отсюда,
+  // чтобы не разойтись (правка финальной ревизии этапа 7).
+  const keys = bannerKeys(shown);
   const [index, setIndex] = useState(0);
   // Ручное листание перезапускает отсчёт: иначе автолистание перебило бы клик.
   const [restart, setRestart] = useState(0);
@@ -40,7 +43,7 @@ export default function Banners({ banners, nowSec }: Props) {
   // панели тикают раз в полминуты — значит ссылка меняется постоянно, даже
   // когда список тот же. Навесив сброс на неё, мы возвращали бы карусель на
   // первый баннер каждые тридцать секунд.
-  const shownKey = shown.map((b) => `${b.gameId}:${b.startsAt}`).join("|");
+  const shownKey = keys.join("|");
   useEffect(() => setIndex(0), [shownKey]);
 
   // Окно спрятано в трей или свёрнуто — карусель стоит (спека этапа 7 §3.3).
@@ -82,7 +85,7 @@ export default function Banners({ banners, nowSec }: Props) {
             style={{ transform: `translateX(-${safeIndex * 100}%)` }}
           >
             {shown.map((b, i) => (
-              <BannerCard key={`${b.gameId}:${b.startsAt}`} banner={b} nowSec={nowSec} lang={lang} hidden={i !== safeIndex} />
+              <BannerCard key={keys[i]} banner={b} nowSec={nowSec} lang={lang} hidden={i !== safeIndex} />
             ))}
           </div>
 
@@ -102,7 +105,7 @@ export default function Banners({ banners, nowSec }: Props) {
           <div className="carousel-dots">
             {shown.map((b, i) => (
               <button
-                key={`${b.gameId}:${b.startsAt}`}
+                key={keys[i]}
                 type="button"
                 className={["dot", i === safeIndex ? "active" : "", b.startsAt > nowSec ? "upcoming" : ""].filter(Boolean).join(" ")}
                 aria-label={t.panel.bannerDot(i + 1, count)}
