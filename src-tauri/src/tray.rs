@@ -30,6 +30,13 @@ pub enum Entry {
     Quit(&'static str),
 }
 
+/// В `AppendMenuW` одиночный `&` — мнемоника показанной рядом буквы, и
+/// «Might & Magic» отображалась бы с пропавшим «&». Удваиваем его, как учит
+/// сам API (правка финальной ревизии этапа 7).
+fn escape_ampersand(text: &str) -> String {
+    text.replace('&', "&&")
+}
+
 /// Все игры в порядке дока, черта, «показать окно», «выход». Игра без файла
 /// видна, но неактивна, с пометкой на языке интерфейса.
 pub fn entries(games: &[Game], lang: Language) -> Vec<Entry> {
@@ -38,8 +45,8 @@ pub fn entries(games: &[Game], lang: Language) -> Vec<Entry> {
         .iter()
         .map(|g| {
             let present = config::is_present(g);
-            let text = if present { g.title.clone() } else { format!("{} {}", g.title, texts.file_missing) };
-            Entry::Game { id: g.id.clone(), text, enabled: present }
+            let raw = if present { g.title.clone() } else { format!("{} {}", g.title, texts.file_missing) };
+            Entry::Game { id: g.id.clone(), text: escape_ampersand(&raw), enabled: present }
         })
         .collect();
     if !list.is_empty() {
@@ -225,5 +232,13 @@ mod tests {
     #[test]
     fn no_games_means_no_separator() {
         assert_eq!(entries(&[], Language::Ru), vec![Entry::Show("Показать окно"), Entry::Quit("Выход")]);
+    }
+
+    #[test]
+    fn ampersand_in_the_title_is_doubled_for_the_menu() {
+        let exe = std::env::current_exe().unwrap();
+        let exe = exe.to_str().unwrap();
+        let list = entries(&[game("mm", "Might & Magic", Some(exe))], Language::En);
+        assert_eq!(list[0], Entry::Game { id: "mm".into(), text: "Might && Magic".into(), enabled: true });
     }
 }
