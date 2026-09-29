@@ -70,9 +70,15 @@ folder from Settings → About → Log → Show log.
 
 ## Icons
 
-Regenerate the app icons from one source image:
+`src-tauri/icons/` holds the app icon, drawn from one kitsune artwork:
 
-    npx tauri icon src-tauri/icons/icon.png
+- `icon.ico` — 40–256 px show the whole badge, 16–32 px a close-up of the face, so the
+  icon stays readable in Explorer and on the taskbar;
+- `icon.png` — the whole badge, 512 px;
+- `tray-32.rgba` — the tray icon: the same close-up as raw 32×32 RGBA pixels, embedded by
+  `src-tauri/src/tray.rs`.
+
+Replace all three together when the artwork changes.
 
 ## License
 
