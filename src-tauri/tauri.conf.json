@@ -31,6 +31,8 @@
   },
   "bundle": {
     "active": true,
+    "publisher": "Ertezy",
+    "copyright": "© 2026 Ertezy",
     "resources": ["resources/hub.json"],
     "icon": ["icons/icon.png", "icons/icon.ico"]
   }

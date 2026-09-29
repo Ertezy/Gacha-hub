@@ -33,7 +33,7 @@ source. A different address can be set in Settings → Data → Data source URL.
 
 ## Building from source
 
-Requirements: Node.js 24, Rust (stable, MSVC toolchain) and the Tauri 2 prerequisites
+Requirements: Node.js 20 or newer, Rust (stable, MSVC toolchain) and the Tauri 2 prerequisites
 for Windows (https://tauri.app/start/prerequisites/). On a clean machine:
 
     winget install Rustlang.Rustup
@@ -73,3 +73,7 @@ folder from Settings → About → Log → Show log.
 Regenerate the app icons from one source image:
 
     npx tauri icon src-tauri/icons/icon.png
+
+## License
+
+MIT — see [LICENSE](LICENSE). Game names, art and trademarks belong to their owners.

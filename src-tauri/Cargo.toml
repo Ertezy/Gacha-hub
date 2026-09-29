@@ -1,7 +1,10 @@
 [package]
 name = "gacha-hub"
 version = "0.1.0"
-description = "Custom launcher for gacha games with a mini-hub (news, promo codes, guides)"
+description = "Free Windows launcher for gacha games with promo codes, banners and videos"
+authors = ["Ertezy"]
+license = "MIT"
+repository = "https://github.com/Ertezy/Gacha-hub"
 edition = "2021"
 
 [lib]
