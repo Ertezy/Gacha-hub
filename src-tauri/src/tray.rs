@@ -21,6 +21,13 @@ pub const TRAY_LAUNCH_FAILED: &str = "tray-launch-failed";
 
 const GAME_PREFIX: &str = "game:";
 
+/// Значок трея: мордочка кицунэ крупным планом, 32×32 RGBA без сжатия.
+/// Значок приложения при 16 px превращается в пятно, поэтому у трея свой
+/// рисунок; сырые пиксели — чтобы не подключать декодер PNG (без новых
+/// возможностей tauri).
+pub const TRAY_ICON: &[u8] = include_bytes!("../icons/tray-32.rgba");
+pub const TRAY_ICON_SIZE: u32 = 32;
+
 /// Пункт меню — чистые данные, чтобы список проверялся без окна.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Entry {
@@ -132,12 +139,7 @@ pub fn hide_main_window(app: &AppHandle) -> bool {
 pub fn setup(app: &AppHandle) -> tauri::Result<()> {
     let menu = build_menu(app)?;
 
-    // Мягкий отказ вместо паники: без значка не собрать окно, но приложение
-    // не обязано падать — оно просто останется без трея (см. lib.rs).
-    let icon = app
-        .default_window_icon()
-        .cloned()
-        .ok_or_else(|| tauri::Error::AssetNotFound("значок окна не задан в tauri.conf.json".into()))?;
+    let icon = tauri::image::Image::new(TRAY_ICON, TRAY_ICON_SIZE, TRAY_ICON_SIZE);
 
     // with_id — конструктор, а не звено в цепочке: без своего id значок нельзя
     // будет найти через tray_by_id при перехвате закрытия окна.
@@ -240,5 +242,10 @@ mod tests {
         let exe = exe.to_str().unwrap();
         let list = entries(&[game("mm", "Might & Magic", Some(exe))], Language::En);
         assert_eq!(list[0], Entry::Game { id: "mm".into(), text: "Might && Magic".into(), enabled: true });
+    }
+
+    #[test]
+    fn tray_icon_is_32_by_32_rgba() {
+        assert_eq!(TRAY_ICON.len(), (TRAY_ICON_SIZE * TRAY_ICON_SIZE * 4) as usize);
     }
 }
