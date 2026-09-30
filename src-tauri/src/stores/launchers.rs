@@ -53,7 +53,10 @@ const HOYOPLAY_GAMES: [(&str, &str, &str); 6] = [
     ("nap_cn", "Zenless Zone Zero", "ZenlessZoneZero.exe"),
 ];
 
+const HOYOPLAY_LABEL: &str = "HoYoPlay";
+
 const KURO_TITLE: &str = "Wuthering Waves";
+const KURO_LABEL: &str = "лаунчер Kuro";
 /// Имя раздела удаления у Kuro начинается так: за ним идёт редакция игры
 /// («Overseas», «China»).
 const KURO_KEY_PREFIX: &str = "KRInstall Wuthering Waves";
@@ -113,12 +116,17 @@ fn uninstall_entries(reg: &dyn Registry) -> Vec<(Root, String, String)> {
 
 /// Папка установки из записи удаления: первое непустое из перечисленных
 /// значений, а если их нет — папка программы удаления.
+///
+/// Командная строка уходит в `folder_of_command` как есть, без `text()`: та
+/// снимает кавычку в начале, и путь в кавычках разбирался бы как путь без
+/// кавычек — по подстроке «.exe», которая может оказаться в имени папки.
 fn install_dir(reg: &dyn Registry, root: Root, key: &str, names: &[&str]) -> Option<PathBuf> {
     names
         .iter()
         .find_map(|name| text(reg.value(root, key, name)).map(PathBuf::from))
         .or_else(|| {
-            text(reg.value(root, key, "UninstallString")).and_then(|c| folder_of_command(&c))
+            reg.value(root, key, "UninstallString")
+                .and_then(|c| folder_of_command(&c))
         })
 }
 
@@ -126,22 +134,28 @@ fn same_path(a: &Path, b: &Path) -> bool {
     super::is_inside(a, b) && super::is_inside(b, a)
 }
 
+/// Как лаунчер называется в журнале: «найдена через …» пишет `stores::merge_finds`,
+/// когда находка остаётся в списке.
+pub fn label(source: Source) -> &'static str {
+    match source {
+        Source::Steam => "Steam",
+        Source::Epic => "Epic Games",
+        Source::HoYoPlay => HOYOPLAY_LABEL,
+        Source::Kuro => KURO_LABEL,
+        Source::Gryphlink => GRYPHLINK_NAME,
+    }
+}
+
 /// Добавляет находку, если такого exe в списке ещё нет: одну папку могут
-/// назвать и реестр, и список папок по умолчанию.
-fn push_find(
-    found: &mut Vec<InstalledGame>,
-    title: &str,
-    source: Source,
-    launcher: &str,
-    exe: PathBuf,
-) {
+/// назвать и реестр, и список папок по умолчанию. В журнал находка здесь не
+/// попадает: её могут отбросить как повтор магазина, и «найдена» было бы неправдой.
+fn push_find(found: &mut Vec<InstalledGame>, title: &str, source: Source, exe: PathBuf) {
     if found
         .iter()
         .any(|g| g.exe_path.as_deref().is_some_and(|e| same_path(e, &exe)))
     {
         return;
     }
-    log::info!("[launchers] {title}: найдена через {launcher}, {}", exe.display());
     found.push(InstalledGame {
         title: title.to_string(),
         install_path: exe.parent().map(Path::to_path_buf).unwrap_or_default(),
@@ -196,8 +210,10 @@ pub fn hoyoplay(reg: &dyn Registry) -> Vec<InstalledGame> {
                     log::debug!("[launchers] HoYoPlay: {title} — путь установки пуст ({key})");
                     continue;
                 };
-                if let Some(exe) = first_existing("HoYoPlay", vec![Path::new(&dir).join(exe_name)]) {
-                    push_find(&mut found, title, Source::HoYoPlay, "HoYoPlay", exe);
+                if let Some(exe) =
+                    first_existing(HOYOPLAY_LABEL, vec![Path::new(&dir).join(exe_name)])
+                {
+                    push_find(&mut found, title, Source::HoYoPlay, exe);
                 }
             }
         }
@@ -227,8 +243,8 @@ pub fn kuro(reg: &dyn Registry, default_dirs: &[PathBuf]) -> Vec<InstalledGame> 
             dir.join("Wuthering Waves Game").join("Wuthering Waves.exe"),
             dir.join("Wuthering Waves.exe"),
         ];
-        if let Some(exe) = first_existing("лаунчер Kuro", candidates) {
-            push_find(&mut found, KURO_TITLE, Source::Kuro, "лаунчер Kuro", exe);
+        if let Some(exe) = first_existing(KURO_LABEL, candidates) {
+            push_find(&mut found, KURO_TITLE, Source::Kuro, exe);
         }
     }
     found
@@ -254,7 +270,7 @@ pub fn gryphlink(reg: &dyn Registry, default_dirs: &[PathBuf]) -> Vec<InstalledG
     let mut found = Vec::new();
     for dir in unique_dirs(dirs) {
         if let Some(exe) = first_existing(GRYPHLINK_NAME, vec![dir.join("Launcher.exe")]) {
-            push_find(&mut found, GRYPHLINK_TITLE, Source::Gryphlink, GRYPHLINK_NAME, exe);
+            push_find(&mut found, GRYPHLINK_TITLE, Source::Gryphlink, exe);
         }
     }
     found
@@ -290,15 +306,25 @@ impl Registry for WinRegistry {
     }
 }
 
+/// Папка «Program Files» из переменной среды: Windows может стоять не на `C:`.
+/// Нет переменной (или она пуста) — `C:\Program Files`, как в `steam.rs`.
+#[cfg(windows)]
+fn program_files(var: Option<std::ffi::OsString>) -> PathBuf {
+    var.filter(|v| !v.is_empty())
+        .map(PathBuf::from)
+        .unwrap_or_else(|| PathBuf::from(r"C:\Program Files"))
+}
+
 /// Все три с настоящим реестром и папками по умолчанию. Вне Windows лаунчеров
 /// нет — список пуст.
 pub fn installed() -> Vec<InstalledGame> {
     #[cfg(windows)]
     {
         let reg = WinRegistry;
+        let program_files = program_files(std::env::var_os("ProgramFiles"));
         let mut all = hoyoplay(&reg);
-        all.extend(kuro(&reg, &[PathBuf::from(r"C:\Program Files\Wuthering Waves")]));
-        all.extend(gryphlink(&reg, &[PathBuf::from(r"C:\Program Files\GRYPHLINK")]));
+        all.extend(kuro(&reg, &[program_files.join("Wuthering Waves")]));
+        all.extend(gryphlink(&reg, &[program_files.join("GRYPHLINK")]));
         all
     }
     #[cfg(not(windows))]
@@ -618,6 +644,26 @@ mod tests {
     }
 
     #[test]
+    fn a_quoted_uninstall_string_is_cut_at_the_closing_quote_not_at_a_dot_exe_in_the_folder() {
+        // «.exe» внутри имени папки: по подстроке путь обрезался бы на «foo.exe»
+        // и папкой оказалась бы родительская.
+        let dir = scratch("kuro-dot-exe");
+        let exe = touch(&dir, r"foo.exec\Wuthering Waves Game\Wuthering Waves.exe");
+        let uninstall = format!("\"{}\" /SILENT", dir.join(r"foo.exec\unins000.exe").display());
+        let reg = FakeRegistry::default().with(
+            Root::LocalMachine,
+            &kuro_key(UNINSTALL_HKLM, "KRInstall Wuthering Waves Overseas"),
+            &[("UninstallString", &uninstall)],
+        );
+
+        let found = kuro(&reg, &[]);
+
+        assert_eq!(found.len(), 1);
+        assert_eq!(found[0].exe_path.as_deref(), Some(exe.as_path()));
+        fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
     fn kuro_takes_the_folder_of_an_unquoted_uninstall_string_with_arguments() {
         let dir = scratch("kuro-unquoted");
         let exe = touch(&dir, "Wuthering Waves.exe");
@@ -792,5 +838,26 @@ mod tests {
 
         assert!(gryphlink(&reg, &[dir.join("no-such-default")]).is_empty());
         fs::remove_dir_all(&dir).ok();
+    }
+
+    // ------------------------------------------------------------------- прочее
+
+    #[cfg(windows)]
+    #[test]
+    fn program_files_comes_from_the_environment_with_a_fallback() {
+        use std::ffi::OsString;
+        assert_eq!(
+            program_files(Some(OsString::from(r"D:\Programs"))),
+            PathBuf::from(r"D:\Programs")
+        );
+        assert_eq!(program_files(None), PathBuf::from(r"C:\Program Files"));
+        assert_eq!(program_files(Some(OsString::new())), PathBuf::from(r"C:\Program Files"));
+    }
+
+    #[test]
+    fn every_launcher_source_has_a_label_for_the_log() {
+        assert_eq!(label(Source::HoYoPlay), "HoYoPlay");
+        assert_eq!(label(Source::Kuro), "лаунчер Kuro");
+        assert_eq!(label(Source::Gryphlink), "GRYPHLINK");
     }
 }

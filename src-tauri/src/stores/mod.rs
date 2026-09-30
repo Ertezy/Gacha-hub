@@ -118,6 +118,10 @@ pub fn store_of(game: &crate::config::Game, installed: &[InstalledGame]) -> Opti
 /// сопоставлении игр (`catalog::normalize`: без учёта регистра и пунктуации).
 /// Среди самих находок лаунчеров остаётся первая с данным названием — так
 /// глобальная и китайская установки одной игры не задваиваются.
+///
+/// Находка пишется в журнал (info) здесь, один раз и только когда остаётся в
+/// списке: искатели лаунчеров пишут в журнал одни промахи (debug), иначе
+/// отброшенная находка значилась бы «найденной».
 fn merge_finds(stores: Vec<InstalledGame>, launchers: Vec<InstalledGame>) -> Vec<InstalledGame> {
     let mut all = stores;
     for found in launchers {
@@ -130,6 +134,12 @@ fn merge_finds(stores: Vec<InstalledGame>, launchers: Vec<InstalledGame>) -> Vec
             );
             continue;
         }
+        log::info!(
+            "[launchers] {}: найдена через {}, {}",
+            found.title,
+            launchers::label(found.source),
+            found.exe_path.as_deref().unwrap_or(&found.install_path).display()
+        );
         all.push(found);
     }
     all

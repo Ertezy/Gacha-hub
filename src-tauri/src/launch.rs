@@ -13,10 +13,15 @@
 //!        `CommandLineToArgvW` (см. `split_args`), а НЕ по POSIX: последний
 //!        съедает `\` в путях;
 //!      * рабочий каталог — папка самого exe: клиенты игр ищут свои данные
-//!        относительно себя.
+//!        относительно себя;
+//!      * игры HoYoPlay требуют прав администратора: `CreateProcess` на них
+//!        отвечает ошибкой 740, а окно UAC показывает только оболочка Windows.
+//!        Поэтому именно при 740 (и только при ней) игра запускается заново
+//!        через PowerShell `Start-Process` — см. `start_elevated`.
 
-use std::path::PathBuf;
-use std::process::Command;
+use std::io::Write;
+use std::path::{Path, PathBuf};
+use std::process::{Command, Stdio};
 
 use tauri::AppHandle;
 use tauri_plugin_opener::OpenerExt;
@@ -93,6 +98,140 @@ fn split_args(input: &str) -> Option<Vec<String>> {
     Some(args)
 }
 
+/// Один аргумент в строке команды Windows: обратное к `split_args`.
+///   * непустой аргумент без пробельных символов и кавычек остаётся как есть;
+///   * иначе он берётся в двойные кавычки; обратные слэши перед кавычкой
+///     (и перед закрывающей кавычкой) удваиваются, а кавычка внутри
+///     экранируется как `\"`.
+///
+/// Пробельным считается всё, что `split_args` считает разделителем
+/// (`char::is_whitespace`), а не только пробел и табуляция: иначе перевод строки
+/// внутри аргумента разорвал бы его.
+fn quote_windows_arg(arg: &str) -> String {
+    if !arg.is_empty() && !arg.chars().any(|c| c.is_whitespace() || c == '"') {
+        return arg.to_string();
+    }
+    let mut out = String::from("\"");
+    let mut backslashes = 0;
+    for c in arg.chars() {
+        match c {
+            '\\' => backslashes += 1,
+            '"' => {
+                // 2n+1 слэшей и кавычка: n слэшей и буквальная кавычка.
+                out.push_str(&"\\".repeat(backslashes * 2 + 1));
+                out.push('"');
+                backslashes = 0;
+            }
+            c => {
+                // Слэши не перед кавычкой остаются буквальными.
+                out.push_str(&"\\".repeat(backslashes));
+                out.push(c);
+                backslashes = 0;
+            }
+        }
+    }
+    // Слэши перед закрывающей кавычкой удваиваются, иначе они её съедят.
+    out.push_str(&"\\".repeat(backslashes * 2));
+    out.push('"');
+    out
+}
+
+/// Разобранные аргументы обратно в одну строку: `split_args` вернёт их же.
+fn join_windows_args(args: &[String]) -> String {
+    args.iter()
+        .map(|a| quote_windows_arg(a))
+        .collect::<Vec<_>>()
+        .join(" ")
+}
+
+/// ERROR_ELEVATION_REQUIRED: файлу нужны права администратора, а
+/// `CreateProcess` их не запрашивает.
+const ERROR_ELEVATION_REQUIRED: i32 = 740;
+
+fn needs_elevation(e: &std::io::Error) -> bool {
+    e.raw_os_error() == Some(ERROR_ELEVATION_REQUIRED)
+}
+
+/// Значение как строка PowerShell: в одинарных кавычках, а `'` внутри
+/// удваивается.
+///
+/// В скрипте остаётся только печатный ASCII. Скрипт идёт в PowerShell через
+/// stdin, а там он читается в кодовой странице консоли (OEM, у нас 866), а не в
+/// UTF-8: кириллица в пути (`D:\Игры`, имя пользователя) превратилась бы в
+/// мусор, и заодно закрывающими кавычками PowerShell считает «умные» `’ ‘ ‚ ‛`.
+/// Поэтому всё остальное вставляется как `[char]0x….`, по одной кодовой единице
+/// UTF-16 (`'a'+[char]0x0418+'b'`); такое выражение берётся в скобки, чтобы
+/// стать значением параметра.
+fn ps_string(value: &str) -> String {
+    let mut out = String::from("'");
+    let mut spliced = false;
+    for unit in value.encode_utf16() {
+        match u8::try_from(unit) {
+            Ok(b'\'') => out.push_str("''"),
+            Ok(b) if (0x20..0x7f).contains(&b) => out.push(b as char),
+            _ => {
+                out.push_str(&format!("'+[char]0x{unit:04X}+'"));
+                spliced = true;
+            }
+        }
+    }
+    out.push('\'');
+    if spliced {
+        format!("({out})")
+    } else {
+        out
+    }
+}
+
+/// Скрипт для PowerShell: `Start-Process` идёт через ShellExecute, а он
+/// показывает UAC. Каталог задан явно, как и у обычного запуска. Аргументы —
+/// ОДНОЙ строкой, собранной по правилам Windows: массив в `-ArgumentList`
+/// Windows PowerShell 5.1 склеил бы без кавычек, и путь с пробелом развалился
+/// бы на два аргумента. Пустой `-ArgumentList` — ошибка, поэтому без аргументов
+/// параметра нет.
+fn elevation_script(exe: &Path, cwd: &Path, args: &[String]) -> String {
+    let mut script = format!(
+        "Start-Process -FilePath {} -WorkingDirectory {}",
+        ps_string(&exe.to_string_lossy()),
+        ps_string(&cwd.to_string_lossy()),
+    );
+    if !args.is_empty() {
+        script.push_str(" -ArgumentList ");
+        script.push_str(&ps_string(&join_windows_args(args)));
+    }
+    script
+}
+
+/// CREATE_NO_WINDOW: у PowerShell не должно появляться окна консоли.
+#[cfg(windows)]
+const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+
+/// Запускает игру через PowerShell, чтобы Windows показала окно UAC. Ждать
+/// нечего: пользователь может думать над окном сколько угодно, а отказ от UAC —
+/// его выбор, а не ошибка запуска.
+fn start_elevated(exe: &Path, cwd: &Path, args: &[String]) -> std::io::Result<()> {
+    let mut powershell = Command::new("powershell.exe");
+    powershell
+        .args(["-NoProfile", "-NonInteractive", "-Command", "-"])
+        .stdin(Stdio::piped())
+        // У приложения нет консоли: унаследованные потоки бесполезны.
+        .stdout(Stdio::null())
+        .stderr(Stdio::null());
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        powershell.creation_flags(CREATE_NO_WINDOW);
+    }
+
+    let mut child = powershell.spawn()?;
+    if let Some(mut stdin) = child.stdin.take() {
+        let script = format!("{}\n", elevation_script(exe, cwd, args));
+        stdin.write_all(script.as_bytes())?;
+        // stdin закрывается здесь: конец ввода — сигнал выполнять скрипт.
+    }
+    Ok(())
+}
+
 /// Официальная ссылка запуска Epic Games Launcher.
 /// Разделитель между тремя идентификаторами — двоеточие в URL-кодировке.
 pub fn epic_uri(namespace: &str, catalog_item_id: &str, app_name: &str) -> String {
@@ -140,14 +279,22 @@ pub fn launch(app: &AppHandle, game: &Game) -> Result<(), AppError> {
                 .map(|p| p.to_path_buf())
                 .unwrap_or_else(|| PathBuf::from("."));
 
-            Command::new(&exe)
-                .args(&parsed)
-                .current_dir(&cwd)
-                .spawn()
-                .map(|_| ())
-                .map_err(|e| {
-                    AppError::with(code::EXE_START_FAILED, format!("{}: {e}", exe.display()))
-                })
+            match Command::new(&exe).args(&parsed).current_dir(&cwd).spawn() {
+                Ok(_) => Ok(()),
+                // 740: игре нужны права администратора. Только в этом случае
+                // отдаём запуск оболочке, чтобы она показала UAC.
+                Err(first) if needs_elevation(&first) => start_elevated(&exe, &cwd, &parsed)
+                    .map_err(|second| {
+                        AppError::with(
+                            code::EXE_START_FAILED,
+                            format!("{}: {first}; PowerShell: {second}", exe.display()),
+                        )
+                    }),
+                Err(e) => Err(AppError::with(
+                    code::EXE_START_FAILED,
+                    format!("{}: {e}", exe.display()),
+                )),
+            }
         }
     }
 }
@@ -176,5 +323,156 @@ mod launch_tests {
     #[test]
     fn unterminated_quote_is_an_error_not_a_silent_drop() {
         assert!(split_args(r#"-name "unterminated"#).is_none());
+    }
+
+    // ------------------------------------------------- запуск с правами администратора
+
+    #[test]
+    fn only_error_740_asks_for_elevation() {
+        assert!(needs_elevation(&std::io::Error::from_raw_os_error(740)));
+        // Файла нет, отказано в доступе, а также ошибка без кода ОС — не повод
+        // звать оболочку.
+        assert!(!needs_elevation(&std::io::Error::from_raw_os_error(2)));
+        assert!(!needs_elevation(&std::io::Error::from_raw_os_error(5)));
+        assert!(!needs_elevation(&std::io::Error::other("no os code")));
+    }
+
+    #[test]
+    fn plain_arguments_stay_as_they_are() {
+        assert_eq!(quote_windows_arg("-dx12"), "-dx12");
+        assert_eq!(quote_windows_arg(r"C:\Games\Genshin"), r"C:\Games\Genshin");
+        // Слэши в конце без пробелов и кавычек ничего не съедают.
+        assert_eq!(quote_windows_arg(r"C:\Games\"), r"C:\Games\");
+    }
+
+    #[test]
+    fn arguments_with_spaces_quotes_or_nothing_get_quoted() {
+        assert_eq!(quote_windows_arg(""), r#""""#);
+        assert_eq!(quote_windows_arg("a b"), r#""a b""#);
+        assert_eq!(quote_windows_arg("a\tb"), "\"a\tb\"");
+        assert_eq!(quote_windows_arg(r#"say "hi""#), r#""say \"hi\"""#);
+        // Слэши перед закрывающей кавычкой удваиваются.
+        assert_eq!(quote_windows_arg(r"C:\My Games\"), r#""C:\My Games\\""#);
+        // Слэши перед кавычкой внутри: 2n+1.
+        assert_eq!(quote_windows_arg(r#"a\"b"#), r#""a\\\"b""#);
+        // Слэши не перед кавычкой не трогаем.
+        assert_eq!(quote_windows_arg(r"a b\c"), r#""a b\c""#);
+    }
+
+    #[test]
+    fn joined_arguments_split_back_into_the_same_ones() {
+        let cases: Vec<Vec<&str>> = vec![
+            vec![],
+            vec!["-dx12"],
+            vec!["-config", r"C:\Games\Genshin", "-dx12"],
+            vec!["with space", "x"],
+            vec![""],
+            vec!["", "", "x", ""],
+            vec![r#"say "hi""#],
+            vec![r#"""#],
+            vec![r#""""#],
+            vec![r"C:\My Games\"],
+            vec![r"C:\My Games\\"],
+            vec![r#"a\"b"#],
+            vec![r#"a\\"b c\"#],
+            vec![r"\", r"\\", r"\ \"],
+            vec!["tab\there", "new\nline", "cr\r\nlf"],
+            vec!["Игры и ещё", "ё"],
+            vec![r#"-path=C:\Program Files\Game" -x"#, r#"\""#, r#"\\\""#],
+        ];
+        for case in cases {
+            let args: Vec<String> = case.iter().map(|s| s.to_string()).collect();
+            let joined = join_windows_args(&args);
+            assert_eq!(split_args(&joined), Some(args), "строка: {joined}");
+        }
+    }
+
+    #[test]
+    fn a_string_for_powershell_doubles_single_quotes() {
+        assert_eq!(ps_string("plain"), "'plain'");
+        assert_eq!(ps_string("O'Neil"), "'O''Neil'");
+        assert_eq!(ps_string("'"), "''''");
+        // Двойные кавычки и `$` в одинарных кавычках ничего не значат.
+        assert_eq!(ps_string(r#"a "b" $c `d"#), r#"'a "b" $c `d'"#);
+        assert_eq!(ps_string(""), "''");
+    }
+
+    #[test]
+    fn everything_but_printable_ascii_goes_into_a_script_as_char_codes() {
+        // Скрипт читается в OEM-странице, поэтому кириллица, «умные» кавычки,
+        // управляющие символы и пары суррогатов не должны попасть в него как есть.
+        assert_eq!(ps_string("aИ"), "('a'+[char]0x0418+'')");
+        assert_eq!(ps_string("’x"), "(''+[char]0x2019+'x')");
+        assert_eq!(ps_string("a\nb"), "('a'+[char]0x000A+'b')");
+        assert_eq!(
+            ps_string("\u{1F600}"),
+            "(''+[char]0xD83D+''+[char]0xDE00+'')"
+        );
+        // Апостроф рядом с вставкой остаётся удвоенным.
+        assert_eq!(ps_string("'И"), "(''''+[char]0x0418+'')");
+        for s in ["D:\\Игры\\Genshin’s\n", "\u{1F600}", "a'b", "tab\t"] {
+            let script = ps_string(s);
+            assert!(
+                script.bytes().all(|b| (0x20..0x7f).contains(&b)),
+                "не только печатный ASCII: {script}"
+            );
+        }
+    }
+
+    #[test]
+    fn the_script_starts_the_exe_in_its_folder() {
+        let script = elevation_script(
+            Path::new(r"C:\Games\Genshin Impact\GenshinImpact.exe"),
+            Path::new(r"C:\Games\Genshin Impact"),
+            &[],
+        );
+        assert_eq!(
+            script,
+            r"Start-Process -FilePath 'C:\Games\Genshin Impact\GenshinImpact.exe' -WorkingDirectory 'C:\Games\Genshin Impact'"
+        );
+    }
+
+    #[test]
+    fn the_script_has_no_argument_list_without_arguments() {
+        let script = elevation_script(Path::new(r"C:\g\a.exe"), Path::new(r"C:\g"), &[]);
+        assert!(!script.contains("-ArgumentList"));
+    }
+
+    #[test]
+    fn single_quotes_in_paths_and_arguments_are_doubled_in_the_script() {
+        let script = elevation_script(
+            Path::new(r"C:\O'Neil's\a.exe"),
+            Path::new(r"C:\O'Neil's"),
+            &["-name".to_string(), "it's".to_string()],
+        );
+        assert_eq!(
+            script,
+            r"Start-Process -FilePath 'C:\O''Neil''s\a.exe' -WorkingDirectory 'C:\O''Neil''s' -ArgumentList '-name it''s'"
+        );
+    }
+
+    #[test]
+    fn the_arguments_go_in_as_one_windows_quoted_string() {
+        let args: Vec<String> = ["-config", r"C:\My Games\", r#"say "hi""#]
+            .iter()
+            .map(|s| s.to_string())
+            .collect();
+        let script = elevation_script(Path::new(r"C:\g\a.exe"), Path::new(r"C:\g"), &args);
+        assert_eq!(
+            script,
+            r#"Start-Process -FilePath 'C:\g\a.exe' -WorkingDirectory 'C:\g' -ArgumentList '-config "C:\My Games\\" "say \"hi\""'"#
+        );
+    }
+
+    #[test]
+    fn a_path_with_cyrillic_stays_pure_ascii_in_the_script() {
+        let script = elevation_script(
+            Path::new(r"D:\Игры\a.exe"),
+            Path::new(r"D:\Игры"),
+            &["ё".to_string()],
+        );
+        assert!(script.is_ascii(), "{script}");
+        assert!(script.starts_with(r"Start-Process -FilePath ('D:\'+[char]0x0418+"));
+        assert!(script.contains(" -ArgumentList ("));
     }
 }
