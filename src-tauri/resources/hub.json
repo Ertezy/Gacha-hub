@@ -1,150 +1,982 @@
 {
   "version": 2,
-  "updatedAt": 1788094372,
-
+  "updatedAt": 1790786927,
   "games": [
     {
       "id": "genshin",
       "title": "Genshin Impact",
       "redeemUrl": "https://genshin.hoyoverse.com/en/gift?code={code}",
-      "match": { "steamAppIds": [], "epicAppNames": [], "folderNames": ["Genshin Impact"] }
+      "match": {
+        "steamAppIds": [],
+        "epicAppNames": [],
+        "folderNames": [
+          "Genshin Impact"
+        ]
+      }
     },
     {
       "id": "hsr",
       "title": "Honkai: Star Rail",
       "redeemUrl": "https://hsr.hoyoverse.com/gift?code={code}",
-      "match": { "steamAppIds": [], "epicAppNames": [], "folderNames": ["Honkai: Star Rail", "Honkai Star Rail"] }
+      "match": {
+        "steamAppIds": [],
+        "epicAppNames": [],
+        "folderNames": [
+          "Honkai: Star Rail",
+          "Honkai Star Rail"
+        ]
+      }
     },
     {
       "id": "zzz",
       "title": "Zenless Zone Zero",
       "redeemUrl": "https://zenless.hoyoverse.com/redemption?code={code}",
-      "match": { "steamAppIds": [], "epicAppNames": [], "folderNames": ["Zenless Zone Zero"] }
+      "match": {
+        "steamAppIds": [],
+        "epicAppNames": [],
+        "folderNames": [
+          "Zenless Zone Zero"
+        ]
+      }
     },
     {
       "id": "wuthering",
       "title": "Wuthering Waves",
-      "match": { "steamAppIds": [3513350], "epicAppNames": [], "folderNames": ["Wuthering Waves"] }
+      "match": {
+        "steamAppIds": [
+          3513350
+        ],
+        "epicAppNames": [],
+        "folderNames": [
+          "Wuthering Waves"
+        ]
+      }
     },
     {
       "id": "endfield",
       "title": "Arknights: Endfield",
-      "match": { "steamAppIds": [], "epicAppNames": [], "folderNames": ["Arknights: Endfield", "Arknights Endfield"] }
+      "match": {
+        "steamAppIds": [],
+        "epicAppNames": [],
+        "folderNames": [
+          "Arknights: Endfield",
+          "Arknights Endfield"
+        ]
+      }
     }
   ],
-
   "codes": [
-    { "gameId": "genshin", "code": "BALLETCOLLAB", "rewards": "30 Primogem, 10000 Mora, 3 Hero's Wit, 3 Mystic Enhancement Ore", "expiresAt": null, "region": "G", "source": "https://genshin-impact.fandom.com/wiki/Promotional_Code" },
-    { "gameId": "genshin", "code": "MySnezhnayaCareer", "rewards": "160 Primogem, 20000 Mora, 3 Hero's Wit", "expiresAt": 1788739199, "region": "G", "source": "https://genshin-impact.fandom.com/wiki/Promotional_Code" },
-    { "gameId": "genshin", "code": "Snezhnaya", "rewards": "30000 Mora, 3 Hero's Wit, 5 Fine Enhancement Ore", "expiresAt": null, "region": "SEA", "source": "https://genshin-impact.fandom.com/wiki/Promotional_Code" },
-    { "gameId": "genshin", "code": "XVIZDH2B9WGX", "rewards": "10000 Mora, 10 Adventurer's Experience, 5 Fine Enhancement Ore, 5 Jueyun Chili Chicken, 5 Stir-Fried Fish Noodles", "expiresAt": null, "region": "G", "source": "https://genshin-impact.fandom.com/wiki/Promotional_Code" },
-    { "gameId": "genshin", "code": "GS70XRNWFB", "rewards": "30000 Mora, 3 Hero's Wit, 5 Fine Enhancement Ore", "expiresAt": null, "region": "G", "source": "https://genshin-impact.fandom.com/wiki/Promotional_Code" },
-    { "gameId": "genshin", "code": "2BJ64QRZ7RT8", "rewards": "60 Primogem, 5 Adventurer's Experience", "expiresAt": null, "region": "G", "source": "https://genshin-impact.fandom.com/wiki/Promotional_Code" },
-    { "gameId": "genshin", "code": "LEGEDILJKSGM", "rewards": "60 Primogem, 5 Adventurer's Experience", "expiresAt": 1788393599, "region": "G", "source": "https://genshin-impact.fandom.com/wiki/Promotional_Code" },
-    { "gameId": "genshin", "code": "YuanShen", "rewards": "50 Primogem, 3 Hero's Wit", "expiresAt": null, "region": "CN", "source": "https://genshin-impact.fandom.com/wiki/Promotional_Code" },
-
-    { "gameId": "hsr", "code": "NSJR3B97ZZ5X", "rewards": "50 Stellar Jade, 10000 Credit", "expiresAt": null, "region": "all", "source": "https://honkai-star-rail.fandom.com/wiki/Redemption_Code" },
-    { "gameId": "hsr", "code": "STARRAILFATE2026", "rewards": "2 The Fluffy Multi-Functional Fan Glowstick, 3 Traveler's Guide", "expiresAt": null, "region": "all", "source": "https://honkai-star-rail.fandom.com/wiki/Redemption_Code" },
-    { "gameId": "hsr", "code": "BESTCOFFEEEVER", "rewards": "3 Traveler's Guide, 2 Express Special Blend: Rustic Infusion", "expiresAt": null, "region": "all", "source": "https://honkai-star-rail.fandom.com/wiki/Redemption_Code" },
-    { "gameId": "hsr", "code": "OMEGA", "rewards": "60 Stellar Jade, 1 Fuel", "expiresAt": null, "region": "all", "source": "https://honkai-star-rail.fandom.com/wiki/Redemption_Code" },
-    { "gameId": "hsr", "code": "CREATIONNYMPH", "rewards": "60 Stellar Jade, 1 Fuel, 1 Heroic Variable", "expiresAt": null, "region": "all", "source": "https://honkai-star-rail.fandom.com/wiki/Redemption_Code" },
-    { "gameId": "hsr", "code": "FAREWELL", "rewards": "60 Stellar Jade, 1 Fuel", "expiresAt": null, "region": "all", "source": "https://honkai-star-rail.fandom.com/wiki/Redemption_Code" },
-    { "gameId": "hsr", "code": "IFYOUAREREADINGTHIS", "rewards": "60 Stellar Jade, 1 Fuel", "expiresAt": null, "region": "all", "source": "https://honkai-star-rail.fandom.com/wiki/Redemption_Code" },
-    { "gameId": "hsr", "code": "STARRAILGIFT", "rewards": "50 Stellar Jade, 10000 Credit", "expiresAt": null, "region": "all", "source": "https://honkai-star-rail.fandom.com/wiki/Redemption_Code" },
-
-    { "gameId": "zzz", "code": "FLINTWORKS", "rewards": "300 Polychrome, 2 Senior Investigator Log, 3 W-Engine Energy Module, 30,000 Denny", "expiresAt": 1788105599, "region": "all", "source": "https://zenless-zone-zero.fandom.com/wiki/Redemption_Code" },
-    { "gameId": "zzz", "code": "ZZZMEIJI", "rewards": "3 Senior Investigator Log, 3 W-Engine Energy Module, 30,000 Denny", "expiresAt": 1788879599, "region": "all", "source": "https://zenless-zone-zero.fandom.com/wiki/Redemption_Code" },
-    { "gameId": "zzz", "code": "ZZZ2YEAR", "rewards": "50 Polychrome", "expiresAt": null, "region": "all", "source": "https://zenless-zone-zero.fandom.com/wiki/Redemption_Code" },
-    { "gameId": "zzz", "code": "ZZZ31REMIELLE", "rewards": "60 Polychrome, 6,666 Denny", "expiresAt": null, "region": "all", "source": "https://zenless-zone-zero.fandom.com/wiki/Redemption_Code" },
-    { "gameId": "zzz", "code": "CBW0884678", "rewards": "20,000 Denny", "expiresAt": null, "region": "SEA", "source": "https://zenless-zone-zero.fandom.com/wiki/Redemption_Code" },
-    { "gameId": "zzz", "code": "ZENLESSGIFT", "rewards": "50 Polychrome, 2 Official Investigator Log, 3 W-Engine Power Supply, 1 Bangboo Algorithm Module", "expiresAt": null, "region": "all", "source": "https://zenless-zone-zero.fandom.com/wiki/Redemption_Code" },
-
-    { "gameId": "wuthering", "code": "WUTHERINGGIFT", "rewards": "50 Astrite, 2 Premium Resonance Potion, 2 Medium Revival Inhaler, 2 Medium Energy Bag, 10000 Shell Credit", "expiresAt": null, "region": "all", "source": "https://wutheringwaves.fandom.com/wiki/Redemption_Code" },
-
-    { "gameId": "endfield", "code": "AKENDFIELDSUB", "rewards": "100 Oroberyl", "expiresAt": 1788969599, "region": "all", "source": "https://game8.co/games/Arknights-Endfield/archives/571509" },
-    { "gameId": "endfield", "code": "ENDFIELDRENEW", "rewards": "1 Sticker: Safety Helmet, 71600 T-Creds", "expiresAt": 1788105599, "region": "all", "source": "https://game8.co/games/Arknights-Endfield/archives/571509" },
-    { "gameId": "endfield", "code": "ZAU2SYXHWX5L4ZH", "rewards": "5000 T-Creds, 10 Arms INSP Kit", "expiresAt": null, "region": "all", "source": "https://game8.co/games/Arknights-Endfield/archives/571509" },
-    { "gameId": "endfield", "code": "ENDFIELDGIFT", "rewards": "150 Oroberyl, 10,000 T-Creds, 20 Intermediate Combat Record, 20 Arms INSP Kit", "expiresAt": null, "region": "all", "source": "https://game8.co/games/Arknights-Endfield/archives/571509" },
-    { "gameId": "endfield", "code": "ENDFIELD4PC", "rewards": "13,000 T-Creds, 2 Advanced Combat Record, 2 Arms INSP Kit", "expiresAt": null, "region": "all", "source": "https://game8.co/games/Arknights-Endfield/archives/571509" }
-  ],
-
-  "banners": [
     {
       "gameId": "genshin",
-      "title": "Ледяная тень лебедя",
-      "featured": ["Одетта"],
-      "rarity": 5,
-      "image": "https://static.wikia.nocookie.net/gensin-impact/images/1/16/Swan%27s_Shadow_in_Silken_Ice_2026-08-12.png/revision/latest/scale-to-width-down/400",
-      "startsAt": 1786489200,
-      "endsAt": 1788256740
+      "code": "OPERACOLLAB",
+      "rewards": "Primogem ×30, Mora ×20000, Hero's Wit ×2",
+      "expiresAt": null,
+      "region": "all",
+      "source": "https://genshin-impact.fandom.com/wiki/Promotional_Code"
+    },
+    {
+      "gameId": "genshin",
+      "code": "EPIC2026",
+      "rewards": "Primogem ×40, Mora ×20000, Hero's Wit ×5",
+      "expiresAt": null,
+      "region": "all",
+      "source": "https://genshin-impact.fandom.com/wiki/Promotional_Code"
+    },
+    {
+      "gameId": "genshin",
+      "code": "VesnaOnPatrol",
+      "rewards": "Primogem ×40, Mora ×20000, Hero's Wit ×3",
+      "expiresAt": 1792713599,
+      "region": "all",
+      "source": "https://genshin-impact.fandom.com/wiki/Promotional_Code"
+    },
+    {
+      "gameId": "genshin",
+      "code": "GS71XAVWDS",
+      "rewards": "Mora ×30000, Hero's Wit ×3, Mystic Enhancement Ore ×5",
+      "expiresAt": null,
+      "region": "all",
+      "source": "https://genshin-impact.fandom.com/wiki/Promotional_Code"
+    },
+    {
+      "gameId": "genshin",
+      "code": "GS71XDYGEO",
+      "rewards": "Mora ×30000, Hero's Wit ×3, Mystic Enhancement Ore ×5",
+      "expiresAt": null,
+      "region": "all",
+      "source": "https://genshin-impact.fandom.com/wiki/Promotional_Code"
+    },
+    {
+      "gameId": "genshin",
+      "code": "GS71XYNSYJ",
+      "rewards": "Mora ×30000, Hero's Wit ×3, Mystic Enhancement Ore ×5",
+      "expiresAt": null,
+      "region": "all",
+      "source": "https://genshin-impact.fandom.com/wiki/Promotional_Code"
+    },
+    {
+      "gameId": "genshin",
+      "code": "GS71XOXYLG",
+      "rewards": "Mora ×30000, Hero's Wit ×3, Mystic Enhancement Ore ×5",
+      "expiresAt": null,
+      "region": "all",
+      "source": "https://genshin-impact.fandom.com/wiki/Promotional_Code"
+    },
+    {
+      "gameId": "genshin",
+      "code": "Y6JYMKV6JKSL",
+      "rewards": "Primogem ×60, Adventurer's Experience ×5",
+      "expiresAt": null,
+      "region": "all",
+      "source": "https://genshin-impact.fandom.com/wiki/Promotional_Code"
+    },
+    {
+      "gameId": "genshin",
+      "code": "YOAL3V36XHS7",
+      "rewards": "Mora ×10000, Adventurer's Experience ×10, Fine Enhancement Ore ×5, Jueyun Chili Chicken ×5, Stir-Fried Fish Noodles ×5",
+      "expiresAt": null,
+      "region": "all",
+      "source": "https://genshin-impact.fandom.com/wiki/Promotional_Code"
+    },
+    {
+      "gameId": "genshin",
+      "code": "DUGODWKRHAKDNJ",
+      "rewards": "Primogem ×30, Mora ×10000, Hero's Wit ×3, Mystic Enhancement Ore ×3",
+      "expiresAt": null,
+      "region": "all",
+      "source": "https://genshin-impact.fandom.com/wiki/Promotional_Code"
+    },
+    {
+      "gameId": "genshin",
+      "code": "BALLETCOLLAB",
+      "rewards": "Primogem ×30, Mora ×10000, Hero's Wit ×3, Mystic Enhancement Ore ×3",
+      "expiresAt": null,
+      "region": "all",
+      "source": "https://genshin-impact.fandom.com/wiki/Promotional_Code"
+    },
+    {
+      "gameId": "genshin",
+      "code": "2BJ64QRZ7RT8",
+      "rewards": "Primogem ×60, Adventurer's Experience ×5",
+      "expiresAt": null,
+      "region": "all",
+      "source": "https://genshin-impact.fandom.com/wiki/Promotional_Code"
     },
     {
       "gameId": "hsr",
-      "title": "Песнь солнца",
-      "featured": ["Зарянка"],
-      "rarity": 5,
-      "image": null,
-      "startsAt": 1787709600,
-      "endsAt": 1789210740,
-      "url": "https://www.hoyolab.com/article/46439490"
+      "code": "NSJR3B97ZZ5X",
+      "rewards": "Stellar Jade ×50, Credit ×10000",
+      "expiresAt": null,
+      "region": "all",
+      "source": "https://honkai-star-rail.fandom.com/wiki/Redemption_Code"
+    },
+    {
+      "gameId": "hsr",
+      "code": "STARRAILFATE2026",
+      "rewards": "The Fluffy Multi-Functional Fan Glowstick ×2, Traveler's Guide ×3",
+      "expiresAt": null,
+      "region": "all",
+      "source": "https://honkai-star-rail.fandom.com/wiki/Redemption_Code"
+    },
+    {
+      "gameId": "hsr",
+      "code": "BESTCOFFEEEVER",
+      "rewards": "Traveler's Guide ×3, Express Special Blend: Rustic Infusion ×2",
+      "expiresAt": null,
+      "region": "all",
+      "source": "https://honkai-star-rail.fandom.com/wiki/Redemption_Code"
+    },
+    {
+      "gameId": "hsr",
+      "code": "OMEGA",
+      "rewards": "Stellar Jade ×60, Fuel ×1",
+      "expiresAt": null,
+      "region": "all",
+      "source": "https://honkai-star-rail.fandom.com/wiki/Redemption_Code"
+    },
+    {
+      "gameId": "hsr",
+      "code": "CREATIONNYMPH",
+      "rewards": "Stellar Jade ×60, Fuel ×1, Heroic Variable ×1",
+      "expiresAt": null,
+      "region": "all",
+      "source": "https://honkai-star-rail.fandom.com/wiki/Redemption_Code"
+    },
+    {
+      "gameId": "hsr",
+      "code": "FAREWELL",
+      "rewards": "Stellar Jade ×60, Fuel ×1",
+      "expiresAt": null,
+      "region": "all",
+      "source": "https://honkai-star-rail.fandom.com/wiki/Redemption_Code"
+    },
+    {
+      "gameId": "hsr",
+      "code": "IFYOUAREREADINGTHIS",
+      "rewards": "Stellar Jade ×60, Fuel ×1",
+      "expiresAt": null,
+      "region": "all",
+      "source": "https://honkai-star-rail.fandom.com/wiki/Redemption_Code"
+    },
+    {
+      "gameId": "hsr",
+      "code": "STARRAILGIFT",
+      "rewards": "Stellar Jade ×50, Credit ×10000",
+      "expiresAt": null,
+      "region": "all",
+      "source": "https://honkai-star-rail.fandom.com/wiki/Redemption_Code"
     },
     {
       "gameId": "zzz",
-      "title": "Возвращённый рай",
-      "featured": ["Ремиэлла"],
-      "rarity": 5,
-      "image": "https://static.wikia.nocookie.net/zenless-zone-zero/images/b/b2/Paradise_Regained_2026-07-29.png/revision/latest/scale-to-width-down/400",
-      "startsAt": 1785290400,
-      "endsAt": 1788850799
+      "code": "ZZZVOID32",
+      "rewards": "Polychrome ×20, Denny ×2222",
+      "expiresAt": null,
+      "region": "all",
+      "source": "https://zenless-zone-zero.fandom.com/wiki/Redemption_Code"
+    },
+    {
+      "gameId": "zzz",
+      "code": "ZZZINK32",
+      "rewards": "Polychrome ×20, Denny ×2222",
+      "expiresAt": null,
+      "region": "all",
+      "source": "https://zenless-zone-zero.fandom.com/wiki/Redemption_Code"
+    },
+    {
+      "gameId": "zzz",
+      "code": "ZZZGRIND32",
+      "rewards": "Polychrome ×20, Denny ×2222",
+      "expiresAt": null,
+      "region": "all",
+      "source": "https://zenless-zone-zero.fandom.com/wiki/Redemption_Code"
+    },
+    {
+      "gameId": "zzz",
+      "code": "ZENLESSGIFT",
+      "rewards": "Polychrome ×50, Official Investigator Log ×2, W-Engine Power Supply ×3, Bangboo Algorithm Module ×1",
+      "expiresAt": null,
+      "region": "all",
+      "source": "https://zenless-zone-zero.fandom.com/wiki/Redemption_Code"
     },
     {
       "gameId": "wuthering",
-      "title": "Wind of Transcendence",
-      "featured": ["Qingxiao"],
+      "code": "WUTHERINGGIFT",
+      "rewards": "Astrite ×50, Premium Resonance Potion ×2, Medium Revival Inhaler ×2, Medium Energy Bag ×2, Shell Credit ×10000",
+      "expiresAt": null,
+      "region": "all",
+      "source": "https://wutheringwaves.fandom.com/wiki/Redemption_Code"
+    }
+  ],
+  "banners": [
+    {
+      "gameId": "genshin",
+      "title": "Surging Ballad",
+      "featured": [
+        "Vodyanitsa"
+      ],
       "rarity": 5,
-      "image": "https://static.wikia.nocookie.net/wutheringwaves/images/6/69/Wind_of_Transcendence_2026-08-20.jpg/revision/latest/scale-to-width-down/400",
-      "startsAt": 1787191200,
-      "endsAt": 1789005599,
-      "url": "https://wutheringwaves.kurogames.com/en/main/news/detail/5331"
+      "image": "https://static.wikia.nocookie.net/gensin-impact/images/9/9b/Surging_Ballad_2026-09-23.png/revision/latest/scale-to-width-down/400?cb=20260921040435",
+      "startsAt": 1790132400,
+      "endsAt": 1791910799,
+      "url": "https://genshin-impact.fandom.com/wiki/Surging_Ballad/2026-09-23"
+    },
+    {
+      "gameId": "genshin",
+      "title": "When Warm Winds Cavort",
+      "featured": [
+        "Vesna"
+      ],
+      "rarity": 5,
+      "image": "https://static.wikia.nocookie.net/gensin-impact/images/5/5c/When_Warm_Winds_Cavort_2026-09-23.png/revision/latest/scale-to-width-down/400?cb=20260921040433",
+      "startsAt": 1790132400,
+      "endsAt": 1791910799,
+      "url": "https://genshin-impact.fandom.com/wiki/When_Warm_Winds_Cavort/2026-09-23"
+    },
+    {
+      "gameId": "hsr",
+      "title": "The Demoiselle in Charge",
+      "featured": [
+        "Evanescia"
+      ],
+      "rarity": 5,
+      "image": "https://static.wikia.nocookie.net/houkai-star-rail/images/2/2a/The_Demoiselle_in_Charge_2026-09-28.png/revision/latest/scale-to-width-down/400?cb=20260928065858",
+      "startsAt": 1790564400,
+      "endsAt": 1792580399,
+      "url": "https://honkai-star-rail.fandom.com/wiki/The_Demoiselle_in_Charge/2026-09-28"
+    },
+    {
+      "gameId": "hsr",
+      "title": "An Ocean in a Pearl",
+      "featured": [
+        "Pearl"
+      ],
+      "rarity": 5,
+      "image": "https://static.wikia.nocookie.net/houkai-star-rail/images/b/b9/An_Ocean_in_a_Pearl_2026-09-28.png/revision/latest/scale-to-width-down/400?cb=20260928065909",
+      "startsAt": 1790564400,
+      "endsAt": 1794319200,
+      "url": "https://honkai-star-rail.fandom.com/wiki/An_Ocean_in_a_Pearl/2026-09-28"
+    },
+    {
+      "gameId": "hsr",
+      "title": "Now I Am Become Blade",
+      "featured": [
+        "Mortenax Blade"
+      ],
+      "rarity": 5,
+      "image": null,
+      "startsAt": 1792580400,
+      "endsAt": 1794319199,
+      "url": "https://honkai-star-rail.fandom.com/wiki/Now_I_Am_Become_Blade/2026-10-21"
+    },
+    {
+      "gameId": "zzz",
+      "title": "Cold Rain Wanes in the Night",
+      "featured": [
+        "Promeia"
+      ],
+      "rarity": 5,
+      "image": null,
+      "startsAt": 1790766000,
+      "endsAt": 1792504799,
+      "url": "https://zenless-zone-zero.fandom.com/wiki/Cold_Rain_Wanes_in_the_Night/2026-09-30"
+    },
+    {
+      "gameId": "zzz",
+      "title": "Cindernight Respite",
+      "featured": [
+        "Roxy Ifrita Pryce"
+      ],
+      "rarity": 5,
+      "image": null,
+      "startsAt": 1790766000,
+      "endsAt": 1792504799,
+      "url": "https://zenless-zone-zero.fandom.com/wiki/Cindernight_Respite/2026-09-30"
     },
     {
       "gameId": "endfield",
-      "title": "Good Morning from Your Dawnstar",
-      "featured": ["Liino"],
+      "title": "Winter Hunt",
+      "featured": [
+        "Typhoeus"
+      ],
       "rarity": 6,
-      "image": "https://endfield.wiki.gg/images/thumb/Good_Morning_from_Your_Dawnstar_banner.png/400px-Good_Morning_from_Your_Dawnstar_banner.png",
-      "startsAt": 1786248000,
-      "endsAt": 1788299999
+      "image": "https://endfield.wiki.gg/images/thumb/Winter_Hunt_banner.png/400px-Winter_Hunt_banner.png?afc7e6",
+      "startsAt": 1788321600,
+      "endsAt": 1790787540,
+      "url": "https://endfield.wiki.gg/wiki/Headhunting/Banners"
+    },
+    {
+      "gameId": "endfield",
+      "title": "Resplendent Spectrum",
+      "featured": [
+        "Yvonne"
+      ],
+      "rarity": 6,
+      "image": "https://endfield.wiki.gg/images/thumb/Resplendent_Spectrum_banner.png/400px-Resplendent_Spectrum_banner.png?9779e0",
+      "startsAt": 1790269200,
+      "endsAt": 1792015140,
+      "url": "https://endfield.wiki.gg/wiki/Headhunting/Banners"
     }
   ],
-
   "videos": [
-    { "gameId": "genshin", "title": "Local Legend - Churin \"Apprentice Sculptor, Martial Master\" #NowSnezhnaya #GenshinSnezhnaya", "url": "https://www.youtube.com/shorts/2uJw3z-cYlc", "thumb": "https://i3.ytimg.com/vi/2uJw3z-cYlc/hqdefault.jpg", "publishedAt": 1787738439, "duration": null, "premiere": false },
-    { "gameId": "genshin", "title": "Would you like to adopt a puppy? #GenshinImpact #NowSnezhnaya #GenshinSnezhnaya #Alyosha", "url": "https://www.youtube.com/shorts/LmkcqLBdn5o", "thumb": "https://i1.ytimg.com/vi/LmkcqLBdn5o/hqdefault.jpg", "publishedAt": 1787652028, "duration": null, "premiere": false },
-    { "gameId": "genshin", "title": "If the desperate wish to hold onto something burns too fiercely… #NowSnezhnaya #GenshinSnezhnaya", "url": "https://www.youtube.com/shorts/mh3CY72-Hlc", "thumb": "https://i2.ytimg.com/vi/mh3CY72-Hlc/hqdefault.jpg", "publishedAt": 1787565622, "duration": null, "premiere": false },
-    { "gameId": "genshin", "title": "Cutscene Animation: \"Triumphant Return\" | Genshin Impact #NowSnezhnaya #GenshinSnezhnaya", "url": "https://www.youtube.com/watch?v=YridTO5hKfM", "thumb": "https://i2.ytimg.com/vi/YridTO5hKfM/hqdefault.jpg", "publishedAt": 1787479220, "duration": null, "premiere": false },
-    { "gameId": "genshin", "title": "Story Teaser: Embers Beneath the Ice | Genshin Impact #NowSnezhnaya #GenshinSnezhnaya", "url": "https://www.youtube.com/watch?v=t2aHM2w-VO0", "thumb": "https://i1.ytimg.com/vi/t2aHM2w-VO0/hqdefault.jpg", "publishedAt": 1787457609, "duration": null, "premiere": false },
-    { "gameId": "genshin", "title": "Cutscene Animation: \"The Hour of Resurrection Draws Near\" | Genshin Impact #NowSnezhnaya", "url": "https://www.youtube.com/watch?v=s5u5aSDvk0A", "thumb": "https://i4.ytimg.com/vi/s5u5aSDvk0A/hqdefault.jpg", "publishedAt": 1787392832, "duration": null, "premiere": false },
-
-    { "gameId": "hsr", "title": "Astral Glamor | Robin • Summeretto", "url": "https://www.youtube.com/shorts/oMw1Wtcn20Q", "thumb": "https://i4.ytimg.com/vi/oMw1Wtcn20Q/hqdefault.jpg", "publishedAt": 1787832013, "duration": null, "premiere": false },
-    { "gameId": "hsr", "title": "Come Experience the Version Content of \"To Roll the Stars in Astropolis\"!", "url": "https://www.youtube.com/shorts/iF654p9vwsk", "thumb": "https://i2.ytimg.com/vi/iF654p9vwsk/hqdefault.jpg", "publishedAt": 1787734810, "duration": null, "premiere": false },
-    { "gameId": "hsr", "title": "Welcome to Version 4.5 \"To Roll the Stars in Astropolis\" !", "url": "https://www.youtube.com/shorts/f9V2PM5-Y_g", "thumb": "https://i3.ytimg.com/vi/f9V2PM5-Y_g/hqdefault.jpg", "publishedAt": 1787713215, "duration": null, "premiere": false },
-    { "gameId": "hsr", "title": "Summer Chorus | Robin • Summeretto", "url": "https://www.youtube.com/shorts/ZiHFH-4uIsw", "thumb": "https://i3.ytimg.com/vi/ZiHFH-4uIsw/hqdefault.jpg", "publishedAt": 1787659232, "duration": null, "premiere": false },
-    { "gameId": "hsr", "title": "Robin • Summeretto Character Trailer: \"Chasing the Wind\" | Honkai: Star Rail", "url": "https://www.youtube.com/watch?v=hpqKHn0yS7I", "thumb": "https://i1.ytimg.com/vi/hpqKHn0yS7I/hqdefault.jpg", "publishedAt": 1787630439, "duration": null, "premiere": false },
-    { "gameId": "hsr", "title": "Summer Spotlight | A Song from the Heart", "url": "https://www.youtube.com/shorts/-Tb0gXqTFdM", "thumb": "https://i2.ytimg.com/vi/-Tb0gXqTFdM/hqdefault.jpg", "publishedAt": 1787371238, "duration": null, "premiere": false },
-
-    { "gameId": "zzz", "title": "Exclusive Report 丨 Their Secret Histories", "url": "https://www.youtube.com/shorts/zQTPE_yMn5Q", "thumb": "https://i3.ytimg.com/vi/zQTPE_yMn5Q/hqdefault.jpg", "publishedAt": 1787976025, "duration": null, "premiere": false },
-    { "gameId": "zzz", "title": "Version 3.2 Teaser - \"Their Secret Histories\" | Zenless Zone Zero", "url": "https://www.youtube.com/watch?v=4O-Iq8lj9_k", "thumb": "https://i1.ytimg.com/vi/4O-Iq8lj9_k/hqdefault.jpg", "publishedAt": 1787918994, "duration": null, "premiere": false },
-    { "gameId": "zzz", "title": "Zenless Zone Zero Version 3.2 \"Their Secret Histories\" Special Program", "url": "https://www.youtube.com/watch?v=kdGJDZb6mWk", "thumb": "https://i4.ytimg.com/vi/kdGJDZb6mWk/hqdefault.jpg", "publishedAt": 1787916546, "duration": null, "premiere": false },
-    { "gameId": "zzz", "title": "Random Play | Pranks Come After the Tea Party", "url": "https://www.youtube.com/shorts/l-7MsF3EbCI", "thumb": "https://i1.ytimg.com/vi/l-7MsF3EbCI/hqdefault.jpg", "publishedAt": 1787284830, "duration": null, "premiere": false },
-    { "gameId": "zzz", "title": "Sigrid Character Teaser - \"My Little Sigrid\" | Zenless Zone Zero", "url": "https://www.youtube.com/watch?v=HHL6KTgTEdU", "thumb": "https://i1.ytimg.com/vi/HHL6KTgTEdU/hqdefault.jpg", "publishedAt": 1786939203, "duration": null, "premiere": false },
-    { "gameId": "zzz", "title": "Knight's Extolment W-Engine Showcase", "url": "https://www.youtube.com/shorts/XtEsgM23noU", "thumb": "https://i1.ytimg.com/vi/XtEsgM23noU/hqdefault.jpg", "publishedAt": 1786768202, "duration": null, "premiere": false },
-
-    { "gameId": "wuthering", "title": "Wuthering Waves Story Cinematics | Then and Now, One Sword", "url": "https://www.youtube.com/watch?v=NT256TQC_9s", "thumb": "https://i3.ytimg.com/vi/NT256TQC_9s/hqdefault.jpg", "publishedAt": 1788058828, "duration": null, "premiere": false },
-    { "gameId": "wuthering", "title": "Wuthering Waves Story Cinematics | Immortal and Mortal", "url": "https://www.youtube.com/watch?v=QRXTBmlVVVo", "thumb": "https://i2.ytimg.com/vi/QRXTBmlVVVo/hqdefault.jpg", "publishedAt": 1787972402, "duration": null, "premiere": false },
-    { "gameId": "wuthering", "title": "\"When the Blight Rain and Miasmic Thunder fade, what remains is only... locked obsessions.\"", "url": "https://www.youtube.com/shorts/NbZ943KYti0", "thumb": "https://i3.ytimg.com/vi/NbZ943KYti0/hqdefault.jpg", "publishedAt": 1787889919, "duration": null, "premiere": false },
-    { "gameId": "wuthering", "title": "\"I have tasted every longing beneath the heavens, and at last... I know where my heart belongs.\"", "url": "https://www.youtube.com/shorts/TQUyOhestvY", "thumb": "https://i1.ytimg.com/vi/TQUyOhestvY/hqdefault.jpg", "publishedAt": 1787886321, "duration": null, "premiere": false },
-    { "gameId": "wuthering", "title": "Post-Lament Anthropocene: Stars Intertwined — Suoming", "url": "https://www.youtube.com/shorts/0mwDm3U7m-w", "thumb": "https://i1.ytimg.com/vi/0mwDm3U7m-w/hqdefault.jpg", "publishedAt": 1787799916, "duration": null, "premiere": false },
-    { "gameId": "wuthering", "title": "Midnight Podcast | Qingxiao", "url": "https://www.youtube.com/watch?v=eUz1KwRDbKg", "thumb": "https://i2.ytimg.com/vi/eUz1KwRDbKg/hqdefault.jpg", "publishedAt": 1787742002, "duration": null, "premiere": false }
+    {
+      "gameId": "genshin",
+      "lang": "en",
+      "title": "Commander Vesna of the Druzhna, pleasure to meet you. #Vesna #StoriesofFrostSnow #GenshinSnezhnaya",
+      "url": "https://www.youtube.com/shorts/Q-ipLPGL8Qg",
+      "thumb": "https://i2.ytimg.com/vi/Q-ipLPGL8Qg/hqdefault.jpg",
+      "publishedAt": 1790762432,
+      "duration": null,
+      "premiere": false
+    },
+    {
+      "gameId": "genshin",
+      "lang": "en",
+      "title": "\"Night is falling... Since I can't hold a candle to you, perhaps this lamp will do the trick?\"",
+      "url": "https://www.youtube.com/shorts/CQmxJqv4QnM",
+      "thumb": "https://i4.ytimg.com/vi/CQmxJqv4QnM/hqdefault.jpg",
+      "publishedAt": 1790737203,
+      "duration": null,
+      "premiere": false
+    },
+    {
+      "gameId": "genshin",
+      "lang": "en",
+      "title": "Snezhnaya Cultural Co-Creation Series: \"A Winter Night's Aria\" Opera Collaboration #GenshinImpact",
+      "url": "https://www.youtube.com/shorts/0lcI9ZXq6ps",
+      "thumb": "https://i1.ytimg.com/vi/0lcI9ZXq6ps/hqdefault.jpg",
+      "publishedAt": 1790676336,
+      "duration": null,
+      "premiere": false
+    },
+    {
+      "gameId": "genshin",
+      "lang": "en",
+      "title": "Valeriy: Fort Fulguration #GenshinImpact #Valeriy #GenshinSnezhnaya",
+      "url": "https://www.youtube.com/shorts/iVHs8wOGYio",
+      "thumb": "https://i2.ytimg.com/vi/iVHs8wOGYio/hqdefault.jpg",
+      "publishedAt": 1790676000,
+      "duration": null,
+      "premiere": false
+    },
+    {
+      "gameId": "genshin",
+      "lang": "en",
+      "title": "Paimon's been keeping track of all the memories made on our journey! #AnniversaryMemoriesAlbum",
+      "url": "https://www.youtube.com/shorts/dgm5ltqQ2SQ",
+      "thumb": "https://i1.ytimg.com/vi/dgm5ltqQ2SQ/hqdefault.jpg",
+      "publishedAt": 1790668802,
+      "duration": null,
+      "premiere": false
+    },
+    {
+      "gameId": "genshin",
+      "lang": "en",
+      "title": "Mitya: Rules Set at Naught #GenshinImpact #Mitya #GenshinSnezhnaya",
+      "url": "https://www.youtube.com/shorts/y1SIHvgh4Lo",
+      "thumb": "https://i2.ytimg.com/vi/y1SIHvgh4Lo/hqdefault.jpg",
+      "publishedAt": 1790654461,
+      "duration": null,
+      "premiere": false
+    },
+    {
+      "gameId": "genshin",
+      "lang": "ja",
+      "title": "【原神】6周年記念キャストインタビュー　伊藤かな恵（ヴォジャニーツァ 役）",
+      "url": "https://www.youtube.com/watch?v=FBhKbr466XY",
+      "thumb": "https://i3.ytimg.com/vi/FBhKbr466XY/hqdefault.jpg",
+      "publishedAt": 1790762436,
+      "duration": null,
+      "premiere": false
+    },
+    {
+      "gameId": "genshin",
+      "lang": "ja",
+      "title": "【原神】ごきげんよう、冬契軍司令官のヴェスナよ。 #原神スネージナヤ #ヴェスナ #氷雪の物語",
+      "url": "https://www.youtube.com/shorts/K9GkZ20D7zM",
+      "thumb": "https://i4.ytimg.com/vi/K9GkZ20D7zM/hqdefault.jpg",
+      "publishedAt": 1790762426,
+      "duration": null,
+      "premiere": false
+    },
+    {
+      "gameId": "genshin",
+      "lang": "ja",
+      "title": "【原神】6周年記念キャストコメント　平野綾（ヴェスナ 役）",
+      "url": "https://www.youtube.com/watch?v=8SXXlQnHQW4",
+      "thumb": "https://i1.ytimg.com/vi/8SXXlQnHQW4/hqdefault.jpg",
+      "publishedAt": 1790740819,
+      "duration": null,
+      "premiere": false
+    },
+    {
+      "gameId": "genshin",
+      "lang": "ja",
+      "title": "【原神】「あなたのような優秀な方と一緒に行動できて光栄です。さて、そろそろ夜も更けてきましたが…僕が照らしましょうか？」 #原神カレンダー #原神",
+      "url": "https://www.youtube.com/shorts/03Zwr4080_k",
+      "thumb": "https://i1.ytimg.com/vi/03Zwr4080_k/hqdefault.jpg",
+      "publishedAt": 1790737234,
+      "duration": null,
+      "premiere": false
+    },
+    {
+      "gameId": "genshin",
+      "lang": "ja",
+      "title": "【原神】6周年記念キャストインタビュー　前野智昭（鍾離 役）",
+      "url": "https://www.youtube.com/watch?v=QzU7vYZ0mRo",
+      "thumb": "https://i2.ytimg.com/vi/QzU7vYZ0mRo/hqdefault.jpg",
+      "publishedAt": 1790676613,
+      "duration": null,
+      "premiere": false
+    },
+    {
+      "gameId": "genshin",
+      "lang": "ja",
+      "title": "【原神】雪降る音・スネージナヤ文化共創シリーズコラボイベント オペラ『寒夜のアリア』 #氷雪の物語 #原神",
+      "url": "https://www.youtube.com/shorts/cH87yGEXoMA",
+      "thumb": "https://i4.ytimg.com/vi/cH87yGEXoMA/hqdefault.jpg",
+      "publishedAt": 1790676303,
+      "duration": null,
+      "premiere": false
+    },
+    {
+      "gameId": "hsr",
+      "lang": "en",
+      "title": "Astral Glamor | Pearl",
+      "url": "https://www.youtube.com/shorts/fH0yXrZopgc",
+      "thumb": "https://i3.ytimg.com/vi/fH0yXrZopgc/hqdefault.jpg",
+      "publishedAt": 1790683219,
+      "duration": null,
+      "premiere": false
+    },
+    {
+      "gameId": "hsr",
+      "lang": "en",
+      "title": "Fluffy Across the Blue — Pet Park Blind Box Draws",
+      "url": "https://www.youtube.com/shorts/YKEufDzuNx8",
+      "thumb": "https://i2.ytimg.com/vi/YKEufDzuNx8/hqdefault.jpg",
+      "publishedAt": 1790589625,
+      "duration": null,
+      "premiere": false
+    },
+    {
+      "gameId": "hsr",
+      "lang": "en",
+      "title": "The Laughter Outsmarts miHoYo",
+      "url": "https://www.youtube.com/shorts/C6uku9_GEaU",
+      "thumb": "https://i4.ytimg.com/vi/C6uku9_GEaU/hqdefault.jpg",
+      "publishedAt": 1790568004,
+      "duration": null,
+      "premiere": false
+    },
+    {
+      "gameId": "hsr",
+      "lang": "en",
+      "title": "Welcome to Version 4.6 \"Dance With the Beast Before Moonrise\"!",
+      "url": "https://www.youtube.com/shorts/roinkC5lcBI",
+      "thumb": "https://i3.ytimg.com/vi/roinkC5lcBI/hqdefault.jpg",
+      "publishedAt": 1790564409,
+      "duration": null,
+      "premiere": false
+    },
+    {
+      "gameId": "hsr",
+      "lang": "en",
+      "title": "An Ocean in a Pearl | Pearl",
+      "url": "https://www.youtube.com/shorts/FcjfCOtad8k",
+      "thumb": "https://i3.ytimg.com/vi/FcjfCOtad8k/hqdefault.jpg",
+      "publishedAt": 1790510429,
+      "duration": null,
+      "premiere": false
+    },
+    {
+      "gameId": "hsr",
+      "lang": "en",
+      "title": "Pearl Character Trailer: \"The Way to Paint a Form of Hope\" | Honkai: Star Rail",
+      "url": "https://www.youtube.com/watch?v=twrZobrx0ZM",
+      "thumb": "https://i1.ytimg.com/vi/twrZobrx0ZM/hqdefault.jpg",
+      "publishedAt": 1790481636,
+      "duration": null,
+      "premiere": false
+    },
+    {
+      "gameId": "hsr",
+      "lang": "ja",
+      "title": "ステラ美学 | パール",
+      "url": "https://www.youtube.com/shorts/uWroUYscqSo",
+      "thumb": "https://i2.ytimg.com/vi/uWroUYscqSo/hqdefault.jpg",
+      "publishedAt": 1790683213,
+      "duration": null,
+      "premiere": false
+    },
+    {
+      "gameId": "hsr",
+      "lang": "ja",
+      "title": "『青天航路もふもふ号』——「かわいいペットパークでカプセルトイを堪能」",
+      "url": "https://www.youtube.com/shorts/SZZszi3rJoM",
+      "thumb": "https://i4.ytimg.com/vi/SZZszi3rJoM/hqdefault.jpg",
+      "publishedAt": 1790589638,
+      "duration": null,
+      "premiere": false
+    },
+    {
+      "gameId": "hsr",
+      "lang": "ja",
+      "title": "笑いの神様、miHoYoを出し抜く",
+      "url": "https://www.youtube.com/shorts/j4ZyimWNz_M",
+      "thumb": "https://i3.ytimg.com/vi/j4ZyimWNz_M/hqdefault.jpg",
+      "publishedAt": 1790568030,
+      "duration": null,
+      "premiere": false
+    },
+    {
+      "gameId": "hsr",
+      "lang": "ja",
+      "title": "Ver.4.6「月立つ前に獣と踊れ」へようこそ！",
+      "url": "https://www.youtube.com/shorts/CAuip0eHdvc",
+      "thumb": "https://i4.ytimg.com/vi/CAuip0eHdvc/hqdefault.jpg",
+      "publishedAt": 1790564417,
+      "duration": null,
+      "premiere": false
+    },
+    {
+      "gameId": "hsr",
+      "lang": "ja",
+      "title": "「海より出づる真珠」| Ver.4.6アップデート後 ～ 2026/11/10 15:00（サーバー時間）、限定★5キャラクター「パール（愉悦・氷）」出現確率UP",
+      "url": "https://www.youtube.com/shorts/eDGZPNnmhWg",
+      "thumb": "https://i2.ytimg.com/vi/eDGZPNnmhWg/hqdefault.jpg",
+      "publishedAt": 1790510401,
+      "duration": null,
+      "premiere": false
+    },
+    {
+      "gameId": "hsr",
+      "lang": "ja",
+      "title": "【崩壊：スターレイル】パール キャラクターPV 「希望の描き方」",
+      "url": "https://www.youtube.com/watch?v=hs3YfTB1I3s",
+      "thumb": "https://i1.ytimg.com/vi/hs3YfTB1I3s/hqdefault.jpg",
+      "publishedAt": 1790481637,
+      "duration": null,
+      "premiere": false
+    },
+    {
+      "gameId": "zzz",
+      "lang": "en",
+      "title": "Random Play | Encouragement of Alchemy",
+      "url": "https://www.youtube.com/shorts/Lz0oUu1xtUM",
+      "thumb": "https://i1.ytimg.com/vi/Lz0oUu1xtUM/hqdefault.jpg",
+      "publishedAt": 1790656237,
+      "duration": null,
+      "premiere": false
+    },
+    {
+      "gameId": "zzz",
+      "lang": "en",
+      "title": "Roxy Character Teaser - \"Clockwork Knight\" | Zenless Zone Zero",
+      "url": "https://www.youtube.com/watch?v=s-y-Vc1dVkU",
+      "thumb": "https://i4.ytimg.com/vi/s-y-Vc1dVkU/hqdefault.jpg",
+      "publishedAt": 1790654399,
+      "duration": null,
+      "premiere": false
+    },
+    {
+      "gameId": "zzz",
+      "lang": "en",
+      "title": "\"Crimson Moon Casket\" W-Engine Showcase",
+      "url": "https://www.youtube.com/shorts/_al9UX_YI0k",
+      "thumb": "https://i4.ytimg.com/vi/_al9UX_YI0k/hqdefault.jpg",
+      "publishedAt": 1790568014,
+      "duration": null,
+      "premiere": false
+    },
+    {
+      "gameId": "zzz",
+      "lang": "en",
+      "title": "For Display Only | Roxy",
+      "url": "https://www.youtube.com/shorts/cLZKnu-zjhc",
+      "thumb": "https://i4.ytimg.com/vi/cLZKnu-zjhc/hqdefault.jpg",
+      "publishedAt": 1790330414,
+      "duration": null,
+      "premiere": false
+    },
+    {
+      "gameId": "zzz",
+      "lang": "en",
+      "title": "Roxy Character Demo - \"A Mysterious Coffin Bearer\" | Zenless Zone Zero",
+      "url": "https://www.youtube.com/watch?v=w088eYNQW4w",
+      "thumb": "https://i4.ytimg.com/vi/w088eYNQW4w/hqdefault.jpg",
+      "publishedAt": 1790308798,
+      "duration": null,
+      "premiere": false
+    },
+    {
+      "gameId": "zzz",
+      "lang": "en",
+      "title": "Vacation Album | Best Composition at Sunset",
+      "url": "https://www.youtube.com/shorts/kFHfId2rPw4",
+      "thumb": "https://i4.ytimg.com/vi/kFHfId2rPw4/hqdefault.jpg",
+      "publishedAt": 1789963206,
+      "duration": null,
+      "premiere": false
+    },
+    {
+      "gameId": "zzz",
+      "lang": "ja",
+      "title": "「Random Play」｜フリンツノススメ",
+      "url": "https://www.youtube.com/shorts/_nMsGqmYjUA",
+      "thumb": "https://i4.ytimg.com/vi/_nMsGqmYjUA/hqdefault.jpg",
+      "publishedAt": 1790656222,
+      "duration": null,
+      "premiere": false
+    },
+    {
+      "gameId": "zzz",
+      "lang": "ja",
+      "title": "ロクシー エピソード「ゼンマイナイト」｜ゼンレスゾーンゼロ",
+      "url": "https://www.youtube.com/watch?v=b9rqMnCNM10",
+      "thumb": "https://i3.ytimg.com/vi/b9rqMnCNM10/hqdefault.jpg",
+      "publishedAt": 1790654400,
+      "duration": null,
+      "premiere": false
+    },
+    {
+      "gameId": "zzz",
+      "lang": "ja",
+      "title": "「緋月の銀棺」音動機エキシビション",
+      "url": "https://www.youtube.com/shorts/4HnslX2ls5Y",
+      "thumb": "https://i1.ytimg.com/vi/4HnslX2ls5Y/hqdefault.jpg",
+      "publishedAt": 1790568017,
+      "duration": null,
+      "premiere": false
+    },
+    {
+      "gameId": "zzz",
+      "lang": "ja",
+      "title": "【非売品ビデオ】ロクシー",
+      "url": "https://www.youtube.com/shorts/GiB_k83xRn8",
+      "thumb": "https://i4.ytimg.com/vi/GiB_k83xRn8/hqdefault.jpg",
+      "publishedAt": 1790330423,
+      "duration": null,
+      "premiere": false
+    },
+    {
+      "gameId": "zzz",
+      "lang": "ja",
+      "title": "ロクシー エキシビション「棺を担ぐ謎の影」｜ゼンレスゾーンゼロ",
+      "url": "https://www.youtube.com/watch?v=n1CR-XqPYEU",
+      "thumb": "https://i3.ytimg.com/vi/n1CR-XqPYEU/hqdefault.jpg",
+      "publishedAt": 1790308799,
+      "duration": null,
+      "premiere": false
+    },
+    {
+      "gameId": "zzz",
+      "lang": "ja",
+      "title": "ホリデーアルバム｜夕暮れのベストショット",
+      "url": "https://www.youtube.com/shorts/3dUvP8f2jXk",
+      "thumb": "https://i4.ytimg.com/vi/3dUvP8f2jXk/hqdefault.jpg",
+      "publishedAt": 1789963227,
+      "duration": null,
+      "premiere": false
+    },
+    {
+      "gameId": "wuthering",
+      "lang": "en",
+      "title": "Wuthering Waves Version 3.7 Opening Cinematics | Simulacrum of the Heart",
+      "url": "https://www.youtube.com/watch?v=zRNaIQRx91c",
+      "thumb": "https://i3.ytimg.com/vi/zRNaIQRx91c/hqdefault.jpg",
+      "publishedAt": 1790740836,
+      "duration": null,
+      "premiere": false
+    },
+    {
+      "gameId": "wuthering",
+      "lang": "en",
+      "title": "[PRE-LIVE] Countdown to the Finale of Xuanfang",
+      "url": "https://www.youtube.com/watch?v=ZrlP-SqEKbE",
+      "thumb": "https://i3.ytimg.com/vi/ZrlP-SqEKbE/hqdefault.jpg",
+      "publishedAt": 1790735741,
+      "duration": null,
+      "premiere": false
+    },
+    {
+      "gameId": "wuthering",
+      "lang": "en",
+      "title": "Insider Channel: Special Program | The Waking Moon Dreamscape",
+      "url": "https://www.youtube.com/watch?v=WrIzedGlUpE",
+      "thumb": "https://i4.ytimg.com/vi/WrIzedGlUpE/hqdefault.jpg",
+      "publishedAt": 1790654439,
+      "duration": null,
+      "premiere": false
+    },
+    {
+      "gameId": "wuthering",
+      "lang": "en",
+      "title": "May the waking moon's light shine without end.",
+      "url": "https://www.youtube.com/shorts/oL2MAkVb00w",
+      "thumb": "https://i4.ytimg.com/vi/oL2MAkVb00w/hqdefault.jpg",
+      "publishedAt": 1790647219,
+      "duration": null,
+      "premiere": false
+    },
+    {
+      "gameId": "wuthering",
+      "lang": "en",
+      "title": "Wuthering Waves | Resonator Showcase | Hsin — A DREAM'S END",
+      "url": "https://www.youtube.com/watch?v=a3zMk49qpwI",
+      "thumb": "https://i2.ytimg.com/vi/a3zMk49qpwI/hqdefault.jpg",
+      "publishedAt": 1790564431,
+      "duration": null,
+      "premiere": false
+    },
+    {
+      "gameId": "wuthering",
+      "lang": "en",
+      "title": "May the river of civilization persist, winding through time.",
+      "url": "https://www.youtube.com/shorts/MjVdxW5UcYQ",
+      "thumb": "https://i2.ytimg.com/vi/MjVdxW5UcYQ/hqdefault.jpg",
+      "publishedAt": 1790560834,
+      "duration": null,
+      "premiere": false
+    },
+    {
+      "gameId": "wuthering",
+      "lang": "ja",
+      "title": "『鳴潮』Ver.3.7オープニング映像 | 夢枢の有り様、心のまま生ず",
+      "url": "https://www.youtube.com/watch?v=f0OEz8SX-ac",
+      "thumb": "https://i3.ytimg.com/vi/f0OEz8SX-ac/hqdefault.jpg",
+      "publishedAt": 1790740825,
+      "duration": null,
+      "premiere": false
+    },
+    {
+      "gameId": "wuthering",
+      "lang": "ja",
+      "title": "【ウォーミングアップ配信】玄方最終章開幕カウントダウン",
+      "url": "https://www.youtube.com/watch?v=RNNGvuNO2kU",
+      "thumb": "https://i3.ytimg.com/vi/RNNGvuNO2kU/hqdefault.jpg",
+      "publishedAt": 1790735345,
+      "duration": null,
+      "premiere": false
+    },
+    {
+      "gameId": "wuthering",
+      "lang": "ja",
+      "title": "ユニバースチャンネル特別番組 | 朝月の夢から覚める時",
+      "url": "https://www.youtube.com/watch?v=ixNe9TFR_eE",
+      "thumb": "https://i2.ytimg.com/vi/ixNe9TFR_eE/hqdefault.jpg",
+      "publishedAt": 1790654410,
+      "duration": null,
+      "premiere": false
+    },
+    {
+      "gameId": "wuthering",
+      "lang": "ja",
+      "title": "ただ願う、朝月の冴ゆる光が輝き続けることを。 #鳴潮",
+      "url": "https://www.youtube.com/shorts/g0lgtb3ZLrI",
+      "thumb": "https://i4.ytimg.com/vi/g0lgtb3ZLrI/hqdefault.jpg",
+      "publishedAt": 1790647214,
+      "duration": null,
+      "premiere": false
+    },
+    {
+      "gameId": "wuthering",
+      "lang": "ja",
+      "title": "『鳴潮』キャラクターPV丨心丨遠のく微睡み",
+      "url": "https://www.youtube.com/watch?v=L1nJ56KZjlM",
+      "thumb": "https://i1.ytimg.com/vi/L1nJ56KZjlM/hqdefault.jpg",
+      "publishedAt": 1790564428,
+      "duration": null,
+      "premiere": false
+    },
+    {
+      "gameId": "wuthering",
+      "lang": "ja",
+      "title": "ただ願う、文明の奔流が絶えないことを。 #鳴潮#心#シン",
+      "url": "https://www.youtube.com/shorts/cHBJz6Rf5_c",
+      "thumb": "https://i4.ytimg.com/vi/cHBJz6Rf5_c/hqdefault.jpg",
+      "publishedAt": 1790560816,
+      "duration": null,
+      "premiere": false
+    },
+    {
+      "gameId": "endfield",
+      "lang": "en",
+      "title": "Arknights: Endfield \"Sanctuary of Ink\" Special Program",
+      "url": "https://www.youtube.com/watch?v=IVLaaTT4yrw",
+      "thumb": "https://i2.ytimg.com/vi/IVLaaTT4yrw/hqdefault.jpg",
+      "publishedAt": 1790590606,
+      "duration": null,
+      "premiere": false
+    },
+    {
+      "gameId": "endfield",
+      "lang": "en",
+      "title": "If I'd been better, perhaps you would have...",
+      "url": "https://www.youtube.com/shorts/AnkyWa55noY",
+      "thumb": "https://i2.ytimg.com/vi/AnkyWa55noY/hqdefault.jpg",
+      "publishedAt": 1790330432,
+      "duration": null,
+      "premiere": false
+    },
+    {
+      "gameId": "endfield",
+      "lang": "en",
+      "title": "Autumn skies stretch for miles, silver light fills my sleeves.",
+      "url": "https://www.youtube.com/shorts/FGP5wwqlh08",
+      "thumb": "https://i3.ytimg.com/vi/FGP5wwqlh08/hqdefault.jpg",
+      "publishedAt": 1790305236,
+      "duration": null,
+      "premiere": false
+    },
+    {
+      "gameId": "endfield",
+      "lang": "en",
+      "title": "Checks complete! Frost-e-Bytee and I are ready to go at any",
+      "url": "https://www.youtube.com/shorts/JA9w291sJXM",
+      "thumb": "https://i3.ytimg.com/vi/JA9w291sJXM/hqdefault.jpg",
+      "publishedAt": 1790222424,
+      "duration": null,
+      "premiere": false
+    },
+    {
+      "gameId": "endfield",
+      "lang": "en",
+      "title": "Turn up all the colors, let's capture that perfect smile♥",
+      "url": "https://www.youtube.com/shorts/AfNvBPgPSVI",
+      "thumb": "https://i2.ytimg.com/vi/AfNvBPgPSVI/hqdefault.jpg",
+      "publishedAt": 1790157638,
+      "duration": null,
+      "premiere": false
+    },
+    {
+      "gameId": "endfield",
+      "lang": "en",
+      "title": "I'm not afraid of danger or being on my own... This is my trial, and mine alone.",
+      "url": "https://www.youtube.com/shorts/N4N774sSrZM",
+      "thumb": "https://i3.ytimg.com/vi/N4N774sSrZM/hqdefault.jpg",
+      "publishedAt": 1790071201,
+      "duration": null,
+      "premiere": false
+    },
+    {
+      "gameId": "endfield",
+      "lang": "ja",
+      "title": "『アークナイツ：エンドフィールド』「丹青渡」バージョン予告特別番組",
+      "url": "https://www.youtube.com/watch?v=tgL_Sr-kMjs",
+      "thumb": "https://i1.ytimg.com/vi/tgL_Sr-kMjs/hqdefault.jpg",
+      "publishedAt": 1790590973,
+      "duration": null,
+      "premiere": false
+    },
+    {
+      "gameId": "endfield",
+      "lang": "ja",
+      "title": "アタシがもっとちゃんとしてたら……タタは――",
+      "url": "https://www.youtube.com/shorts/iRe-XVwTrVk",
+      "thumb": "https://i2.ytimg.com/vi/iRe-XVwTrVk/hqdefault.jpg",
+      "publishedAt": 1790330427,
+      "duration": null,
+      "premiere": false
+    },
+    {
+      "gameId": "endfield",
+      "lang": "ja",
+      "title": "秋澄みて万里、清光袖に満つ。遥かに星野を尋ね、月を踏みてゆく。",
+      "url": "https://www.youtube.com/shorts/9vLxm-DlVLM",
+      "thumb": "https://i2.ytimg.com/vi/9vLxm-DlVLM/hqdefault.jpg",
+      "publishedAt": 1790305217,
+      "duration": null,
+      "premiere": false
+    },
+    {
+      "gameId": "endfield",
+      "lang": "ja",
+      "title": "イヴォンヌ▶️チェック完了！アタシとアイスちゃん、準備バッチリだよ！",
+      "url": "https://www.youtube.com/shorts/4XqAHJ94-uw",
+      "thumb": "https://i1.ytimg.com/vi/4XqAHJ94-uw/hqdefault.jpg",
+      "publishedAt": 1790222408,
+      "duration": null,
+      "premiere": false
+    },
+    {
+      "gameId": "endfield",
+      "lang": "ja",
+      "title": "色もパーッと明るくして、最高の笑顔残そー！♥",
+      "url": "https://www.youtube.com/shorts/LcRhl1gB6ms",
+      "thumb": "https://i1.ytimg.com/vi/LcRhl1gB6ms/hqdefault.jpg",
+      "publishedAt": 1790166257,
+      "duration": null,
+      "premiere": false
+    },
+    {
+      "gameId": "endfield",
+      "lang": "ja",
+      "title": "また会ったね、管理人！",
+      "url": "https://www.youtube.com/shorts/UAFJvdfjGc8",
+      "thumb": "https://i2.ytimg.com/vi/UAFJvdfjGc8/hqdefault.jpg",
+      "publishedAt": 1790071208,
+      "duration": null,
+      "premiere": false
+    }
   ]
 }

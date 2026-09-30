@@ -1,0 +1,57 @@
+name: release
+
+# Выпуск версии — один тег. Пуш тега vX.Y.Z собирает установщик NSIS на машине
+# GitHub и создаёт черновик релиза с ним; владелец проверяет и публикует.
+# Сборка здесь, а не на машине владельца: по коду в репозитории видно, из чего
+# собран установщик.
+on:
+  push:
+    tags: ['v*']
+
+jobs:
+  build:
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 20
+          cache: npm
+
+      # rustup на windows-latest уже стоит; ставим актуальный stable.
+      - name: Rust
+        run: rustup toolchain install stable --profile minimal && rustup default stable
+
+      - run: npm ci
+
+      # Номер в теге и в tauri.conf.json обязан совпадать: иначе в релизе
+      # лежал бы установщик с другой версией в имени и в «Программах».
+      - name: Версия тега = версия приложения
+        shell: pwsh
+        run: |
+          $conf = Get-Content src-tauri/tauri.conf.json -Raw | ConvertFrom-Json
+          if ("v$($conf.version)" -ne "${{ github.ref_name }}") {
+            throw "тег ${{ github.ref_name }}, а в tauri.conf.json версия $($conf.version)"
+          }
+
+      # В установщик кладётся самый свежий файл данных — на случай первого
+      # запуска без интернета.
+      - run: npm run update-hub
+
+      # Автообновления у приложения нет, поэтому файл для него не выкладывается.
+      - uses: tauri-apps/tauri-action@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tagName: ${{ github.ref_name }}
+          releaseName: Gacha Hub ${{ github.ref_name }}
+          releaseDraft: true
+          prerelease: false
+          uploadUpdaterJson: false
+          releaseBody: |
+            Free Windows launcher for Genshin Impact, Honkai: Star Rail, Zenless Zone Zero, Wuthering Waves and Arknights: Endfield.
+
+            **Install:** download the `_x64-setup.exe` file below and run it. The installer isn't code-signed, so Windows SmartScreen may say "Windows protected your PC" — click **More info → Run anyway**. See the [README](https://github.com/Ertezy/Gacha-hub#readme) for updating, uninstalling and privacy.
