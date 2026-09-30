@@ -248,4 +248,14 @@ mod tests {
     fn tray_icon_is_32_by_32_rgba() {
         assert_eq!(TRAY_ICON.len(), (TRAY_ICON_SIZE * TRAY_ICON_SIZE * 4) as usize);
     }
+
+    #[test]
+    fn window_icon_is_the_48px_first_ico_entry() {
+        // Tauri делает значок окна (и значок на панели задач) из ПЕРВОЙ записи
+        // icon.ico — tauri-codegen, image.rs: `entries()[0]`. Первой должна идти
+        // 48×48: мелкую Windows растягивает, и значок на панели задач мылится.
+        let ico = include_bytes!("../icons/icon.ico");
+        assert_eq!(&ico[0..4], &[0, 0, 1, 0], "не ICO");
+        assert_eq!((ico[6], ico[7]), (48, 48));
+    }
 }
