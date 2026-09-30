@@ -6,6 +6,35 @@ several launchers.
 
 Not affiliated with the games' developers. Game names and artwork belong to their owners.
 
+## Download
+
+Get the installer from [Releases](https://github.com/Ertezy/Gacha-hub/releases/latest):
+`Gacha Hub_<version>_x64-setup.exe`. Windows 10 or 11, 64-bit.
+
+## Install
+
+Run the installer. It installs for your user only, no administrator rights needed, and
+downloads Microsoft WebView2 if the system doesn't have it yet.
+
+The installer isn't code-signed, so Windows SmartScreen may show "Windows protected your
+PC". Click **More info → Run anyway**.
+
+## Update
+
+Download the newer installer and run it over the old version. Games, order and settings
+are kept.
+
+## Uninstall
+
+Windows Settings → Apps → Installed apps → Gacha Hub → Uninstall. Settings stay in
+`%APPDATA%\com.gachahub.desktop\` — delete that folder to remove them too.
+
+## Privacy
+
+No account, no telemetry, nothing is sent about you. The app downloads the data file
+from GitHub Pages, and pictures for the panel and backgrounds from the game wikis, the
+official game sites, YouTube, Steam and Epic Games.
+
 ## Features
 
 - **Your games in one dock.** Games are found through Steam and the Epic Games Launcher,
@@ -43,7 +72,7 @@ Then:
 
     npm install
     npm run tauri dev      # run with hot reload
-    npm run tauri build    # installer in src-tauri/target/release/bundle
+    npm run tauri build    # installer in src-tauri/target/release/bundle/nsis
 
 Tests:
 

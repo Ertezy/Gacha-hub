@@ -254,6 +254,13 @@ function AboutSection() {
             >
               {t.settings.about.showLog}
             </button>
+            <button
+              type="button"
+              className="button"
+              onClick={() => void api.openSafeUrl("https://github.com/Ertezy/Gacha-hub/issues/new")}
+            >
+              {t.settings.about.reportProblem}
+            </button>
           </div>
         </div>
       </div>
