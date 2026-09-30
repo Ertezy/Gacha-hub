@@ -250,12 +250,23 @@ mod tests {
     }
 
     #[test]
-    fn window_icon_is_the_48px_first_ico_entry() {
-        // Tauri делает значок окна (и значок на панели задач) из ПЕРВОЙ записи
-        // icon.ico — tauri-codegen, image.rs: `entries()[0]`. Первой должна идти
-        // 48×48: мелкую Windows растягивает, и значок на панели задач мылится.
+    fn icon_has_every_size_windows_asks_for() {
+        // Windows берёт значок окна и панели задач из ресурса exe и сам выбирает
+        // размер под масштаб экрана — нужны все размеры; до 48 это крупный план
+        // мордочки, от 64 — значок целиком. Порядок записей в icon.ico не важен.
         let ico = include_bytes!("../icons/icon.ico");
         assert_eq!(&ico[0..4], &[0, 0, 1, 0], "не ICO");
-        assert_eq!((ico[6], ico[7]), (48, 48));
+        let count = u16::from_le_bytes([ico[4], ico[5]]) as usize;
+        let mut sizes = std::collections::BTreeSet::new();
+        for i in 0..count {
+            let entry = &ico[6 + i * 16..6 + (i + 1) * 16];
+            // В каталоге ICO размер 256 записан нулём.
+            let side = |b: u8| if b == 0 { 256 } else { u32::from(b) };
+            assert_eq!(side(entry[0]), side(entry[1]), "запись {i} не квадратная");
+            sizes.insert(side(entry[0]));
+        }
+        let expected: std::collections::BTreeSet<u32> =
+            [16, 20, 24, 32, 40, 48, 64, 96, 128, 256].into_iter().collect();
+        assert_eq!(sizes, expected);
     }
 }

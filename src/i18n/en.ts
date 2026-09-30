@@ -125,7 +125,7 @@ export const en = {
       icon: "Icon",
       iconHint: "Empty — the icon is taken from the game file.",
       reset: "Reset",
-      showContentAs: "Codes and banners from",
+      showContentAs: "Codes, banners and videos of",
       showContentAsHint: "Codes, banners and videos in the side panel are taken for this game.",
       noContent: "none — don't show codes, banners or videos",
       remove: "Remove game",

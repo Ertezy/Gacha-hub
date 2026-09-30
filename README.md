@@ -8,8 +8,7 @@ Not affiliated with the games' developers. Game names and artwork belong to thei
 
 ## Download
 
-Get the installer from [Releases](https://github.com/Ertezy/Gacha-hub/releases/latest):
-`Gacha Hub_<version>_x64-setup.exe`. Windows 10 or 11, 64-bit.
+Get the installer from [Releases](https://github.com/Ertezy/Gacha-hub/releases/latest) — the file ending in `_x64-setup.exe`. Windows 10 or 11, 64-bit.
 
 ## Install
 
@@ -26,14 +25,15 @@ are kept.
 
 ## Uninstall
 
-Windows Settings → Apps → Installed apps → Gacha Hub → Uninstall. Settings stay in
-`%APPDATA%\com.gachahub.desktop\` — delete that folder to remove them too.
+Windows Settings → Apps → Installed apps → Gacha Hub → Uninstall. To remove your settings
+and cached pictures too, tick "Delete the application data" in the uninstaller, or delete
+`%APPDATA%\com.gachahub.desktop` and `%LOCALAPPDATA%\com.gachahub.desktop` yourself.
 
 ## Privacy
 
 No account, no telemetry, nothing is sent about you. The app downloads the data file
-from GitHub Pages, and pictures for the panel and backgrounds from the game wikis, the
-official game sites, YouTube, Steam and Epic Games.
+from GitHub Pages, and pictures for the panel and backgrounds from the game wikis
+(Fandom, wiki.gg), YouTube, Steam and Epic Games.
 
 ## Features
 

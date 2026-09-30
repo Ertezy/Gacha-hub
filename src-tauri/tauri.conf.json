@@ -36,8 +36,10 @@
     "resources": ["resources/hub.json"],
     "icon": ["icons/icon.png", "icons/icon.ico"],
     "targets": ["nsis"],
+    "homepage": "https://github.com/Ertezy/Gacha-hub",
     "windows": {
       "nsis": {
+        "installerIcon": "icons/icon.ico",
         "installMode": "currentUser",
         "languages": ["English", "Russian"],
         "displayLanguageSelector": false
