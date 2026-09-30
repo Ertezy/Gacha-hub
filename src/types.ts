@@ -3,6 +3,9 @@
 /** Вид запуска кодом — слово на языке интерфейса подставляет страница
  *  (спека этапа 6 §6.3). */
 export type SourceKind = "steam" | "epic" | "exe";
+/** Откуда найдена игра на экране сканирования: к способам запуска добавляются
+ *  собственные лаунчеры — после добавления такая игра запускается как `exe`. */
+export type FoundSourceKind = SourceKind | "hoyoplay" | "kuro" | "gryphlink";
 
 export interface GameView {
   id: string;
@@ -90,7 +93,7 @@ export interface Behaviour {
 export interface FoundGame {
   title: string;
   contentId: string | null;
-  sourceKind: SourceKind;
+  sourceKind: FoundSourceKind;
   alreadyAdded: boolean;
 }
 

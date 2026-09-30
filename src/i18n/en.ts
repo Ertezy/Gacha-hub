@@ -45,7 +45,14 @@ export const en = {
     launch: {
       note: { steam: "Launches via Steam", epic: "Launches via Epic Games", exe: "Launches directly" },
       fileMissing: "game file not found",
-      from: { steam: "from Steam", epic: "from Epic Games", exe: "from a folder" },
+      from: {
+        steam: "from Steam",
+        epic: "from Epic Games",
+        exe: "from a folder",
+        hoyoplay: "from HoYoPlay",
+        kuro: "from the Kuro launcher",
+        gryphlink: "from GRYPHLINK",
+      },
     },
     play: "▶ Play",
     launching: "Launching…",

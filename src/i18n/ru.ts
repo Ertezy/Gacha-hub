@@ -49,7 +49,14 @@ export const ru: Dictionary = {
     launch: {
       note: { steam: "Запустится через Steam", epic: "Запустится через Epic Games", exe: "Запустится напрямую" },
       fileMissing: "файл не найден",
-      from: { steam: "из Steam", epic: "из Epic Games", exe: "из папки" },
+      from: {
+        steam: "из Steam",
+        epic: "из Epic Games",
+        exe: "из папки",
+        hoyoplay: "из HoYoPlay",
+        kuro: "из лаунчера Kuro",
+        gryphlink: "из GRYPHLINK",
+      },
     },
     play: "▶ Играть",
     launching: "Запускаю…",

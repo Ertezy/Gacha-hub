@@ -33,6 +33,21 @@ fn source_kind(launch: &Launch) -> &'static str {
     }
 }
 
+/// Подпись найденной игры на экране сканирования. У игры из собственного
+/// лаунчера способ запуска — прямой `exe`, и по нему не понять, откуда она;
+/// поэтому там подпись берётся из источника. У остальных — из способа запуска,
+/// как и у настроенных игр. Уже добавленная игра всегда `exe` (`GameView`),
+/// эта подпись живёт только до добавления.
+fn found_kind(found: &crate::stores::InstalledGame) -> &'static str {
+    use crate::stores::Source;
+    match found.source {
+        Source::HoYoPlay => "hoyoplay",
+        Source::Kuro => "kuro",
+        Source::Gryphlink => "gryphlink",
+        Source::Steam | Source::Epic => source_kind(&found.launch),
+    }
+}
+
 /// Игра в том виде, в каком её рисует интерфейс.
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -175,6 +190,8 @@ pub struct FoundGame {
     /// Идентификатор контента, если игру знает каталог. `None` — по ней не
     /// будет ни кодов, ни баннеров, и на экране это подписывается честно.
     pub content_id: Option<String>,
+    /// Откуда найдена: `"steam" | "epic" | "hoyoplay" | "kuro" | "gryphlink"`
+    /// либо `"exe"` — слово подставляет страница.
     pub source_kind: &'static str,
     /// Игра с таким путём уже есть в конфиге — галочку ставить не нужно.
     pub already_added: bool,
@@ -197,10 +214,11 @@ pub async fn scan_installed(app: AppHandle) -> Vec<FoundGame> {
             // Steam он всегда `None` (см. `stores::steam`), и такое
             // сравнение никогда не находило бы совпадение.
             let already_added = crate::catalog::already_configured(&found, &cfg.games, &hub_games);
+            let source_kind = found_kind(&found);
             FoundGame {
                 title: found.title,
                 content_id,
-                source_kind: source_kind(&found.launch),
+                source_kind,
                 already_added,
             }
         })
@@ -641,6 +659,44 @@ mod tests {
         let mut g = steam_game();
         g.launch = Launch::Exe;
         assert_eq!(view_of_without_icon(&g).source_kind, "exe");
+    }
+
+    fn found_game(launch: Launch, source: crate::stores::Source) -> crate::stores::InstalledGame {
+        crate::stores::InstalledGame {
+            title: "Wuthering Waves".into(),
+            install_path: std::path::PathBuf::from(r"C:\Games\Wuthering Waves"),
+            exe_path: Some(std::path::PathBuf::from(r"C:\Games\Wuthering Waves\Client.exe")),
+            launch,
+            source,
+        }
+    }
+
+    #[test]
+    fn scan_labels_launcher_finds_by_their_source() {
+        use crate::stores::Source;
+        for (source, label) in [
+            (Source::HoYoPlay, "hoyoplay"),
+            (Source::Kuro, "kuro"),
+            (Source::Gryphlink, "gryphlink"),
+        ] {
+            // Способ запуска у всех троих один и тот же — прямой exe.
+            assert_eq!(found_kind(&found_game(Launch::Exe, source)), label);
+        }
+    }
+
+    #[test]
+    fn scan_labels_store_finds_by_how_they_start() {
+        use crate::stores::Source;
+        assert_eq!(
+            found_kind(&found_game(Launch::Steam { appid: 3513350 }, Source::Steam)),
+            "steam"
+        );
+        let epic = Launch::Epic {
+            namespace: "ns".into(),
+            catalog_item_id: "cid".into(),
+            app_name: "app".into(),
+        };
+        assert_eq!(found_kind(&found_game(epic, Source::Epic)), "epic");
     }
 
     /// Отдельная папка на тег теста, а не общий путь: тесты этого файла пишут

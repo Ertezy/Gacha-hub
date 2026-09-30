@@ -37,8 +37,9 @@ from GitHub Pages, and pictures for the panel and backgrounds from the game wiki
 
 ## Features
 
-- **Your games in one dock.** Games are found through Steam and the Epic Games Launcher,
-  or added by pointing at the game's `.exe`. Reorder them by drag in Settings → Games.
+- **Your games in one dock.** Games are found through Steam, the Epic Games Launcher, HoYoPlay,
+  the Wuthering Waves launcher and GRYPHLINK, or added by pointing at the game's `.exe`.
+  Reorder them by drag in Settings → Games.
 - **Play** launches through the store the game was installed from, or directly.
 - **Side panel** for the selected game: promo codes with expiry, current and upcoming
   banners (the carousel slides on its own), and the latest official videos.
