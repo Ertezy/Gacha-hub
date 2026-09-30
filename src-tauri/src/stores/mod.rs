@@ -4,6 +4,7 @@
 //! это надёжнее, чем угадывать игру по имени папки.
 
 pub mod epic;
+pub mod launchers;
 pub mod steam;
 
 use std::path::{Path, PathBuf};
@@ -35,6 +36,12 @@ pub enum Launch {
 pub enum Source {
     Steam,
     Epic,
+    /// Игра из HoYoPlay (Genshin Impact, Honkai: Star Rail, Zenless Zone Zero).
+    HoYoPlay,
+    /// Игра из лаунчера Kuro Games (Wuthering Waves).
+    Kuro,
+    /// Игра из GRYPHLINK (Arknights: Endfield).
+    Gryphlink,
 }
 
 /// Игра, найденная в манифесте магазина.
@@ -42,7 +49,8 @@ pub enum Source {
 pub struct InstalledGame {
     pub title: String,
     pub install_path: PathBuf,
-    /// Известен только для Epic — там манифест прямо называет исполняемый файл.
+    /// Известен для Epic (манифест прямо называет исполняемый файл) и для
+    /// игр из собственных лаунчеров (см. `launchers`), у Steam — нет.
     pub exe_path: Option<PathBuf>,
     pub launch: Launch,
     /// Пока не читается: пригодится на этапе 3 для выбора между несколькими
@@ -104,11 +112,36 @@ pub fn store_of(game: &crate::config::Game, installed: &[InstalledGame]) -> Opti
         .and_then(|i| store_ref(&i.launch))
 }
 
-/// Всё установленное во всех магазинах.
-pub fn installed() -> Vec<InstalledGame> {
-    let mut all = steam::installed();
-    all.extend(epic::installed());
+/// Дописывает к находкам магазинов находки собственных лаунчеров.
+///
+/// Магазин — источник истины (§6 общей спеки): если Steam или Epic уже нашли
+/// игру с таким названием, находка лаунчера отбрасывается, иначе одна и та же
+/// игра попала бы в список дважды. Названия сравниваются так же, как везде при
+/// сопоставлении игр (`catalog::normalize`: без учёта регистра и пунктуации).
+/// Среди самих находок лаунчеров остаётся первая с данным названием — так
+/// глобальная и китайская установки одной игры не задваиваются.
+fn merge_finds(stores: Vec<InstalledGame>, launchers: Vec<InstalledGame>) -> Vec<InstalledGame> {
+    let mut all = stores;
+    for found in launchers {
+        let title = crate::catalog::normalize(&found.title);
+        if all.iter().any(|g| crate::catalog::normalize(&g.title) == title) {
+            log::debug!(
+                "[launchers] {:?} уже найдена магазином или другим лаунчером, пропускаю {:?}",
+                found.title,
+                found.exe_path
+            );
+            continue;
+        }
+        all.push(found);
+    }
     all
+}
+
+/// Всё установленное во всех магазинах и собственных лаунчерах.
+pub fn installed() -> Vec<InstalledGame> {
+    let mut stores = steam::installed();
+    stores.extend(epic::installed());
+    merge_finds(stores, launchers::installed())
 }
 
 #[cfg(test)]
@@ -202,6 +235,76 @@ mod tests {
         let game = exe_game(r"E:\Portable\thing.exe");
         let installed = [installed_at(r"D:\Games\Game", Launch::Steam { appid: 1 })];
         assert_eq!(store_of(&game, &installed), None);
+    }
+
+    fn find(title: &str, source: Source, exe: &str) -> InstalledGame {
+        InstalledGame {
+            title: title.into(),
+            install_path: PathBuf::from(exe).parent().map(Path::to_path_buf).unwrap_or_default(),
+            exe_path: Some(PathBuf::from(exe)),
+            launch: Launch::Exe,
+            source,
+        }
+    }
+
+    #[test]
+    fn a_launcher_find_is_dropped_when_a_store_has_the_same_title() {
+        let stores = vec![find("Wuthering Waves", Source::Steam, r"D:\Steam\ww.exe")];
+        let launchers = vec![
+            find("Wuthering Waves", Source::Kuro, r"C:\Kuro\ww.exe"),
+            find("Genshin Impact", Source::HoYoPlay, r"C:\HYP\GenshinImpact.exe"),
+        ];
+
+        let all = merge_finds(stores, launchers);
+
+        let titles: Vec<&str> = all.iter().map(|g| g.title.as_str()).collect();
+        assert_eq!(titles, ["Wuthering Waves", "Genshin Impact"]);
+        assert_eq!(all[0].source, Source::Steam);
+        assert_eq!(all[1].source, Source::HoYoPlay);
+    }
+
+    #[test]
+    fn the_title_comparison_ignores_letter_case() {
+        let stores = vec![find("arknights: endfield", Source::Epic, r"C:\Epic\Launcher.exe")];
+        let launchers = vec![find("Arknights: Endfield", Source::Gryphlink, r"C:\Gryph\Launcher.exe")];
+
+        let all = merge_finds(stores, launchers);
+
+        assert_eq!(all.len(), 1);
+        assert_eq!(all[0].source, Source::Epic);
+    }
+
+    #[test]
+    fn the_first_launcher_find_wins_among_launchers() {
+        let launchers = vec![
+            find("Honkai: Star Rail", Source::HoYoPlay, r"C:\Global\StarRail.exe"),
+            find("Honkai: Star Rail", Source::HoYoPlay, r"C:\Cn\StarRail.exe"),
+        ];
+
+        let all = merge_finds(Vec::new(), launchers);
+
+        assert_eq!(all.len(), 1);
+        assert_eq!(all[0].exe_path, Some(PathBuf::from(r"C:\Global\StarRail.exe")));
+    }
+
+    #[test]
+    fn store_finds_keep_their_order_and_come_first() {
+        let stores = vec![
+            find("B", Source::Steam, r"D:\b.exe"),
+            find("A", Source::Epic, r"D:\a.exe"),
+        ];
+        let launchers = vec![find("C", Source::Kuro, r"D:\c.exe")];
+
+        let all = merge_finds(stores, launchers);
+
+        let titles: Vec<&str> = all.iter().map(|g| g.title.as_str()).collect();
+        assert_eq!(titles, ["B", "A", "C"]);
+    }
+
+    #[test]
+    fn no_launcher_finds_leave_the_stores_untouched() {
+        let stores = vec![find("A", Source::Steam, r"D:\a.exe")];
+        assert_eq!(merge_finds(stores, Vec::new()).len(), 1);
     }
 
     #[test]
