@@ -31,6 +31,11 @@ export default function App() {
   // "loading" — пока не узнали, был ли уже первый запуск: не показывать
   // главный экран, чтобы не мигнуть им перед экраном первого запуска.
   const [screen, setScreen] = useState<Screen>("loading");
+  // Версия работающего приложения — для строки «Вышла версия» в панели.
+  const [appVersion, setAppVersion] = useState<string | null>(null);
+  useEffect(() => {
+    void api.getAbout().then((about) => setAppVersion(about.version)).catch(() => setAppVersion(null));
+  }, []);
   const t = useT();
 
   // Когда данные панели проверялись последний раз — для проверки при возвращении окна.
@@ -222,6 +227,7 @@ export default function App() {
         hub={hub}
         selectedContentId={selected?.contentId ?? null}
         onOpenSettings={() => setScreen("settings")}
+        appVersion={appVersion}
       />
       <main className="stage">
         <GameArt game={selected} />

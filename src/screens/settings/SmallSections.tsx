@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { api } from "../../lib/api";
 import { dataStatus } from "../../lib/panel";
+import { availableUpdate } from "../../lib/update";
 import { useLang, useT } from "../../i18n";
 import { errorText } from "../../i18n/errors";
 import type { About, Behaviour, HubData } from "../../types";
@@ -215,12 +216,16 @@ function Data() {
 
 function AboutSection() {
   const [about, setAbout] = useState<About | null>(null);
+  const [hub, setHub] = useState<HubData | null>(null);
   const [error, setError] = useState("");
   const t = useT();
 
   useEffect(() => {
     void api.getAbout().then(setAbout);
+    void api.getHub().then(setHub).catch(() => setHub(null));
   }, []);
+
+  const update = availableUpdate(hub, about?.version ?? null);
 
   return (
     <div>
@@ -230,6 +235,15 @@ function AboutSection() {
         <div className="settings-row">
           <div className="settings-row-text">
             <span className="settings-row-title">{t.settings.about.version(about?.version ?? "…")}</span>
+            {update && (
+              <span className="settings-row-hint">
+                {t.settings.about.updateAvailable(update.version)}
+                {" — "}
+                <button type="button" className="link-button" onClick={() => void api.openSafeUrl(update.url)}>
+                  {t.settings.about.download}
+                </button>
+              </span>
+            )}
           </div>
           <div className="settings-row-control">
             <button

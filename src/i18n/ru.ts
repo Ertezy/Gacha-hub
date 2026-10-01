@@ -27,6 +27,8 @@ export const ru: Dictionary = {
     dataStatus: (source: string, freshness: string) => `Источник — ${source}, ${freshness}.`,
     settingsAndGames: "Настройки и игры",
     disclaimer: "Не связано с разработчиками игр. Материалы принадлежат правообладателям.",
+    updateAvailable: (v: string) => `Вышла версия ${v}`,
+    download: "Скачать",
     codes: "Промокоды",
     noExpiry: "бессрочный",
     expiresIn: (t: string) => `сгорит через ${t}`,
@@ -180,6 +182,8 @@ export const ru: Dictionary = {
     },
     about: {
       version: (v: string) => `Версия ${v}`,
+      updateAvailable: (v: string) => `доступна ${v}`,
+      download: "скачать",
       repository: "Репозиторий",
       log: "Журнал",
       logHint: (path: string) => `Лежит в ${path}. Если что-то не работает, приложите его к сообщению о проблеме.`,

@@ -25,6 +25,8 @@ export const en = {
     dataStatus: (source: string, freshness: string) => `Source: ${source}, ${freshness}.`,
     settingsAndGames: "Settings and games",
     disclaimer: "Not affiliated with the game developers. Content belongs to its rights holders.",
+    updateAvailable: (v: string) => `Version ${v} is out`,
+    download: "Download",
     codes: "Codes",
     noExpiry: "no expiry",
     expiresIn: (t: string) => `expires in ${t}`,
@@ -174,6 +176,8 @@ export const en = {
     },
     about: {
       version: (v: string) => `Version ${v}`,
+      updateAvailable: (v: string) => `${v} is available`,
+      download: "download",
       repository: "Repository",
       log: "Log",
       logHint: (path: string) => `Located at ${path}. If something isn't working, attach it to your bug report.`,

@@ -4,6 +4,8 @@ import Banners from "./panel/Banners";
 import Videos from "./panel/Videos";
 import { codesFor, panelIsEmpty, sourceLabel, videosFor } from "../lib/panel";
 import { hubFreshness } from "../lib/time";
+import { api } from "../lib/api";
+import { availableUpdate } from "../lib/update";
 import { useLang, useT } from "../i18n";
 import { useVideoLanguage } from "../lib/videoLanguage";
 import type { HubData } from "../types";
@@ -14,6 +16,8 @@ interface Props {
   selectedContentId: string | null;
   /** Открыть экран настроек — вызывается по клику на шестерёнку. */
   onOpenSettings: () => void;
+  /** Версия работающего приложения; null — ещё не узнали. */
+  appVersion: string | null;
 }
 
 const DAY = 86400;
@@ -21,7 +25,7 @@ const DAY = 86400;
 /** Как часто пересчитывается «сейчас». */
 const TICK_MS = 30_000;
 
-export default function SidePanel({ hub, selectedContentId, onOpenSettings }: Props) {
+export default function SidePanel({ hub, selectedContentId, onOpenSettings, appVersion }: Props) {
   const lang = useLang();
   const t = useT();
   const videoLang = useVideoLanguage();
@@ -65,6 +69,8 @@ export default function SidePanel({ hub, selectedContentId, onOpenSettings }: Pr
   // Без него невозможно отличить «сеть отвалилась, показываю прошлогодний
   // комплект» от «всё свежее», а это первое, что спросят при разборе жалобы.
   const origin = sourceLabel(hub?._source, t);
+  // Вышла версия новее этой — строка внизу панели (спека 2026-10-01 §2.2).
+  const update = availableUpdate(hub, appVersion);
 
   return (
     <aside className="panel">
@@ -102,6 +108,15 @@ export default function SidePanel({ hub, selectedContentId, onOpenSettings }: Pr
             <circle cx="12" cy="12" r="2.3" fill="none" stroke="currentColor" strokeWidth="2" />
           </svg>
         </button>
+        {update && (
+          <div className="panel-update">
+            {t.panel.updateAvailable(update.version)}
+            {" · "}
+            <button type="button" className="link-button" onClick={() => void api.openSafeUrl(update.url)}>
+              {t.panel.download}
+            </button>
+          </div>
+        )}
         {hub && (
           <div className="panel-stale">
             {hubFreshness(hub.updatedAt, nowSec, lang)}
