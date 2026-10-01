@@ -28,7 +28,8 @@ notes is on the [Releases](https://github.com/Ertezy/Gacha-hub/releases) page.
 ## Update
 
 Download the installer again from the same link and run it over the old version. Games,
-order and settings are kept.
+order and settings are kept. When a new version is out, a line at the bottom of the side
+panel says so, with a Download link.
 
 ## Uninstall
 
