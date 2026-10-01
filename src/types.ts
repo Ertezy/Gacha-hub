@@ -70,6 +70,12 @@ export interface Video {
   premiere: boolean;
 }
 
+/** Последняя опубликованная версия приложения (спека 2026-10-01 §2.1). */
+export interface AppRelease {
+  version: string;
+  url: string;
+}
+
 export interface HubData {
   version: number;
   updatedAt: number;
@@ -77,6 +83,7 @@ export interface HubData {
   codes: Code[];
   banners: Banner[];
   videos: Video[];
+  app?: AppRelease;
   _source?: string;
 }
 

@@ -37,6 +37,33 @@ where
         .collect())
 }
 
+/// Последняя опубликованная версия приложения: номер без «v» и страница
+/// релиза (спека 2026-10-01 §2.1).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct AppRelease {
+    pub version: String,
+    pub url: String,
+}
+
+/// Поле `app`, разобранное снисходительно: битое (не та форма, не три числа
+/// через точку, не https) становится `None`, а остальной файл читается как
+/// обычно (спека 2026-10-01 §2.2). Строки «Вышла версия» тогда просто нет.
+fn lenient_app<'de, D>(d: D) -> Result<Option<AppRelease>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let raw = serde_json::Value::deserialize(d)?;
+    let Ok(release) = serde_json::from_value::<AppRelease>(raw) else {
+        return Ok(None);
+    };
+    let parts: Vec<&str> = release.version.split('.').collect();
+    let three_numbers = parts.len() == 3
+        && parts
+            .iter()
+            .all(|p| !p.is_empty() && p.bytes().all(|b| b.is_ascii_digit()));
+    Ok((three_numbers && release.url.starts_with("https://")).then_some(release))
+}
+
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct HubData {
@@ -53,6 +80,14 @@ pub struct HubData {
     pub banners: Vec<Banner>,
     #[serde(default, deserialize_with = "lenient_vec")]
     pub videos: Vec<Video>,
+    /// Последняя опубликованная версия приложения. Нет поля — нет и строки
+    /// «Вышла версия».
+    #[serde(
+        default,
+        deserialize_with = "lenient_app",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub app: Option<AppRelease>,
     /// Откуда приехали данные: "remote" | "override" | "cache" | "bundled".
     /// Проставляется при загрузке, в файле не лежит.
     #[serde(rename = "_source", default, skip_serializing_if = "Option::is_none")]
@@ -289,6 +324,43 @@ mod tests {
         })).unwrap();
         assert_eq!(old.lang, None);
         assert!(serde_json::to_value(&old).unwrap().get("lang").is_none());
+    }
+
+    #[test]
+    fn reads_the_latest_app_release() {
+        let d: HubData = serde_json::from_str(r#"{"version":2,"updatedAt":1,
+            "app":{"version":"0.1.1","url":"https://github.com/Ertezy/Gacha-hub/releases/tag/v0.1.1"}}"#).unwrap();
+        assert_eq!(
+            d.app,
+            Some(AppRelease {
+                version: "0.1.1".into(),
+                url: "https://github.com/Ertezy/Gacha-hub/releases/tag/v0.1.1".into()
+            })
+        );
+    }
+
+    #[test]
+    fn a_broken_app_field_is_dropped_and_the_file_still_reads() {
+        for app in [
+            r#"42"#,
+            r#"{"version":"0.1","url":"https://x"}"#,
+            r#"{"version":"0.1.1-beta","url":"https://x"}"#,
+            r#"{"version":"0.1.1","url":"http://x"}"#,
+            r#"{"version":"0.1.1"}"#,
+            r#"null"#,
+        ] {
+            let text = format!(r#"{{"version":2,"updatedAt":7,"codes":[],"app":{app}}}"#);
+            let d: HubData = serde_json::from_str(&text).unwrap_or_else(|e| panic!("{app}: {e}"));
+            assert_eq!(d.app, None, "{app}");
+            assert_eq!(d.updated_at, 7, "{app}: остальной файл читается");
+        }
+    }
+
+    #[test]
+    fn no_app_field_is_not_written_back() {
+        let d: HubData = serde_json::from_str(r#"{"version":2,"updatedAt":1}"#).unwrap();
+        assert_eq!(d.app, None);
+        assert!(serde_json::to_value(&d).unwrap().get("app").is_none());
     }
 
     #[test]

@@ -100,7 +100,9 @@ fn store_fresh(cache_path: &Path, meta_path: &Path, url: &str, data: &HubData, e
 }
 
 enum Remote {
-    Fresh { data: HubData, etag: Option<String> },
+    // Данные в `Box`: без него вариант раздувает весь enum (clippy::large_enum_variant),
+    // а `Remote` живёт ровно до `decide`, так что лишняя аллокация ничего не стоит.
+    Fresh { data: Box<HubData>, etag: Option<String> },
     NotModified,
     Failed,
 }
@@ -115,7 +117,7 @@ enum Outcome {
 /// Что делать с ответом сервера. Чистая функция: сеть и файлы — снаружи.
 fn decide(remote: Remote, cached: Option<HubData>) -> Outcome {
     match remote {
-        Remote::Fresh { data, etag } => Outcome::UseFresh(data, etag),
+        Remote::Fresh { data, etag } => Outcome::UseFresh(*data, etag),
         Remote::NotModified => match cached {
             Some(data) => Outcome::UseCache(data),
             None => Outcome::Refetch,
@@ -207,7 +209,7 @@ fn fetch_remote(url: &str, etag: Option<&str>) -> Remote {
         return Remote::Failed;
     }
     match serde_json::from_str(&body) {
-        Ok(data) => Remote::Fresh { data, etag: tag },
+        Ok(data) => Remote::Fresh { data: Box::new(data), etag: tag },
         Err(_) => Remote::Failed,
     }
 }
@@ -572,7 +574,7 @@ mod tests {
 
     #[test]
     fn a_fresh_answer_is_used_with_its_tag() {
-        match decide(Remote::Fresh { data: data(2), etag: Some("\"v3\"".into()) }, None) {
+        match decide(Remote::Fresh { data: Box::new(data(2)), etag: Some("\"v3\"".into()) }, None) {
             Outcome::UseFresh(d, tag) => {
                 assert_eq!(d.version, 2);
                 assert_eq!(tag.as_deref(), Some("\"v3\""));
