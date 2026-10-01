@@ -13,13 +13,17 @@
 //!        `CommandLineToArgvW` (см. `split_args`), а НЕ по POSIX: последний
 //!        съедает `\` в путях;
 //!      * рабочий каталог — папка самого exe: клиенты игр ищут свои данные
-//!        относительно себя;
+//!        относительно себя. Так при прямом запуске (`CreateProcess`) и на пути
+//!        через PowerShell; на пути через оболочку (ошибка 740, аргументов нет)
+//!        оболочка рабочую папку не задаёт — игра наследует рабочую папку
+//!        самого Gacha Hub;
 //!      * игры HoYoPlay требуют прав администратора: `CreateProcess` на них
 //!        отвечает ошибкой 740, а окно прав показывает только оболочка Windows.
 //!        Поэтому именно при 740 (и только при ней) игра открывается через
-//!        оболочку (ShellExecuteExW, как двойной клик), а если у неё есть
-//!        аргументы — через PowerShell `Start-Process`: только он передаёт и
-//!        аргументы, и рабочую папку. См. `start_with_elevation`.
+//!        оболочку Windows (ShellExecuteExW) — она показывает окно прав
+//!        администратора, а если у игры есть аргументы — через PowerShell
+//!        `Start-Process`: только он передаёт и аргументы, и рабочую папку.
+//!        См. `start_with_elevation`.
 
 use std::io::Write;
 use std::path::{Path, PathBuf};
@@ -165,7 +169,7 @@ fn is_cancelled(e: &std::io::Error) -> bool {
 /// Чем запускать игру, которой нужны права администратора.
 #[derive(Debug, PartialEq)]
 enum ElevatedRoute {
-    /// Оболочка Windows (ShellExecuteExW) — как двойной клик по exe.
+    /// Оболочка Windows (ShellExecuteExW) — она показывает окно прав администратора.
     Shell,
     /// PowerShell `Start-Process`: только он передаёт и аргументы, и рабочую папку.
     PowerShell,
@@ -180,8 +184,8 @@ fn elevated_route(args: &[String]) -> ElevatedRoute {
     }
 }
 
-/// Открывает exe через оболочку Windows: она показывает окно прав
-/// администратора. Рабочую папку оболочка здесь не задаёт.
+/// Открывает exe через оболочку Windows (ShellExecuteExW) — она показывает окно
+/// прав администратора. Рабочую папку оболочка здесь не задаёт.
 fn start_via_shell(exe: &Path) -> std::io::Result<()> {
     tauri_plugin_opener::open_path(exe, None::<&str>).map_err(|e| match e {
         tauri_plugin_opener::Error::Io(io) => io,
@@ -197,6 +201,11 @@ fn start_with_elevation(exe: &Path, cwd: &Path, args: &[String]) -> Result<(), S
             Ok(()) => return Ok(()),
             Err(e) if is_cancelled(&e) => return Ok(()),
             Err(shell) => {
+                // Запасной путь должен быть виден в журнале приложения.
+                log::warn!(
+                    "[launch] оболочка Windows не запустила {}: {shell}; пробуем PowerShell",
+                    exe.display()
+                );
                 return start_elevated(exe, cwd, args)
                     .map_err(|ps| format!("Windows: {shell}; PowerShell: {ps}"));
             }
@@ -259,7 +268,8 @@ fn elevation_script(exe: &Path, cwd: &Path, args: &[String]) -> String {
 #[cfg(windows)]
 const CREATE_NO_WINDOW: u32 = 0x0800_0000;
 
-/// Запускает игру с аргументами через PowerShell, чтобы Windows показала окно UAC.
+/// Запускает игру через PowerShell `Start-Process` (игры с аргументами и запасной
+/// путь, когда оболочка отказала), чтобы Windows показала окно UAC.
 /// Ждать нечего: пользователь может думать над окном сколько угодно, а отказ от
 /// UAC — его выбор, а не ошибка запуска.
 fn start_elevated(exe: &Path, cwd: &Path, args: &[String]) -> std::io::Result<()> {
