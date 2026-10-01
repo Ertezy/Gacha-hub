@@ -55,3 +55,5 @@ jobs:
             Free Windows launcher for Genshin Impact, Honkai: Star Rail, Zenless Zone Zero, Wuthering Waves and Arknights: Endfield.
 
             **Install:** download the `_x64-setup.exe` file below and run it. The installer isn't code-signed, so Windows SmartScreen may say "Windows protected your PC" — click **More info → Run anyway**. See the [README](https://github.com/Ertezy/Gacha-hub#readme) for updating, uninstalling and privacy.
+
+            [Code signing policy](https://github.com/Ertezy/Gacha-hub#code-signing-policy)

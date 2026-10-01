@@ -35,6 +35,19 @@ No account, no telemetry, nothing is sent about you. The app downloads the data 
 from GitHub Pages, and pictures for the panel and backgrounds from the game wikis
 (Fandom, wiki.gg), YouTube, Steam and Epic Games.
 
+## Code signing policy
+
+Free code signing provided by [SignPath.io](https://about.signpath.io), certificate by
+[SignPath Foundation](https://signpath.org). *Applied for, not active yet — until it is,
+installers are unsigned (see [Install](#install)).*
+
+- Only installers built by GitHub Actions from a tagged commit of this repository are
+  signed, and every release is approved by hand before signing.
+- Committers and reviewers: [Ertezy](https://github.com/Ertezy)
+- Approvers: [Ertezy](https://github.com/Ertezy)
+- Privacy policy: see [Privacy](#privacy). The app sends nothing about you; it only
+  downloads the public data and pictures listed there.
+
 ## Features
 
 - **Your games in one dock.** Games are found through Steam, the Epic Games Launcher, HoYoPlay,
