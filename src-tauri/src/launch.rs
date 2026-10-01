@@ -15,9 +15,11 @@
 //!      * рабочий каталог — папка самого exe: клиенты игр ищут свои данные
 //!        относительно себя;
 //!      * игры HoYoPlay требуют прав администратора: `CreateProcess` на них
-//!        отвечает ошибкой 740, а окно UAC показывает только оболочка Windows.
-//!        Поэтому именно при 740 (и только при ней) игра запускается заново
-//!        через PowerShell `Start-Process` — см. `start_elevated`.
+//!        отвечает ошибкой 740, а окно прав показывает только оболочка Windows.
+//!        Поэтому именно при 740 (и только при ней) игра открывается через
+//!        оболочку (ShellExecuteExW, как двойной клик), а если у неё есть
+//!        аргументы — через PowerShell `Start-Process`: только он передаёт и
+//!        аргументы, и рабочую папку. См. `start_with_elevation`.
 
 use std::io::Write;
 use std::path::{Path, PathBuf};
@@ -152,6 +154,57 @@ fn needs_elevation(e: &std::io::Error) -> bool {
     e.raw_os_error() == Some(ERROR_ELEVATION_REQUIRED)
 }
 
+/// ERROR_CANCELLED: в окне прав администратора нажали «Нет».
+const ERROR_CANCELLED: i32 = 1223;
+
+/// Отказ в окне прав — выбор человека, а не сбой запуска (спека 2026-10-01 §3).
+fn is_cancelled(e: &std::io::Error) -> bool {
+    e.raw_os_error() == Some(ERROR_CANCELLED)
+}
+
+/// Чем запускать игру, которой нужны права администратора.
+#[derive(Debug, PartialEq)]
+enum ElevatedRoute {
+    /// Оболочка Windows (ShellExecuteExW) — как двойной клик по exe.
+    Shell,
+    /// PowerShell `Start-Process`: только он передаёт и аргументы, и рабочую папку.
+    PowerShell,
+}
+
+/// Без аргументов — оболочка Windows; с аргументами — PowerShell.
+fn elevated_route(args: &[String]) -> ElevatedRoute {
+    if args.is_empty() {
+        ElevatedRoute::Shell
+    } else {
+        ElevatedRoute::PowerShell
+    }
+}
+
+/// Открывает exe через оболочку Windows: она показывает окно прав
+/// администратора. Рабочую папку оболочка здесь не задаёт.
+fn start_via_shell(exe: &Path) -> std::io::Result<()> {
+    tauri_plugin_opener::open_path(exe, None::<&str>).map_err(|e| match e {
+        tauri_plugin_opener::Error::Io(io) => io,
+        other => std::io::Error::other(other.to_string()),
+    })
+}
+
+/// Запуск игры, ответившей ошибкой 740. Отказ в окне прав — не ошибка;
+/// другой отказ оболочки — пробуем PowerShell. Ошибка — текст обеих причин.
+fn start_with_elevation(exe: &Path, cwd: &Path, args: &[String]) -> Result<(), String> {
+    if elevated_route(args) == ElevatedRoute::Shell {
+        match start_via_shell(exe) {
+            Ok(()) => return Ok(()),
+            Err(e) if is_cancelled(&e) => return Ok(()),
+            Err(shell) => {
+                return start_elevated(exe, cwd, args)
+                    .map_err(|ps| format!("Windows: {shell}; PowerShell: {ps}"));
+            }
+        }
+    }
+    start_elevated(exe, cwd, args).map_err(|ps| format!("PowerShell: {ps}"))
+}
+
 /// Значение как строка PowerShell: в одинарных кавычках, а `'` внутри
 /// удваивается.
 ///
@@ -206,9 +259,9 @@ fn elevation_script(exe: &Path, cwd: &Path, args: &[String]) -> String {
 #[cfg(windows)]
 const CREATE_NO_WINDOW: u32 = 0x0800_0000;
 
-/// Запускает игру через PowerShell, чтобы Windows показала окно UAC. Ждать
-/// нечего: пользователь может думать над окном сколько угодно, а отказ от UAC —
-/// его выбор, а не ошибка запуска.
+/// Запускает игру с аргументами через PowerShell, чтобы Windows показала окно UAC.
+/// Ждать нечего: пользователь может думать над окном сколько угодно, а отказ от
+/// UAC — его выбор, а не ошибка запуска.
 fn start_elevated(exe: &Path, cwd: &Path, args: &[String]) -> std::io::Result<()> {
     let mut powershell = Command::new("powershell.exe");
     powershell
@@ -282,12 +335,12 @@ pub fn launch(app: &AppHandle, game: &Game) -> Result<(), AppError> {
             match Command::new(&exe).args(&parsed).current_dir(&cwd).spawn() {
                 Ok(_) => Ok(()),
                 // 740: игре нужны права администратора. Только в этом случае
-                // отдаём запуск оболочке, чтобы она показала UAC.
-                Err(first) if needs_elevation(&first) => start_elevated(&exe, &cwd, &parsed)
+                // отдаём запуск оболочке Windows, чтобы она показала окно прав.
+                Err(first) if needs_elevation(&first) => start_with_elevation(&exe, &cwd, &parsed)
                     .map_err(|second| {
                         AppError::with(
                             code::EXE_START_FAILED,
-                            format!("{}: {first}; PowerShell: {second}", exe.display()),
+                            format!("{}: {first}; {second}", exe.display()),
                         )
                     }),
                 Err(e) => Err(AppError::with(
@@ -335,6 +388,23 @@ mod launch_tests {
         assert!(!needs_elevation(&std::io::Error::from_raw_os_error(2)));
         assert!(!needs_elevation(&std::io::Error::from_raw_os_error(5)));
         assert!(!needs_elevation(&std::io::Error::other("no os code")));
+    }
+
+    #[test]
+    fn without_arguments_the_windows_shell_starts_an_elevated_game() {
+        assert_eq!(elevated_route(&[]), ElevatedRoute::Shell);
+    }
+
+    #[test]
+    fn with_arguments_powershell_keeps_them_and_the_working_folder() {
+        assert_eq!(elevated_route(&["-dx12".to_string()]), ElevatedRoute::PowerShell);
+    }
+
+    #[test]
+    fn a_no_in_the_rights_window_is_the_users_choice_not_a_failure() {
+        assert!(is_cancelled(&std::io::Error::from_raw_os_error(1223)));
+        assert!(!is_cancelled(&std::io::Error::from_raw_os_error(740)));
+        assert!(!is_cancelled(&std::io::Error::other("x")));
     }
 
     #[test]
