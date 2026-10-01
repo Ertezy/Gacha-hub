@@ -234,16 +234,19 @@ function AboutSection() {
       <div className="settings-card">
         <div className="settings-row">
           <div className="settings-row-text">
-            <span className="settings-row-title">{t.settings.about.version(about?.version ?? "…")}</span>
-            {update && (
-              <span className="settings-row-hint">
-                {t.settings.about.updateAvailable(update.version)}
-                {" — "}
-                <button type="button" className="link-button" onClick={() => void api.openSafeUrl(update.url)}>
-                  {t.settings.about.download}
-                </button>
-              </span>
-            )}
+            <span className="settings-row-title">
+              {t.settings.about.version(about?.version ?? "…")}
+              {update && (
+                <span className="about-update">
+                  {" · "}
+                  {t.settings.about.updateAvailable(update.version)}
+                  {" — "}
+                  <button type="button" className="link-button" onClick={() => void api.openSafeUrl(update.url)}>
+                    {t.settings.about.download}
+                  </button>
+                </span>
+              )}
+            </span>
           </div>
           <div className="settings-row-control">
             <button
