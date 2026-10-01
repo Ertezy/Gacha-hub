@@ -1,6 +1,9 @@
 import type { AppRelease, HubData } from "../types";
 
-/** «1.2.3» → [1, 2, 3]; любой другой вид — null. */
+/**
+ * «1.2.3» → [1, 2, 3]; любой другой вид — null. То же правило — в приложении на
+ * Rust (`src-tauri/src/hub/schema.rs`, `lenient_app`) и у сборщика.
+ */
 function parts(version: string): [number, number, number] | null {
   const m = /^(\d+)\.(\d+)\.(\d+)$/.exec(version);
   return m ? [Number(m[1]), Number(m[2]), Number(m[3])] : null;

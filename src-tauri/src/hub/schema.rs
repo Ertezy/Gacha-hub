@@ -56,6 +56,8 @@ where
     let Ok(release) = serde_json::from_value::<AppRelease>(raw) else {
         return Ok(None);
     };
+    // То же правило («три числа») — в `src/lib/update.ts` (`parts`) и у сборщика
+    // (`src/sources/appRelease.ts`, `VERSION`).
     let parts: Vec<&str> = release.version.split('.').collect();
     let three_numbers = parts.len() == 3
         && parts
@@ -354,6 +356,25 @@ mod tests {
             assert_eq!(d.app, None, "{app}");
             assert_eq!(d.updated_at, 7, "{app}: остальной файл читается");
         }
+    }
+
+    #[test]
+    fn the_app_field_survives_the_local_cache_round_trip() {
+        // Так файл ложится в локальный кеш и читается обратно:
+        // `store_fresh` пишет через serde, `read_json_file` читает.
+        let release = AppRelease {
+            version: "0.1.1".into(),
+            url: "https://github.com/Ertezy/Gacha-hub/releases/tag/v0.1.1".into(),
+        };
+        let data = HubData {
+            version: 2,
+            updated_at: 1,
+            app: Some(release.clone()),
+            ..Default::default()
+        };
+        let text = serde_json::to_string(&data).unwrap();
+        let back: HubData = serde_json::from_str(&text).unwrap();
+        assert_eq!(back.app, Some(release));
     }
 
     #[test]
