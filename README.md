@@ -1,5 +1,7 @@
 # Gacha Hub
 
+**English** · [Русский](README.ru.md)
+
 A free desktop launcher for gacha games on Windows: Genshin Impact, Honkai: Star Rail,
 Zenless Zone Zero, Wuthering Waves and Arknights: Endfield — one window instead of
 several launchers.
@@ -8,20 +10,25 @@ Not affiliated with the games' developers. Game names and artwork belong to thei
 
 ## Download
 
-Get the installer from [Releases](https://github.com/Ertezy/Gacha-hub/releases/latest) — the file ending in `_x64-setup.exe`. Windows 10 or 11, 64-bit.
+### [Download Gacha Hub for Windows](https://github.com/Ertezy/Gacha-hub/releases/latest/download/GachaHub-setup.exe)
+
+The latest version, `GachaHub-setup.exe`. Windows 10 or 11, 64-bit. Every version with its
+notes is on the [Releases](https://github.com/Ertezy/Gacha-hub/releases) page.
 
 ## Install
 
-Run the installer. It installs for your user only, no administrator rights needed, and
-downloads Microsoft WebView2 if the system doesn't have it yet.
-
-The installer isn't code-signed, so Windows SmartScreen may show "Windows protected your
-PC". Click **More info → Run anyway**.
+1. Run `GachaHub-setup.exe`. It installs for your user only, no administrator rights
+   needed, and downloads Microsoft WebView2 if the system doesn't have it yet.
+2. The installer isn't code-signed yet, so Windows SmartScreen may show "Windows protected
+   your PC". Click **More info → Run anyway**.
+3. On the first start Gacha Hub shows the games it found on this computer. Tick the ones you
+   want and click **Add checked**. A game it missed can be added later in Settings → Games →
+   **+ Add a game manually**, by pointing at the game's `.exe`.
 
 ## Update
 
-Download the newer installer and run it over the old version. Games, order and settings
-are kept.
+Download the installer again from the same link and run it over the old version. Games,
+order and settings are kept.
 
 ## Uninstall
 
@@ -38,8 +45,8 @@ from GitHub Pages, and pictures for the panel and backgrounds from the game wiki
 ## Code signing policy
 
 Free code signing provided by [SignPath.io](https://about.signpath.io), certificate by
-[SignPath Foundation](https://signpath.org). *Applied for, not active yet — until it is,
-installers are unsigned (see [Install](#install)).*
+[SignPath Foundation](https://signpath.org). *Not set up yet — until it is, installers are
+unsigned (see [Install](#install)).*
 
 - Only installers built by GitHub Actions from a tagged commit of this repository are
   signed, and every release is approved by hand before signing.
@@ -53,7 +60,9 @@ installers are unsigned (see [Install](#install)).*
 - **Your games in one dock.** Games are found through Steam, the Epic Games Launcher, HoYoPlay,
   the Kuro launcher and GRYPHLINK, or added by pointing at the game's `.exe`.
   Reorder them by drag in Settings → Games.
-- **Play** launches through the store the game was installed from, or directly.
+- **Play** launches through the store the game was installed from, or directly — like
+  double-clicking the game's `.exe`. Gacha Hub never touches game files and doesn't
+  interact with a running game.
 - **Side panel** for the selected game: promo codes with expiry, current and upcoming
   banners (the carousel slides on its own), and the latest official videos.
 - **Languages:** interface in English or Russian; videos in English or Japanese.
@@ -70,8 +79,9 @@ GitHub Actions and publishes one file:
 - repository: https://github.com/Ertezy/Gacha-hub-info
 - file: https://ertezy.github.io/Gacha-hub-info/hub.json
 
-The collector reads community wikis (Fandom, wiki.gg — CC BY-SA), an open API mirror
-and the games' official YouTube channels. Every code and banner links back to its
+The collector reads community wikis (Fandom, wiki.gg — CC BY-SA), official Wuthering
+Waves announcements (facts only: title, character, dates), an open API mirror and the
+games' official YouTube channels. Every code and banner links back to its
 source. A different address can be set in Settings → Data → Data source URL.
 
 ## Building from source
