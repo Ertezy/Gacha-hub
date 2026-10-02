@@ -21,6 +21,8 @@ use crate::autostart;
 pub const OLD_IDENTIFIER: &str = "com.gachahub.desktop";
 
 const CONFIG_FILE: &str = "config.json";
+/// Временное имя копии на время переноса (см. `copy_old_config`).
+const STAGING_FILE: &str = "config.json.migrating";
 
 /// Копирует `config.json` из папки старой установки в папку новой.
 ///
@@ -37,7 +39,17 @@ pub fn copy_old_config(old_dir: &Path, new_dir: &Path) -> io::Result<bool> {
         return Ok(false);
     }
     fs::create_dir_all(new_dir)?;
-    fs::copy(&old_config, &new_config)?;
+    // Копия сначала ложится во временный файл и лишь затем переименовывается:
+    // оборванный перенос (сбой диска, закрытие компьютера) не оставит
+    // недописанный `config.json`, который следующий запуск принял бы за
+    // готовые настройки. Имя не `config.json.tmp` — его занимает
+    // `config::save`.
+    let staging = new_dir.join(STAGING_FILE);
+    let copied = fs::copy(&old_config, &staging).and_then(|_| fs::rename(&staging, &new_config));
+    if let Err(e) = copied {
+        let _ = fs::remove_file(&staging);
+        return Err(e);
+    }
     Ok(true)
 }
 
@@ -102,6 +114,37 @@ mod tests {
         assert_eq!(std::fs::read(new.join("config.json")).unwrap(), br#"{"version":3}"#);
         // Старая папка не тронута.
         assert_eq!(std::fs::read(old.join("config.json")).unwrap(), br#"{"version":3}"#);
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn no_staging_file_is_left_after_a_successful_copy() {
+        let root = tempdir("staging");
+        let old = root.join("old");
+        let new = root.join("new");
+        std::fs::create_dir_all(&old).unwrap();
+        std::fs::create_dir_all(&new).unwrap();
+        std::fs::write(old.join("config.json"), b"cfg").unwrap();
+
+        assert!(copy_old_config(&old, &new).unwrap());
+        assert!(!new.join("config.json.migrating").exists());
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn a_leftover_staging_file_from_an_interrupted_copy_is_replaced() {
+        let root = tempdir("leftover");
+        let old = root.join("old");
+        let new = root.join("new");
+        std::fs::create_dir_all(&old).unwrap();
+        std::fs::create_dir_all(&new).unwrap();
+        std::fs::write(old.join("config.json"), b"fresh").unwrap();
+        // Обрыв при прошлом переносе: недописанный временный файл.
+        std::fs::write(new.join("config.json.migrating"), b"half").unwrap();
+
+        assert!(copy_old_config(&old, &new).unwrap());
+        assert_eq!(std::fs::read(new.join("config.json")).unwrap(), b"fresh");
+        assert!(!new.join("config.json.migrating").exists());
         let _ = std::fs::remove_dir_all(&root);
     }
 
