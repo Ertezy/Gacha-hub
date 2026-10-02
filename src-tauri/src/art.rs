@@ -433,6 +433,12 @@ pub fn forget_tried(state: &mut DownloadState) {
     state.tried.clear();
 }
 
+/// Забывает один опробованный адрес: удачно скачанный не должен оставаться
+/// закрытым, иначе пропавший с диска файл до следующего запуска не докачался бы.
+pub fn forget(state: &mut DownloadState, url: &str) {
+    state.tried.remove(url);
+}
+
 /// Правда только в первый раз за время работы приложения — дальше о
 /// нечитаемом каталоге Epic в журнал больше не пишем.
 pub fn report_catalog_once(state: &mut DownloadState) -> bool {
@@ -803,6 +809,29 @@ mod tests {
         assert_eq!(claim(&mut state, vec!["a".to_string()]), Some(vec!["a".to_string()]));
         finish(&mut state);
         forget_tried(&mut state);
+        assert_eq!(claim(&mut state, vec!["a".to_string()]), Some(vec!["a".to_string()]));
+    }
+
+    #[test]
+    fn forgetting_one_address_lets_only_it_be_tried_again() {
+        let mut state = DownloadState::default();
+        assert_eq!(
+            claim(&mut state, vec!["a".to_string(), "b".to_string()]),
+            Some(vec!["a".to_string(), "b".to_string()])
+        );
+        finish(&mut state);
+        forget(&mut state, "a");
+        assert_eq!(
+            claim(&mut state, vec!["a".to_string(), "b".to_string()]),
+            Some(vec!["a".to_string()]),
+            "забытый адрес снова доступен, а неудачный b по-прежнему закрыт"
+        );
+    }
+
+    #[test]
+    fn forgetting_an_unknown_address_changes_nothing() {
+        let mut state = DownloadState::default();
+        forget(&mut state, "never-tried");
         assert_eq!(claim(&mut state, vec!["a".to_string()]), Some(vec!["a".to_string()]));
     }
 

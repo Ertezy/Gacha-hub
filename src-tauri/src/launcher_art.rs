@@ -10,7 +10,7 @@ use std::sync::Mutex;
 
 use tauri::{AppHandle, Emitter, Manager};
 
-use crate::art::{claim, finish, forget_tried, DownloadState};
+use crate::art::{claim, finish, forget, forget_tried, DownloadState};
 
 /// Потолок веса официального видео фона: у HoYoPlay ролики около 15 МБ.
 pub const MAX_VIDEO_BYTES: u64 = 60 * 1024 * 1024;
@@ -39,6 +39,16 @@ fn cap_for(url: &str) -> u64 {
     } else {
         crate::images::MAX_IMAGE_BYTES
     }
+}
+
+/// Сначала все картинки, потом все видео; внутри каждой группы порядок прежний.
+/// Картинка весит единицы мегабайт и сразу делает фон настоящим, видео — десятки
+/// мегабайт, и ждать его ради картинки следующей игры незачем.
+fn pictures_first(urls: Vec<String>) -> Vec<String> {
+    let (videos, mut pictures): (Vec<String>, Vec<String>) =
+        urls.into_iter().partition(|url| is_video_url(url));
+    pictures.extend(videos);
+    pictures
 }
 
 /// Адреса, которых ещё нет в кеше.
@@ -104,12 +114,34 @@ pub fn start_downloads(app: &AppHandle, wanted: Vec<String>) {
         return;
     };
     let app = app.clone();
+    let urls = pictures_first(urls);
+    let picture_count = urls.iter().filter(|url| !is_video_url(url)).count();
     std::thread::spawn(move || {
-        let mut done = 0;
-        for url in urls {
-            match crate::images::fetch_into(&dir, &url, cap_for(&url)) {
-                Ok(_) => done += 1,
+        // Скачанное, о чём окно ещё не знает.
+        let mut unannounced = 0;
+        let announce = |app: &AppHandle| {
+            if let Err(e) = app.emit("games-changed", ()) {
+                log::warn!("[launcher-art] окно не узнало о новых фонах: {e}");
+            }
+        };
+        for (index, url) in urls.iter().enumerate() {
+            match crate::images::fetch_into(&dir, url, cap_for(url)) {
+                Ok(_) => {
+                    unannounced += 1;
+                    // Удачный адрес больше не «опробованный»: закрытыми до следующего
+                    // запуска остаются только неудачные (спека §3.2).
+                    let state = app.state::<LauncherArtDownloads>();
+                    let mut state = state.0.lock().unwrap_or_else(|e| e.into_inner());
+                    forget(&mut state, url);
+                }
                 Err(e) => log::warn!("[launcher-art] фон лаунчера не скачался: {e}"),
+            }
+            // Картинки закончились, видео ещё качаются: окно узнаёт о картинках
+            // сразу, а не после десятков мегабайт видео. Пока поток работает,
+            // `claim` возвращает `None`, так что повторный запуск ничего не собьёт.
+            if index + 1 == picture_count && unannounced > 0 {
+                announce(&app);
+                unannounced = 0;
             }
         }
         remove_stale(&dir, &wanted);
@@ -118,10 +150,8 @@ pub fn start_downloads(app: &AppHandle, wanted: Vec<String>) {
             let mut state = state.0.lock().unwrap_or_else(|e| e.into_inner());
             finish(&mut state);
         }
-        if done > 0 {
-            if let Err(e) = app.emit("games-changed", ()) {
-                log::warn!("[launcher-art] окно не узнало о новых фонах: {e}");
-            }
+        if unannounced > 0 {
+            announce(&app);
         }
     });
 }
@@ -201,6 +231,32 @@ mod tests {
         // Недокачанное готовым не считается: файл всё ещё в очереди на докачку.
         assert_eq!(pending(&[VID.to_string()], &dir), vec![VID.to_string()]);
         std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn pictures_go_before_videos_and_keep_their_order() {
+        let urls = vec![
+            "https://cdn.example.test/bg/a.webm".to_string(),
+            "https://cdn.example.test/bg/a.webp".to_string(),
+            "https://cdn.example.test/bg/b.MP4?x=1".to_string(),
+            "https://cdn.example.test/bg/b.webp".to_string(),
+        ];
+        assert_eq!(
+            pictures_first(urls),
+            vec![
+                "https://cdn.example.test/bg/a.webp".to_string(),
+                "https://cdn.example.test/bg/b.webp".to_string(),
+                "https://cdn.example.test/bg/a.webm".to_string(),
+                "https://cdn.example.test/bg/b.MP4?x=1".to_string(),
+            ]
+        );
+    }
+
+    #[test]
+    fn pictures_first_leaves_a_single_kind_and_an_empty_list_alone() {
+        assert!(pictures_first(Vec::new()).is_empty());
+        let only_videos = vec![VID.to_string(), "https://cdn.example.test/bg/h.mp4".to_string()];
+        assert_eq!(pictures_first(only_videos.clone()), only_videos);
     }
 
     #[test]
