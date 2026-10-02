@@ -7,6 +7,7 @@ Zenless Zone Zero, Wuthering Waves и Arknights: Endfield — одно окно 
 лаунчеров.
 
 Не связан с разработчиками игр. Названия игр и арт принадлежат правообладателям.
+Genshin Impact, Honkai: Star Rail и Zenless Zone Zero: © All rights reserved by HoYoverse.
 
 ## Скачать
 
@@ -92,4 +93,5 @@ Wuthering Waves (только факты: название, персонаж, с
 ## Лицензия
 
 MIT — см. [LICENSE](LICENSE). Названия игр, арт и товарные знаки принадлежат
-правообладателям.
+правообладателям;
+Genshin Impact, Honkai: Star Rail и Zenless Zone Zero: © All rights reserved by HoYoverse.

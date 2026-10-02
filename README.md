@@ -7,6 +7,7 @@ Zenless Zone Zero, Wuthering Waves and Arknights: Endfield — one window instea
 several launchers.
 
 Not affiliated with the games' developers. Game names and artwork belong to their owners.
+Genshin Impact, Honkai: Star Rail and Zenless Zone Zero: © All rights reserved by HoYoverse.
 
 ## Download
 
@@ -141,4 +142,5 @@ Replace all three together when the artwork changes.
 
 ## License
 
-MIT — see [LICENSE](LICENSE). Game names, art and trademarks belong to their owners.
+MIT — see [LICENSE](LICENSE). Game names, art and trademarks belong to their owners;
+Genshin Impact, Honkai: Star Rail and Zenless Zone Zero: © All rights reserved by HoYoverse.

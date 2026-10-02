@@ -183,7 +183,7 @@ export const en = {
       logHint: (path: string) => `Located at ${path}. If something isn't working, attach it to your bug report.`,
       showLog: "Show log",
       reportProblem: "Report a problem",
-      disclaimer: "The app isn't affiliated with the games' developers. Names, images and other materials belong to their rights holders.",
+      disclaimer: "The app isn't affiliated with the games' developers. Names, images and other materials belong to their rights holders. Genshin Impact, Honkai: Star Rail and Zenless Zone Zero: © All rights reserved by HoYoverse.",
     },
   },
 };

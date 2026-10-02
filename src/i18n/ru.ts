@@ -189,7 +189,7 @@ export const ru: Dictionary = {
       logHint: (path: string) => `Лежит в ${path}. Если что-то не работает, приложите его к сообщению о проблеме.`,
       showLog: "Показать журнал",
       reportProblem: "Сообщить о проблеме",
-      disclaimer: "Приложение не связано с разработчиками игр. Названия, изображения и другие материалы принадлежат правообладателям.",
+      disclaimer: "Приложение не связано с разработчиками игр. Названия, изображения и другие материалы принадлежат правообладателям. Genshin Impact, Honkai: Star Rail и Zenless Zone Zero: © All rights reserved by HoYoverse.",
     },
   },
 };
