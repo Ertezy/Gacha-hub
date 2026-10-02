@@ -34,6 +34,8 @@ export interface HubGame {
   title: string;
   /** Шаблон с подстановкой {code}. Отсутствует у игр без веб-погашения. */
   redeemUrl: string | null;
+  /** Текущий фон официального лаунчера: картинка и, если есть, видео (спека 2026-10-02 §2). */
+  background?: { image: string; video?: string };
 }
 
 export interface Code {

@@ -3,7 +3,7 @@ import { listen } from "@tauri-apps/api/event";
 import { api } from "./lib/api";
 import { launchNote } from "./lib/launch";
 import { setMotion } from "./lib/motion";
-import { REFRESH_EVERY_MS, sameHub, shouldRefreshOnShow, shouldRefreshOnOnline } from "./lib/hubRefresh";
+import { REFRESH_EVERY_MS, backgroundsKey, sameHub, shouldRefreshOnShow, shouldRefreshOnOnline } from "./lib/hubRefresh";
 import SidePanel from "./components/SidePanel";
 import GameArt from "./components/GameArt";
 import PlayButton from "./components/PlayButton";
@@ -48,6 +48,26 @@ export default function App() {
   // медленный ответ со старого адреса придёт позже нового.
   const hubRequestId = useRef(0);
 
+  // Только список игр, без выбора и хаба: событие о новых фонах не должно
+  // сбрасывать игру, которую человек уже выбрал в доке.
+  const reloadGames = useCallback(async () => {
+    try {
+      setGames(await api.getGames());
+      setError("");
+    } catch (e) {
+      // `currentT()` по той же причине, что и в `load`: подписка ниже не
+      // должна пересоздаваться при смене языка.
+      setError(errorText(currentT(), e));
+    }
+  }, []);
+
+  // Отпечаток официальных фонов в последних применённых данных хаба. Rust берёт
+  // фоны из ЛОКАЛЬНОГО файла хаба, а свежие данные приходят по сети уже после
+  // того, как список игр собран: без перечитывания фон HoYoPlay появился бы
+  // только после следующей сборки списка (на первом запуске и в день патча —
+  // после перезапуска). Начальное значение — отпечаток «хаба нет».
+  const appliedBackgrounds = useRef(backgroundsKey(null));
+
   // Хаб грузится отдельно: он может ходить в сеть, и его задержка не должна
   // откладывать появление главного экрана. Те же данные панель не
   // перерисовывают; отказ сети оставляет на экране то, что уже показано.
@@ -57,11 +77,19 @@ export default function App() {
     try {
       const next = await api.getHub();
       if (hubRequestId.current !== requestId) return;
+      // Побочный эффект здесь, а не внутри функции для `setHub`: та обязана быть
+      // чистой, а React может вызвать её не один раз. Перечитываем только при
+      // смене отпечатка — почти все проверки хаба фонов не меняют.
+      const key = backgroundsKey(next);
+      if (key !== appliedBackgrounds.current) {
+        appliedBackgrounds.current = key;
+        void reloadGames();
+      }
       setHub((current) => (sameHub(current, next) ? current : next));
     } catch {
       // Показанные данные остаются; следующая проверка попробует снова.
     }
-  }, []);
+  }, [reloadGames]);
 
   const load = useCallback(async () => {
     try {
@@ -77,19 +105,6 @@ export default function App() {
     }
     void refreshHub();
   }, [refreshHub]);
-
-  // Только список игр, без выбора и хаба: событие о новых фонах не должно
-  // сбрасывать игру, которую человек уже выбрал в доке.
-  const reloadGames = useCallback(async () => {
-    try {
-      setGames(await api.getGames());
-      setError("");
-    } catch (e) {
-      // `currentT()` по той же причине, что и в `load`: подписка ниже не
-      // должна пересоздаваться при смене языка.
-      setError(errorText(currentT(), e));
-    }
-  }, []);
 
   // Фоны Epic докачиваются после запуска (спека этапа 5, §3.3), и Rust сообщает
   // об этом событием. Подписка регистрируется асинхронно, а Tauri не копит

@@ -23,3 +23,10 @@ export function shouldRefreshOnOnline(lastCheckMs: number, nowMs: number): boole
 export function sameHub(a: HubData | null, b: HubData | null): boolean {
   return JSON.stringify(a) === JSON.stringify(b);
 }
+
+/** Отпечаток официальных фонов игр: сменился — список игр надо перечитать,
+ *  чтобы Rust взял новые фоны (спека 2026-10-02 §3.1). Коды, баннеры и видео
+ *  в отпечаток не входят. */
+export function backgroundsKey(hub: HubData | null): string {
+  return JSON.stringify((hub?.games ?? []).map((g) => [g.id, g.background ?? null]));
+}
