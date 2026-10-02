@@ -33,7 +33,8 @@ order and settings are kept. When a new version is out, a line at the bottom of 
 panel says so, with a Download link.
 
 Coming from Gacha Hub (the project's old name)? Install Kitsudock first — your games and
-settings are carried over on its first start — then uninstall Gacha Hub.
+settings are carried over on its first start — then uninstall Gacha Hub — after Kitsudock's
+first start, ticking "Delete the application data" is safe and frees the old caches.
 
 ## Uninstall
 
