@@ -21,6 +21,23 @@ use crate::hub::is_safe_https;
 
 const FETCH_TIMEOUT: Duration = Duration::from_secs(10);
 
+/// Самая медленная скорость, с которой ещё ждём большой файл: 256 КиБ/с.
+/// Тридцатимегабайтное видео при ней качается две минуты, а не обрывается.
+const MIN_RATE: u64 = 256 * 1024;
+
+/// Срок на запрос вместе с чтением тела (ureq считает их одним сроком).
+///
+/// Картинки с потолком до `MAX_IMAGE_BYTES` укладываются в `FETCH_TIMEOUT`,
+/// как раньше. Для большего потолка срок растёт вместе с ним: десять секунд на
+/// ролик в 15 МБ требуют 1,5 МБ/с, и на обычном канале он не скачивался бы
+/// никогда, а адрес до перезапуска попадал бы в список опробованных.
+fn deadline_for(max_bytes: u64) -> Duration {
+    if max_bytes <= MAX_IMAGE_BYTES {
+        return FETCH_TIMEOUT;
+    }
+    Duration::from_secs(max_bytes / MIN_RATE).max(FETCH_TIMEOUT)
+}
+
 /// Пять мегабайт: уменьшенный арт весит десятки килобайт, всё крупнее —
 /// либо ошибка сборщика, либо попытка занять нам диск.
 pub const MAX_IMAGE_BYTES: u64 = 5 * 1024 * 1024;
@@ -162,7 +179,7 @@ pub fn fetch_into(dir: &Path, url: &str, max_bytes: u64) -> Result<PathBuf, Stri
         .https_only(true)
         .build()
         .get(url)
-        .timeout(FETCH_TIMEOUT)
+        .timeout(deadline_for(max_bytes))
         .call()
         .map_err(|e| format!("не удалось скачать {url}: {e}"))?;
 
@@ -191,8 +208,31 @@ pub fn fetch_into(dir: &Path, url: &str, max_bytes: u64) -> Result<PathBuf, Stri
     if !path.starts_with(&dir) {
         return Err("путь вышел за пределы кеша".to_string());
     }
-    fs::write(&path, &bytes).map_err(|e| format!("не удалось записать {}: {e}", path.display()))?;
+    write_atomic(&path, &bytes)?;
     Ok(path)
+}
+
+/// Записывает файл целиком или не записывает вовсе.
+///
+/// `cached` считает любой файл под итоговым именем готовым и повторно его не
+/// качает. Запись прямо в него оставила бы обрывок (сбой, закрытое окно,
+/// список игр, построенный посреди докачки ролика) в роли скачанного файла
+/// навсегда. Поэтому пишем рядом в `<имя>.part` и переименовываем: итоговое
+/// имя появляется, только когда файл целый. Неудавшийся `.part` убирается.
+fn write_atomic(path: &Path, bytes: &[u8]) -> Result<(), String> {
+    let mut part = path.as_os_str().to_owned();
+    part.push(".part");
+    let part = PathBuf::from(part);
+    let written = fs::write(&part, bytes)
+        .map_err(|e| format!("не удалось записать {}: {e}", part.display()))
+        .and_then(|()| {
+            fs::rename(&part, path)
+                .map_err(|e| format!("не удалось положить {} на место: {e}", path.display()))
+        });
+    if written.is_err() {
+        let _ = fs::remove_file(&part);
+    }
+    written
 }
 
 /// Отодвигает метку изменения файла на «сейчас».
@@ -378,6 +418,49 @@ mod tests {
         std::fs::write(&file, b"x").unwrap();
         assert_eq!(cached(&dir, url), Some(file));
         assert_eq!(cache_stem(url), file_name_for(url, "webm").trim_end_matches(".webm"));
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn a_small_ceiling_keeps_the_short_deadline() {
+        assert_eq!(deadline_for(MAX_IMAGE_BYTES), Duration::from_secs(10));
+        assert_eq!(deadline_for(1024), Duration::from_secs(10));
+    }
+
+    #[test]
+    fn a_big_ceiling_gets_a_deadline_that_fits_the_slowest_rate() {
+        // 60 МиБ при 256 КиБ/с — 240 секунд.
+        assert_eq!(deadline_for(60 * 1024 * 1024), Duration::from_secs(240));
+        assert!(deadline_for(MAX_IMAGE_BYTES + 1) >= FETCH_TIMEOUT);
+    }
+
+    #[test]
+    fn an_atomic_write_leaves_the_file_and_no_part_file() {
+        let dir = scratch("atomic");
+        let path = dir.join("a.webm");
+        write_atomic(&path, b"video").unwrap();
+        assert_eq!(std::fs::read(&path).unwrap(), b"video");
+        assert!(!dir.join("a.webm.part").exists());
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn a_failed_atomic_write_leaves_no_part_file() {
+        let dir = scratch("atomic-fail");
+        // На месте итогового файла каталог: переименование в него не удастся.
+        let path = dir.join("a.webm");
+        std::fs::create_dir_all(&path).unwrap();
+        assert!(write_atomic(&path, b"video").is_err());
+        assert!(!dir.join("a.webm.part").exists());
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn an_unfinished_part_file_is_not_a_cached_picture() {
+        let dir = scratch("part");
+        let url = "https://cdn.example.test/bg/a.webm";
+        std::fs::write(dir.join(format!("{}.part", file_name_for(url, "webm"))), b"half").unwrap();
+        assert_eq!(cached(&dir, url), None);
         std::fs::remove_dir_all(&dir).ok();
     }
 

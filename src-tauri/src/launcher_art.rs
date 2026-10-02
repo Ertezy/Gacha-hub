@@ -52,6 +52,14 @@ pub fn pending(wanted: &[String], dir: &Path) -> Vec<String> {
 
 /// Удаляет файлы, адресов которых нет среди нужных. Пустой список — ничего не
 /// трогает: хаб не прочитался или фоны выключены, и это не повод чистить кеш.
+///
+/// Недокачанный `хеш.расширение.part` относится к тому же адресу, что и его
+/// итоговый файл. Остаток от ненужного адреса удаляется, а от нужного остаётся:
+/// его пишет поток докачки, который мог работать, пока другой вызов
+/// `start_downloads` убирал устаревшее. Сам поток пишет, переименовывает и только
+/// потом зовёт `remove_stale`, так что собственный файл он не заденет. Остаток
+/// от нужного адреса не опасен: `cached` его не видит, а следующая докачка
+/// этого адреса перепишет его и переименует.
 pub fn remove_stale(dir: &Path, wanted: &[String]) -> usize {
     if wanted.is_empty() {
         return 0;
@@ -62,7 +70,13 @@ pub fn remove_stale(dir: &Path, wanted: &[String]) -> usize {
     let mut removed = 0;
     for entry in entries.flatten() {
         let path = entry.path();
-        let stem = path.file_stem().and_then(|s| s.to_str()).unwrap_or("").to_string();
+        // У `хеш.webm.part` отбрасываем `.part`, дальше всё как у готового файла.
+        let named = if path.extension().is_some_and(|e| e == "part") {
+            path.with_extension("")
+        } else {
+            path.clone()
+        };
+        let stem = named.file_stem().and_then(|s| s.to_str()).unwrap_or("").to_string();
         if path.is_file() && !keep.contains(&stem) && std::fs::remove_file(&path).is_ok() {
             removed += 1;
         }
@@ -161,6 +175,31 @@ mod tests {
         std::fs::write(&file, b"x").unwrap();
         assert_eq!(remove_stale(&dir, &[]), 0);
         assert!(file.is_file());
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn a_leftover_part_file_of_an_unwanted_address_is_removed() {
+        let dir = scratch("part-old");
+        let old = dir.join(format!(
+            "{}.part",
+            crate::images::file_name_for("https://cdn.example.test/bg/old.webm", "webm")
+        ));
+        std::fs::write(&old, b"half").unwrap();
+        assert_eq!(remove_stale(&dir, &[IMG.to_string()]), 1);
+        assert!(!old.exists());
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn a_part_file_of_a_wanted_address_stays_for_the_download_that_writes_it() {
+        let dir = scratch("part-wanted");
+        let part = dir.join(format!("{}.part", crate::images::file_name_for(VID, "webm")));
+        std::fs::write(&part, b"half").unwrap();
+        assert_eq!(remove_stale(&dir, &[IMG.to_string(), VID.to_string()]), 0);
+        assert!(part.is_file());
+        // Недокачанное готовым не считается: файл всё ещё в очереди на докачку.
+        assert_eq!(pending(&[VID.to_string()], &dir), vec![VID.to_string()]);
         std::fs::remove_dir_all(&dir).ok();
     }
 
