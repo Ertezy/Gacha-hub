@@ -32,7 +32,7 @@ const MAX_HUB_BYTES: usize = 2 * 1024 * 1024;
 
 /// Файл, который выкладывает сборщик (спека сборщика §9). Пустое поле адреса
 /// в настройках означает именно его; вписанный адрес побеждает.
-pub const DEFAULT_HUB_URL: &str = "https://ertezy.github.io/Gacha-hub-info/hub.json";
+pub const DEFAULT_HUB_URL: &str = "https://ertezy.github.io/Kitsudock-data/hub.json";
 
 pub fn effective_url(hub_url: Option<&str>) -> &str {
     match hub_url {

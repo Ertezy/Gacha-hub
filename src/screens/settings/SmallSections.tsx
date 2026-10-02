@@ -252,7 +252,7 @@ function AboutSection() {
             <button
               type="button"
               className="button"
-              onClick={() => void api.openSafeUrl("https://github.com/Ertezy/Gacha-hub")}
+              onClick={() => void api.openSafeUrl("https://github.com/Ertezy/Kitsudock")}
             >
               {t.settings.about.repository}
             </button>
@@ -274,7 +274,7 @@ function AboutSection() {
             <button
               type="button"
               className="button"
-              onClick={() => void api.openSafeUrl("https://github.com/Ertezy/Gacha-hub/issues/new")}
+              onClick={() => void api.openSafeUrl("https://github.com/Ertezy/Kitsudock/issues/new")}
             >
               {t.settings.about.reportProblem}
             </button>

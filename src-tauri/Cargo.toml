@@ -1,14 +1,14 @@
 [package]
-name = "gacha-hub"
+name = "kitsudock"
 version = "0.1.0"
 description = "Free Windows launcher for gacha games with promo codes, banners and videos"
 authors = ["Ertezy"]
 license = "MIT"
-repository = "https://github.com/Ertezy/Gacha-hub"
+repository = "https://github.com/Ertezy/Kitsudock"
 edition = "2021"
 
 [lib]
-name = "gacha_hub_lib"
+name = "kitsudock_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]

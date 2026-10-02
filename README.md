@@ -1,4 +1,4 @@
-# Gacha Hub
+# Kitsudock
 
 **English** · [Русский](README.ru.md)
 
@@ -11,18 +11,18 @@ Genshin Impact, Honkai: Star Rail and Zenless Zone Zero: © All rights reserved 
 
 ## Download
 
-### [Download Gacha Hub for Windows](https://github.com/Ertezy/Gacha-hub/releases/latest/download/GachaHub-setup.exe)
+### [Download Kitsudock for Windows](https://github.com/Ertezy/Kitsudock/releases/latest/download/Kitsudock-setup.exe)
 
-The latest version, `GachaHub-setup.exe`. Windows 10 or 11, 64-bit. Every version with its
-notes is on the [Releases](https://github.com/Ertezy/Gacha-hub/releases) page.
+The latest version, `Kitsudock-setup.exe`. Windows 10 or 11, 64-bit. Every version with its
+notes is on the [Releases](https://github.com/Ertezy/Kitsudock/releases) page.
 
 ## Install
 
-1. Run `GachaHub-setup.exe`. It installs for your user only, no administrator rights
+1. Run `Kitsudock-setup.exe`. It installs for your user only, no administrator rights
    needed, and downloads Microsoft WebView2 if the system doesn't have it yet.
 2. The installer isn't code-signed yet, so Windows SmartScreen may show "Windows protected
    your PC". Click **More info → Run anyway**.
-3. On the first start Gacha Hub shows the games it found on this computer. Tick the ones you
+3. On the first start Kitsudock shows the games it found on this computer. Tick the ones you
    want and click **Add checked**. A game it missed can be added later in Settings → Games →
    **+ Add a game manually**, by pointing at the game's `.exe`.
 
@@ -32,11 +32,14 @@ Download the installer again from the same link and run it over the old version.
 order and settings are kept. When a new version is out, a line at the bottom of the side
 panel says so, with a Download link.
 
+Coming from Gacha Hub (the project's old name)? Install Kitsudock first — your games and
+settings are carried over on its first start — then uninstall Gacha Hub.
+
 ## Uninstall
 
-Windows Settings → Apps → Installed apps → Gacha Hub → Uninstall. To remove your settings
+Windows Settings → Apps → Installed apps → Kitsudock → Uninstall. To remove your settings
 and cached pictures too, tick "Delete the application data" in the uninstaller, or delete
-`%APPDATA%\com.gachahub.desktop` and `%LOCALAPPDATA%\com.gachahub.desktop` yourself.
+`%APPDATA%\io.github.ertezy.kitsudock` and `%LOCALAPPDATA%\io.github.ertezy.kitsudock` yourself.
 
 ## Privacy
 
@@ -64,7 +67,7 @@ unsigned (see [Install](#install)).*
   the Kuro launcher and GRYPHLINK, or added by pointing at the game's `.exe`.
   Reorder them by drag in Settings → Games.
 - **Play** launches through the store the game was installed from, or directly — like
-  double-clicking the game's `.exe`. Gacha Hub never touches game files and doesn't
+  double-clicking the game's `.exe`. Kitsudock never touches game files and doesn't
   interact with a running game.
 - **Side panel** for the selected game: promo codes with expiry, current and upcoming
   banners (the carousel slides on its own), and the latest official videos.
@@ -81,8 +84,8 @@ unsigned (see [Install](#install)).*
 The panel's codes, banners and videos come from a separate collector that runs on
 GitHub Actions and publishes one file:
 
-- repository: https://github.com/Ertezy/Gacha-hub-info
-- file: https://ertezy.github.io/Gacha-hub-info/hub.json
+- repository: https://github.com/Ertezy/Kitsudock-data
+- file: https://ertezy.github.io/Kitsudock-data/hub.json
 
 The collector reads community wikis (Fandom, wiki.gg — CC BY-SA), official Wuthering
 Waves announcements (facts only: title, character, dates), the official HoYoPlay
@@ -119,13 +122,13 @@ Before building a release, refresh it and commit it with the release:
 
 ## Where settings live
 
-`%APPDATA%\com.gachahub.desktop\`:
+`%APPDATA%\io.github.ertezy.kitsudock\`:
 
 - `config.json` — games, order and settings;
 - `hub_cache.json`, `hub_cache.meta.json` — the last downloaded data file and its version tag;
 - `hub.json` — optional manual override, used only when the collector cannot be reached.
 
-Logs are kept separately, under `%LOCALAPPDATA%\com.gachahub.desktop\logs\`; open the
+Logs are kept separately, under `%LOCALAPPDATA%\io.github.ertezy.kitsudock\logs\`; open the
 folder from Settings → About → Log → Show log.
 
 ## Icons

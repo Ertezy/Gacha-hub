@@ -1,4 +1,4 @@
-# Gacha Hub
+# Kitsudock
 
 [English](README.md) · **Русский**
 
@@ -11,19 +11,19 @@ Genshin Impact, Honkai: Star Rail и Zenless Zone Zero: © All rights reserved b
 
 ## Скачать
 
-### [Скачать Gacha Hub для Windows](https://github.com/Ertezy/Gacha-hub/releases/latest/download/GachaHub-setup.exe)
+### [Скачать Kitsudock для Windows](https://github.com/Ertezy/Kitsudock/releases/latest/download/Kitsudock-setup.exe)
 
-Последняя версия, файл `GachaHub-setup.exe`. Windows 10 или 11, 64-бит. Все версии с
-описанием изменений — на странице [Releases](https://github.com/Ertezy/Gacha-hub/releases).
+Последняя версия, файл `Kitsudock-setup.exe`. Windows 10 или 11, 64-бит. Все версии с
+описанием изменений — на странице [Releases](https://github.com/Ertezy/Kitsudock/releases).
 
 ## Установка
 
-1. Запустите `GachaHub-setup.exe`. Он ставит программу только для вашего пользователя,
+1. Запустите `Kitsudock-setup.exe`. Он ставит программу только для вашего пользователя,
    права администратора не нужны; если в системе нет Microsoft WebView2, установщик
    скачает его сам.
 2. Установщик пока не подписан, поэтому SmartScreen может написать «Система Windows
    защитила ваш компьютер». Нажмите **Подробнее → Выполнить в любом случае**.
-3. При первом запуске Gacha Hub покажет игры, которые нашёл на компьютере. Отметьте нужные
+3. При первом запуске Kitsudock покажет игры, которые нашёл на компьютере. Отметьте нужные
    и нажмите **Добавить отмеченные**. Игру, которую он не нашёл, можно добавить потом:
    Настройки → Игры → **+ Добавить игру вручную**, указав `.exe` игры.
 
@@ -33,12 +33,15 @@ Genshin Impact, Honkai: Star Rail и Zenless Zone Zero: © All rights reserved b
 и настройки сохранятся. Когда выходит новая версия, внизу боковой панели появляется строка
 «Вышла версия … · Скачать».
 
+Переходите с Gacha Hub (старое название проекта)? Сначала установите Kitsudock — игры и
+настройки перенесутся при первом запуске, — потом удалите Gacha Hub.
+
 ## Удаление
 
-Параметры Windows → Приложения → Установленные приложения → Gacha Hub → Удалить. Чтобы
+Параметры Windows → Приложения → Установленные приложения → Kitsudock → Удалить. Чтобы
 удалить и настройки с сохранёнными картинками, отметьте в деинсталляторе «Удалить данные
-приложения» или удалите сами папки `%APPDATA%\com.gachahub.desktop` и
-`%LOCALAPPDATA%\com.gachahub.desktop`.
+приложения» или удалите сами папки `%APPDATA%\io.github.ertezy.kitsudock` и
+`%LOCALAPPDATA%\io.github.ertezy.kitsudock`.
 
 ## Приватность
 
@@ -70,8 +73,8 @@ YouTube, Steam, Epic Games и серверов официального лаун
 Коды, баннеры и видео собирает отдельный сборщик на GitHub Actions и выкладывает одним
 файлом:
 
-- репозиторий: https://github.com/Ertezy/Gacha-hub-info
-- файл: https://ertezy.github.io/Gacha-hub-info/hub.json
+- репозиторий: https://github.com/Ertezy/Kitsudock-data
+- файл: https://ertezy.github.io/Kitsudock-data/hub.json
 
 Сборщик читает вики сообществ (Fandom, wiki.gg — CC BY-SA), официальные анонсы
 Wuthering Waves (только факты: название, персонаж, сроки), официальный лаунчер HoYoPlay

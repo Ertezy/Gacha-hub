@@ -17,8 +17,8 @@ use std::net::{SocketAddr, TcpListener, TcpStream};
 use std::time::Duration;
 
 pub const PORT: u16 = 47631;
-const HELLO: &str = "gacha-hub show";
-const REPLY: &str = "gacha-hub ok";
+const HELLO: &str = "kitsudock show";
+const REPLY: &str = "kitsudock ok";
 const WAIT: Duration = Duration::from_millis(500);
 
 pub enum Start {

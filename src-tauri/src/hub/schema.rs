@@ -362,12 +362,12 @@ mod tests {
     #[test]
     fn reads_the_latest_app_release() {
         let d: HubData = serde_json::from_str(r#"{"version":2,"updatedAt":1,
-            "app":{"version":"0.1.1","url":"https://github.com/Ertezy/Gacha-hub/releases/tag/v0.1.1"}}"#).unwrap();
+            "app":{"version":"0.1.1","url":"https://github.com/Ertezy/Kitsudock/releases/tag/v0.1.1"}}"#).unwrap();
         assert_eq!(
             d.app,
             Some(AppRelease {
                 version: "0.1.1".into(),
-                url: "https://github.com/Ertezy/Gacha-hub/releases/tag/v0.1.1".into()
+                url: "https://github.com/Ertezy/Kitsudock/releases/tag/v0.1.1".into()
             })
         );
     }
@@ -395,7 +395,7 @@ mod tests {
         // `store_fresh` пишет через serde, `read_json_file` читает.
         let release = AppRelease {
             version: "0.1.1".into(),
-            url: "https://github.com/Ertezy/Gacha-hub/releases/tag/v0.1.1".into(),
+            url: "https://github.com/Ertezy/Kitsudock/releases/tag/v0.1.1".into(),
         };
         let data = HubData {
             version: 2,

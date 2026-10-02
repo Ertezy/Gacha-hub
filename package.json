@@ -1,5 +1,5 @@
 {
-  "name": "gacha-hub",
+  "name": "kitsudock",
   "private": true,
   "version": "0.1.0",
   "description": "Free Windows launcher for gacha games with promo codes, banners and videos",
@@ -7,7 +7,7 @@
   "author": "Ertezy",
   "repository": {
     "type": "git",
-    "url": "https://github.com/Ertezy/Gacha-hub"
+    "url": "https://github.com/Ertezy/Kitsudock"
   },
   "type": "module",
   "scripts": {

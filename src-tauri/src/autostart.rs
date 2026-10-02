@@ -1,4 +1,4 @@
-//! Автозапуск с Windows (спека этапа 7 §4.1): значение `Gacha Hub` в
+//! Автозапуск с Windows (спека этапа 7 §4.1): значение `Kitsudock` в
 //! `HKCU\Software\Microsoft\Windows\CurrentVersion\Run`. Переключатель читает
 //! состояние отсюда, из реестра: конфиг не меняется.
 //!
@@ -8,7 +8,7 @@
 use std::path::Path;
 
 pub const RUN_KEY: &str = r"Software\Microsoft\Windows\CurrentVersion\Run";
-pub const VALUE_NAME: &str = "Gacha Hub";
+pub const VALUE_NAME: &str = "Kitsudock";
 /// С этим флагом приложение стартует спрятанным в трей.
 pub const FLAG: &str = "--autostart";
 
@@ -93,16 +93,16 @@ mod tests {
 
     #[test]
     fn the_command_line_quotes_the_path_and_adds_the_flag() {
-        let exe = Path::new(r"C:\Program Files\Gacha Hub\gacha-hub.exe");
-        assert_eq!(command_line(exe), r#""C:\Program Files\Gacha Hub\gacha-hub.exe" --autostart"#);
+        let exe = Path::new(r"C:\Program Files\Kitsudock\kitsudock.exe");
+        assert_eq!(command_line(exe), r#""C:\Program Files\Kitsudock\kitsudock.exe" --autostart"#);
     }
 
     #[test]
     fn the_value_is_rewritten_only_when_it_points_elsewhere() {
-        let exe = Path::new(r"C:\Apps\gacha-hub.exe");
+        let exe = Path::new(r"C:\Apps\kitsudock.exe");
         assert!(!needs_rewrite(None, exe));
         assert!(!needs_rewrite(Some(&command_line(exe)), exe));
-        assert!(needs_rewrite(Some(r#""D:\Old\gacha-hub.exe" --autostart"#), exe));
+        assert!(needs_rewrite(Some(r#""D:\Old\kitsudock.exe" --autostart"#), exe));
     }
 
     #[test]

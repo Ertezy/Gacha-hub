@@ -12,7 +12,7 @@ const hub = (app?: { version: string; url: string }): HubData => ({
   ...(app ? { app } : {}),
 });
 
-const RELEASE = { version: "0.1.1", url: "https://github.com/Ertezy/Gacha-hub/releases/tag/v0.1.1" };
+const RELEASE = { version: "0.1.1", url: "https://github.com/Ertezy/Kitsudock/releases/tag/v0.1.1" };
 
 describe("isNewer", () => {
   it("compares the three numbers as numbers", () => {
