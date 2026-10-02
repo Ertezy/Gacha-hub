@@ -10,6 +10,10 @@
 //! Файл может быть обрезан, повреждён или вообще не быть программой — ответом
 //! будет «картинки нет», но никогда не паника.
 
+use std::fs::File;
+use std::io::{Read, Seek, SeekFrom};
+use std::path::Path;
+
 /// Число из двух байтов, младшим вперёд. `None`, если байтов не хватает.
 fn u16_at(b: &[u8], off: usize) -> Option<u16> {
     let s = b.get(off..off.checked_add(2)?)?;
@@ -252,7 +256,74 @@ fn children(b: &[u8], root: usize, node: usize, budget: &mut usize) -> Vec<(u32,
 /// Заодно отпало правило «взять PNG размером 256»: нужная картинка Wuthering
 /// Waves записана в старом формате, и по этому правилу не подходила вовсе.
 /// Размер берётся из оглавления, разбирать саму картинку ради него не нужно.
-pub fn icon_candidates(bytes: &[u8]) -> Vec<Vec<u8>> {
+///
+/// **Читается не весь файл, а заголовки и одна секция с ресурсами.** Размер
+/// исполняемого файла игры ничего не говорит о том, велика ли иконка:
+/// `GenshinImpact.exe` занимает 444 МБ, а таблица ресурсов в нём — последние
+/// полмегабайта. Раньше файл читался целиком под потолком в 100 МБ, и такая
+/// игра оставалась без иконки. Теперь с начала берутся `HEADER_BYTES` ради
+/// таблицы секций, затем по ней находится секция, в которую попадает адрес
+/// таблицы ресурсов, и читается только она (не больше
+/// `MAX_RESOURCE_SECTION_BYTES`). Любая ошибка ввода-вывода — то же «картинки
+/// нет», что и у кривого файла, а не сбой.
+pub fn icon_candidates_in_file(path: &Path) -> Vec<Vec<u8>> {
+    read_candidates(path).unwrap_or_default()
+}
+
+/// Сколько читается с начала файла ради таблицы секций. Заголовки MS-DOS и PE
+/// у настоящих программ занимают первые килобайты; 64 КБ — с большим запасом.
+/// Если таблица секций не поместилась, файл считается неразобранным.
+const HEADER_BYTES: u64 = 64 * 1024;
+
+/// Потолок на секцию с ресурсами. У настоящих программ она — от десятков
+/// килобайт до единиц мегабайт (у Genshin Impact полмегабайта); секция больше
+/// потолка — признак испорченного заголовка, и читать её целиком незачем.
+const MAX_RESOURCE_SECTION_BYTES: u64 = 32 * 1024 * 1024;
+
+/// Тело `icon_candidates_in_file`: `None` на любой неудаче, чтобы можно было
+/// пользоваться `?` вместо вложенных проверок.
+fn read_candidates(path: &Path) -> Option<Vec<Vec<u8>>> {
+    let mut file = File::open(path).ok()?;
+    let mut head = Vec::new();
+    (&mut file).take(HEADER_BYTES).read_to_end(&mut head).ok()?;
+    let (sections, resource_rva) = sections_and_resources(&head)?;
+
+    // Секция, в которую попадает адрес таблицы ресурсов. Условие то же, что в
+    // `rva_to_file`: испорченная запись пропускается, а не обрывает поиск.
+    let section = sections.iter().find(|s| {
+        s.virtual_address
+            .checked_add(s.virtual_size)
+            .is_some_and(|end| resource_rva >= s.virtual_address && resource_rva < end)
+    })?;
+    // Размер проверяется до чтения: секция больше потолка не читается вовсе,
+    // а не обрезается — обрезанное дерево ресурсов всё равно не разобрать.
+    if u64::from(section.raw_size) > MAX_RESOURCE_SECTION_BYTES {
+        return None;
+    }
+
+    file.seek(SeekFrom::Start(u64::from(section.raw_offset))).ok()?;
+    let mut bytes = Vec::new();
+    file.take(u64::from(section.raw_size)).read_to_end(&mut bytes).ok()?;
+
+    // Прочитанная секция лежит в памяти с нуля, поэтому в `candidates_in` она
+    // уходит единственной, со смещением 0: перевод адреса в смещение и все
+    // его проверки остаются теми же, что и при разборе файла целиком. Размер в
+    // файле — то, что реально прочиталось: файл мог оказаться короче заявленного.
+    let local = Section {
+        virtual_address: section.virtual_address,
+        virtual_size: section.virtual_size,
+        raw_offset: 0,
+        raw_size: bytes.len() as u32,
+    };
+    Some(candidates_in(&bytes, &[local], resource_rva))
+}
+
+/// То же, что `icon_candidates_in_file`, но по файлу, уже целиком лежащему в
+/// памяти. Боевой код читает с диска только нужное и этой функцией не
+/// пользуется; она остаётся для тестов — эталон, с которым сверяется чтение
+/// по частям.
+#[cfg(test)]
+fn icon_candidates(bytes: &[u8]) -> Vec<Vec<u8>> {
     let Some((sections, resource_rva)) = sections_and_resources(bytes) else {
         return Vec::new();
     };
@@ -295,6 +366,8 @@ fn candidates_in(b: &[u8], sections: &[Section], resource_rva: u32) -> Vec<Vec<u
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::io::{Seek, SeekFrom, Write};
+    use std::path::PathBuf;
 
     #[test]
     fn u32_at_reads_a_little_endian_number() {
@@ -456,9 +529,15 @@ mod tests {
     /// второй — нарочно наоборот против порядка по номеру, чтобы тест доказал:
     /// выбор идёт по номеру группы, а не по месту в дереве.
     fn tree(dir_123: &[(u8, u16)], dir_101: &[(u8, u16)]) -> Vec<u8> {
+        tree_at(0, dir_123, dir_101)
+    }
+
+    /// То же дерево, но секция с ним начинается с адреса `base`, а не с нуля:
+    /// адреса листов в нём абсолютные, а смещения между узлами — от корня.
+    fn tree_at(base: u32, dir_123: &[(u8, u16)], dir_101: &[(u8, u16)]) -> Vec<u8> {
         let (icon1, icon2) = (&b"REAL"[..], &b"LOGO"[..]);
         let (d123, d101) = (group_dir(dir_123), group_dir(dir_101));
-        let p_icon1 = 256u32;
+        let p_icon1 = base + 256;
         let p_icon2 = p_icon1 + icon1.len() as u32;
         let p_123 = p_icon2 + icon2.len() as u32;
         let p_101 = p_123 + d123.len() as u32;
@@ -475,7 +554,7 @@ mod tests {
         b.extend(leaf(p_icon2, icon2.len() as u32));
         b.extend(leaf(p_123, d123.len() as u32));
         b.extend(leaf(p_101, d101.len() as u32));
-        assert_eq!(b.len(), p_icon1 as usize, "узлы и листы должны занять ровно 256 байт");
+        assert_eq!(b.len(), 256, "узлы и листы должны занять ровно 256 байт");
         b.extend_from_slice(icon1);
         b.extend_from_slice(icon2);
         b.extend_from_slice(&d123);
@@ -522,5 +601,108 @@ mod tests {
             candidates_in(&b, &whole(&b), 0),
             vec![b"YYYYYY".to_vec(), b"XX".to_vec()]
         );
+    }
+
+    /// Исполняемый файл на диске. В начале — заголовки с секциями из
+    /// `sections` (адрес, размер в памяти, размер в файле, смещение в файле) и
+    /// адресом таблицы ресурсов `resource_rva`; `body` лежит по смещению `at`.
+    /// Всё между заголовками и `body` — пустота, как у настоящей игры на
+    /// сотни мегабайт, где нужная секция прячется в самом конце.
+    fn write_pe(
+        tag: &str,
+        resource_rva: u32,
+        sections: &[(u32, u32, u32, u32)],
+        body: &[u8],
+        at: u64,
+    ) -> PathBuf {
+        let mut h = vec![0u8; 0x400];
+        h[0..2].copy_from_slice(b"MZ");
+        h[0x3C..0x40].copy_from_slice(&0x80u32.to_le_bytes()); // где настоящий заголовок
+        h[0x80..0x84].copy_from_slice(b"PE\0\0");
+        h[0x86..0x88].copy_from_slice(&(sections.len() as u16).to_le_bytes());
+        h[0x94..0x96].copy_from_slice(&240u16.to_le_bytes()); // размер необязательного заголовка
+        h[0x98..0x9A].copy_from_slice(&0x20bu16.to_le_bytes()); // 64-разрядный
+        h[0x118..0x11C].copy_from_slice(&resource_rva.to_le_bytes()); // каталог ресурсов
+        for (i, (va, virtual_size, raw_size, raw_offset)) in sections.iter().enumerate() {
+            let s = 0x188 + i * 40; // таблица секций идёт сразу за необязательным заголовком
+            h[s + 8..s + 12].copy_from_slice(&virtual_size.to_le_bytes());
+            h[s + 12..s + 16].copy_from_slice(&va.to_le_bytes());
+            h[s + 16..s + 20].copy_from_slice(&raw_size.to_le_bytes());
+            h[s + 20..s + 24].copy_from_slice(&raw_offset.to_le_bytes());
+        }
+
+        let path = std::env::temp_dir().join(format!("gh-pe-{tag}-{}.exe", std::process::id()));
+        let mut f = std::fs::File::create(&path).unwrap();
+        f.write_all(&h).unwrap();
+        f.seek(SeekFrom::Start(at)).unwrap();
+        f.write_all(body).unwrap();
+        path
+    }
+
+    #[test]
+    fn a_resource_section_far_from_the_start_gives_what_reading_the_whole_file_gives() {
+        // Случай GenshinImpact.exe: файл на 444 МБ, а ресурсы — в последних
+        // полумегабайте. Читать надо заголовки и эту секцию, остальное
+        // не нужно, и результат при этом обязан совпасть с чтением целиком.
+        let va = 0x2000;
+        let body = tree_at(va, &[(0, 2)], &[(32, 2), (0, 1)]);
+        let at = 4 * 1024 * 1024u64;
+        let size = body.len() as u32;
+        let path = write_pe(
+            "far-end",
+            va,
+            &[(0x1000, 0x200, 0x200, 0x400), (va, size, size, at as u32)],
+            &body,
+            at,
+        );
+
+        let whole = std::fs::read(&path).unwrap();
+        assert!(whole.len() as u64 > at, "ресурсы должны лежать далеко за заголовками");
+        let from_file = icon_candidates_in_file(&path);
+        assert_eq!(from_file, icon_candidates(&whole));
+        assert_eq!(from_file, vec![b"REAL".to_vec(), b"LOGO".to_vec()]);
+        std::fs::remove_file(&path).ok();
+    }
+
+    #[test]
+    fn a_resource_section_over_the_ceiling_is_refused_without_reading_it() {
+        // Заголовок заявляет секцию на байт больше потолка, хотя сам файл
+        // крошечный и дерево лежит прямо по заявленному смещению. Чтение
+        // «сколько есть, но не больше потолка» нашло бы иконку — а должно
+        // отказаться, не читая вовсе.
+        let va = 0x2000;
+        let body = tree_at(va, &[(0, 2)], &[(0, 1)]);
+        let claimed = MAX_RESOURCE_SECTION_BYTES as u32 + 1;
+        let path =
+            write_pe("over-ceiling", va, &[(va, claimed, claimed, 0x400)], &body, 0x400);
+        assert!(icon_candidates_in_file(&path).is_empty());
+        std::fs::remove_file(&path).ok();
+    }
+
+    #[test]
+    fn a_resource_section_exactly_at_the_ceiling_is_accepted() {
+        // Граница включительно, как у `hub::exceeds_hub_ceiling`. Файл при
+        // этом короче заявленного: берётся то, что есть.
+        let va = 0x2000;
+        let body = tree_at(va, &[(0, 2)], &[(0, 1)]);
+        let claimed = MAX_RESOURCE_SECTION_BYTES as u32;
+        let path = write_pe("at-ceiling", va, &[(va, claimed, claimed, 0x400)], &body, 0x400);
+        assert_eq!(icon_candidates_in_file(&path), vec![b"REAL".to_vec()]);
+        std::fs::remove_file(&path).ok();
+    }
+
+    #[test]
+    fn a_missing_file_has_no_icon_and_does_not_panic() {
+        assert!(icon_candidates_in_file(Path::new(r"C:\nope\never\missing.exe")).is_empty());
+    }
+
+    #[test]
+    fn a_file_that_is_not_an_executable_has_no_icon() {
+        let path = std::env::temp_dir().join(format!("gh-pe-garbage-{}.exe", std::process::id()));
+        std::fs::write(&path, [0xFFu8; 4096]).unwrap();
+        assert!(icon_candidates_in_file(&path).is_empty());
+        std::fs::write(&path, b"MZ").unwrap(); // обрезан сразу после подписи
+        assert!(icon_candidates_in_file(&path).is_empty());
+        std::fs::remove_file(&path).ok();
     }
 }

@@ -1,42 +1,16 @@
 //! Откуда взять иконку игры и где её хранить.
 //!
 //! Знает про игры и про файловую систему, но не знает, как устроен
-//! исполняемый файл: этим занимается `pe`.
+//! исполняемый файл: этим занимается `pe`. Размер файла здесь тоже не важен —
+//! `pe` читает с диска только заголовки и секцию с ресурсами, так что и
+//! 444-мегабайтный `GenshinImpact.exe` даёт иконку так же, как маленький
+//! лаунчер.
 
-use std::io::Read;
 use std::path::{Path, PathBuf};
 
 use tauri::{AppHandle, Manager};
 
 use crate::config::Game;
-
-/// Потолок чтения исполняемого файла — тот же приём, что у `hub::read_json_file`
-/// и `images::fetch`: читаем не больше этой границы, а не файл целиком.
-/// `exe_in_root` по правилу спеки §4 берёт самый крупный файл в корне, когда
-/// имя не совпало с названием игры, и это может оказаться распакованным
-/// бинарником на сотни мегабайт без нужной картинки внутри — грузить его в
-/// память целиком незачем.
-const MAX_EXE_BYTES: u64 = 100 * 1024 * 1024;
-
-/// Правда, если прочитанное не влезло в потолок размера. Вынесена отдельно,
-/// как `hub::exceeds_hub_ceiling`: границу проверяем числом, без файла на
-/// сто мегабайт на диске у теста.
-fn exceeds_exe_ceiling(len: usize) -> bool {
-    len as u64 > MAX_EXE_BYTES
-}
-
-/// Читает файл с потолком. `None`, если файл не открылся или не влез в
-/// `MAX_EXE_BYTES` — сам по себе большой размер такого файла уже причина не
-/// держать его в памяти целиком.
-fn read_capped(path: &Path) -> Option<Vec<u8>> {
-    let file = std::fs::File::open(path).ok()?;
-    let mut bytes = Vec::new();
-    file.take(MAX_EXE_BYTES + 1).read_to_end(&mut bytes).ok()?;
-    if exceeds_exe_ceiling(bytes.len()) {
-        return None;
-    }
-    Some(bytes)
-}
 
 /// Исполняемый файл, из которого берём иконку.
 ///
@@ -96,7 +70,13 @@ pub fn cache_dir(app: &AppHandle) -> Result<PathBuf, String> {
 }
 
 /// Номер правила выбора картинки. Меняется вместе с самим правилом.
-const RULE: u32 = 2;
+///
+/// 3: исполняемые файлы крупнее 100 МБ раньше пропускались, и для них в кеше
+/// остались метки «иконки нет» (`.miss`) — так было у Genshin Impact из
+/// HoYoPlay (2026-10-02). Метка годна, пока файл игры не изменился, поэтому
+/// без нового номера исправление до этих людей не дошло бы: иконки и метки,
+/// сделанные при пропуске крупных файлов, нужно добыть заново, один раз.
+const RULE: u32 = 3;
 
 /// Выбрасывает иконки, добытые по прежнему правилу.
 ///
@@ -189,15 +169,16 @@ fn ensure_in(dir: &Path, game: &Game) -> Option<PathBuf> {
         return None;
     }
 
-    let Some(bytes) = read_capped(&exe) else {
-        let _ = std::fs::write(&miss, []);
-        return None;
-    };
+    // Файл целиком не читается: `pe` берёт с диска заголовки и секцию с
+    // ресурсами. Поэтому размер исполняемого файла не играет роли — раньше
+    // файл крупнее потолка в 100 МБ отбрасывался, и у игры вроде Genshin
+    // Impact (444 МБ, HoYoPlay) иконки не было вовсе.
+    //
     // Картинки пробуются по очереди, начиная с самой крупной: первая, которую
     // удалось привести к PNG, и становится иконкой. Мелкие размеры лесенки
     // бывают в видах, которые `ico` не разбирает, и пропустить их — правильный
     // исход, а не отказ.
-    let png = crate::pe::icon_candidates(&bytes)
+    let png = crate::pe::icon_candidates_in_file(&exe)
         .into_iter()
         .find_map(|picture| crate::ico::to_png(&picture));
     let Some(png) = png else {
@@ -380,29 +361,6 @@ mod tests {
         assert_ne!(second_len, first_len, "должно вернуться содержимое b, а не кеш от a");
         std::fs::remove_dir_all(&cache).ok();
         std::fs::remove_dir_all(&own_dir).ok();
-    }
-
-    #[test]
-    fn a_file_exactly_at_the_exe_ceiling_is_accepted() {
-        assert!(!exceeds_exe_ceiling(MAX_EXE_BYTES as usize));
-    }
-
-    #[test]
-    fn a_file_one_byte_over_the_exe_ceiling_is_rejected() {
-        assert!(exceeds_exe_ceiling(MAX_EXE_BYTES as usize + 1));
-    }
-
-    #[test]
-    fn read_capped_reads_a_small_file_fully() {
-        let dir = tempdir("read-capped-small");
-        write(&dir, "small.exe", 128);
-        assert_eq!(read_capped(&dir.join("small.exe")).map(|b| b.len()), Some(128));
-        std::fs::remove_dir_all(&dir).ok();
-    }
-
-    #[test]
-    fn read_capped_returns_none_for_a_missing_file() {
-        assert_eq!(read_capped(Path::new(r"C:\nope\never\missing.exe")), None);
     }
 
     #[test]
