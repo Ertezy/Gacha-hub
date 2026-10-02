@@ -148,8 +148,8 @@ export const en = {
       argsUnavailable: (source: string) => `Launch arguments aren't available here: the game is opened by ${source} via its own link, and nothing extra can be passed to it.`,
     },
     look: {
-      storeArt: "Use store backgrounds",
-      storeArtHint: "For games from Steam and Epic Games, artwork is taken from the store itself. A custom image or video always takes priority.",
+      storeArt: "Use store and launcher backgrounds",
+      storeArtHint: "For Genshin Impact, Honkai: Star Rail and Zenless Zone Zero the current background of the official HoYoPlay launcher is used (a video when animation is on); for other games from Steam and Epic Games, the store's artwork. A custom image or video always takes priority.",
       animation: "Animation",
       animationHint: "Background video, slow image movement, dock icon zoom and the gear spinning. The Windows setting doesn't affect the app.",
       noGames: "No games yet — add them in the Games section.",

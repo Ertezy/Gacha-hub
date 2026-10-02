@@ -28,10 +28,11 @@ export function layerKey(layer: Layer): string {
 }
 
 /** Откуда у игры фон — подпись на вкладке «Вид» (спека §7.3, §6.5). Магазины
- *  делят подпись с `main.launch.from` — слово там то же самое. */
+ *  и официальный лаунчер делят подпись с `main.launch.from` — слово там то же
+ *  самое. */
 export function sourceText(t: Dictionary, game: Pick<GameView, "artSource" | "videoMissing">): string {
   const text =
-    game.artSource === "steam" || game.artSource === "epic"
+    game.artSource === "steam" || game.artSource === "epic" || game.artSource === "hoyoplay"
       ? t.main.launch.from[game.artSource]
       : t.main.background.source[game.artSource];
   return game.videoMissing ? t.main.background.videoMissing(text) : text;

@@ -17,7 +17,7 @@ export interface GameView {
   /** Путь к фоновой картинке. `null` — рисуется сгенерированная заливка. */
   artPath: string | null;
   /** Откуда взят фон, показанный первым. */
-  artSource: "video" | "picture" | "steam" | "epic" | "fill";
+  artSource: "video" | "picture" | "hoyoplay" | "steam" | "epic" | "fill";
   /** Своё видео фона. `null` — видео не задано или файл пропал. */
   videoPath: string | null;
   /** Своё видео задано, но файла на месте нет. */

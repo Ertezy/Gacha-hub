@@ -85,6 +85,11 @@ describe("sourceText", () => {
       "from Epic Games, video file not found",
     );
   });
+
+  it("labels the official launcher background like the launch button", () => {
+    expect(sourceText(en, { artSource: "hoyoplay", videoMissing: false })).toBe(en.main.launch.from.hoyoplay);
+    expect(sourceText(ru, { artSource: "hoyoplay", videoMissing: false })).toBe(ru.main.launch.from.hoyoplay);
+  });
 });
 
 describe("hasOwnBackground", () => {

@@ -41,7 +41,8 @@ and cached pictures too, tick "Delete the application data" in the uninstaller, 
 
 No account, no telemetry, nothing is sent about you. The app downloads the data file
 from GitHub Pages, and pictures for the panel and backgrounds from the game wikis
-(Fandom, wiki.gg), YouTube, Steam and Epic Games.
+(Fandom, wiki.gg), YouTube, Steam, Epic Games and the official HoYoPlay launcher's
+servers (backgrounds of HoYoverse games).
 
 ## Code signing policy
 
@@ -67,7 +68,9 @@ unsigned (see [Install](#install)).*
 - **Side panel** for the selected game: promo codes with expiry, current and upcoming
   banners (the carousel slides on its own), and the latest official videos.
 - **Languages:** interface in English or Russian; videos in English or Japanese.
-- **Backgrounds:** store artwork, your own image or your own video.
+- **Backgrounds:** the official HoYoPlay background for Genshin Impact, Honkai: Star
+  Rail and Zenless Zone Zero (a video when animation is on), store artwork, your own
+  image or your own video.
 - **Tray:** closing the window can hide it to the tray; games can be launched from the
   tray menu.
 - **Launch with Windows:** starts hidden in the tray and keeps the panel's data fresh.
