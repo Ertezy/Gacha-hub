@@ -171,6 +171,12 @@ impl ArtContext {
         self
     }
 
+    /// Есть ли у игры официальный фон в файле хаба. Нет — кеш фонов лаунчера
+    /// не открывается вовсе.
+    pub fn has_launcher_art(&self, game: &Game) -> bool {
+        game.content_id.as_ref().is_some_and(|id| self.launcher.contains_key(id))
+    }
+
     /// Адреса официальных фонов для игр человека: картинка и видео, по порядку,
     /// без повторов. Галочка выключена — пусто.
     pub fn launcher_urls(&self, games: &[Game]) -> Vec<String> {
@@ -233,12 +239,40 @@ pub fn resolve(app: &AppHandle, game: &Game, ctx: &ArtContext) -> Chosen {
     let provided = if picture.is_some() {
         None
     } else {
-        crate::launcher_art::cache_dir(app)
-            .ok()
-            .and_then(|ldir| launcher_backdrop(&ldir, game, ctx))
-            .or_else(|| store_picture(&dir, game, ctx))
+        // Папку кеша лаунчера открываем только для игры, у которой есть официальный фон.
+        let official = if ctx.has_launcher_art(game) {
+            match crate::launcher_art::cache_dir(app) {
+                Ok(ldir) => launcher_backdrop(&ldir, game, ctx),
+                Err(e) => {
+                    log::warn!("[art] фон лаунчера без кеша: {e}");
+                    None
+                }
+            }
+        } else {
+            None
+        };
+        with_still(official, || store_picture(&dir, game, ctx))
     };
     choose(video, picture, provided)
+}
+
+/// Склеивает официальный фон с магазином. Официальный с картинкой берётся как
+/// есть, и магазин не спрашивается. Скачалось только видео (картинка не
+/// скачалась или ещё в пути) — неподвижным кадром ему служит картинка магазина,
+/// а источник остаётся официальным: видео-то официальное (спека 2026-10-02
+/// §3.1). Официального фона нет — решает магазин.
+fn with_still(
+    official: Option<Provided>,
+    store: impl FnOnce() -> Option<Provided>,
+) -> Option<Provided> {
+    match official {
+        Some(mut official) if official.picture.is_none() => {
+            official.picture = store().and_then(|s| s.picture);
+            Some(official)
+        }
+        Some(official) => Some(official),
+        None => store(),
+    }
 }
 
 /// Официальный фон игры, уже лежащий в кеше фонов лаунчера (спека 2026-10-02
@@ -650,6 +684,63 @@ mod tests {
         let ctx = ArtContext::for_test(true, Vec::new(), None).with_launcher(&hub_games);
         assert!(launcher_backdrop(&dir, &game, &ctx).is_none());
         std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn the_launcher_art_is_only_looked_for_games_that_have_it() {
+        let hub_games = vec![hub_game("zzz", "https://x.test/zzz.webp", None)];
+        let ctx = ArtContext::for_test(true, Vec::new(), None).with_launcher(&hub_games);
+        let mut known = epic_game("zzz");
+        known.content_id = Some("zzz".into());
+        let mut other = epic_game("a");
+        other.content_id = Some("a".into());
+        assert!(ctx.has_launcher_art(&known));
+        assert!(!ctx.has_launcher_art(&other), "в хабе нет фона этой игры");
+        assert!(!ctx.has_launcher_art(&epic_game("zzz")), "нет content_id");
+        let off = ArtContext::for_test(false, Vec::new(), None).with_launcher(&hub_games);
+        assert!(!off.has_launcher_art(&known), "галочка выключена");
+    }
+
+    fn official(picture: Option<&str>, video: Option<&str>) -> Provided {
+        Provided { source: ArtSource::HoYoPlay, picture: picture.map(p), video: video.map(p) }
+    }
+
+    #[test]
+    fn an_official_picture_is_kept_and_the_store_is_not_asked() {
+        let got = with_still(Some(official(Some("hyp.webp"), Some("hyp.webm"))), || {
+            panic!("магазин не должен спрашиваться")
+        });
+        assert_eq!(got, Some(official(Some("hyp.webp"), Some("hyp.webm"))));
+    }
+
+    #[test]
+    fn an_official_video_alone_takes_the_store_picture_as_its_still() {
+        let got = with_still(Some(official(None, Some("hyp.webm"))), || {
+            Some(Provided::picture(ArtSource::Epic, p("epic.jpg")))
+        });
+        assert_eq!(got, Some(official(Some("epic.jpg"), Some("hyp.webm"))), "источник остаётся официальным");
+        let chosen = choose(None, None, got);
+        assert_eq!(
+            chosen,
+            Chosen { source: ArtSource::HoYoPlay, art_path: Some(p("epic.jpg")), video_path: Some(p("hyp.webm")) }
+        );
+    }
+
+    #[test]
+    fn an_official_video_alone_stays_alone_when_the_store_has_nothing() {
+        assert_eq!(
+            with_still(Some(official(None, Some("hyp.webm"))), || None),
+            Some(official(None, Some("hyp.webm")))
+        );
+    }
+
+    #[test]
+    fn without_an_official_background_the_store_decides() {
+        assert_eq!(
+            with_still(None, || Some(Provided::picture(ArtSource::Steam, p("steam.img")))),
+            Some(Provided::picture(ArtSource::Steam, p("steam.img")))
+        );
+        assert_eq!(with_still(None, || None), None);
     }
 
     #[test]
