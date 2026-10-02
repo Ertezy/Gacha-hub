@@ -256,11 +256,12 @@ export default function LookSection() {
 }
 
 /**
- * Превью фона. Видео — неподвижным первым кадром, а не проигрыванием: пять
- * роликов сразу на одном экране грузили бы компьютер (спека §7.3).
+ * Превью фона. Своё видео — неподвижным первым кадром, а не проигрыванием: пять
+ * роликов сразу на одном экране грузили бы компьютер (спека §7.3). У официального
+ * фона HoYoPlay берётся его картинка: первый кадр ролика часто чёрный.
  */
 function Preview({ game }: { game: GameView }) {
-  if (game.videoPath) {
+  if (game.videoPath && !(game.artSource === "hoyoplay" && game.artPath)) {
     return (
       <video
         className="look-preview"
