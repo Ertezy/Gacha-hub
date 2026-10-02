@@ -66,6 +66,34 @@ where
     Ok((three_numbers && release.url.starts_with("https://")).then_some(release))
 }
 
+/// Текущий фон официального лаунчера игры (спека 2026-10-02 §2): картинка и,
+/// если есть, видео. Только ссылки.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct GameBackground {
+    pub image: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub video: Option<String>,
+}
+
+/// Поле `background`, разобранное снисходительно: картинка не https — фона нет;
+/// видео не https — остаётся одна картинка. Игра читается в любом случае.
+fn lenient_background<'de, D>(d: D) -> Result<Option<GameBackground>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let raw = serde_json::Value::deserialize(d)?;
+    let Ok(mut bg) = serde_json::from_value::<GameBackground>(raw) else {
+        return Ok(None);
+    };
+    if !bg.image.starts_with("https://") {
+        return Ok(None);
+    }
+    if bg.video.as_deref().is_some_and(|v| !v.starts_with("https://")) {
+        bg.video = None;
+    }
+    Ok(Some(bg))
+}
+
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct HubData {
@@ -109,6 +137,9 @@ pub struct HubGame {
     /// `match` — ключевое слово Rust, поэтому поле названо иначе.
     #[serde(rename = "match", default)]
     pub matching: Match,
+    /// Официальный фон игры; нет — фон берётся из магазина или градиент.
+    #[serde(default, deserialize_with = "lenient_background", skip_serializing_if = "Option::is_none")]
+    pub background: Option<GameBackground>,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -382,6 +413,27 @@ mod tests {
         let d: HubData = serde_json::from_str(r#"{"version":2,"updatedAt":1}"#).unwrap();
         assert_eq!(d.app, None);
         assert!(serde_json::to_value(&d).unwrap().get("app").is_none());
+    }
+
+    #[test]
+    fn reads_the_official_background_of_a_game() {
+        let d: HubData = serde_json::from_str(r#"{"version":2,"updatedAt":1,"games":[
+            {"id":"zzz","background":{"image":"https://x.test/a.webp","video":"https://x.test/a.webm"}},
+            {"id":"hsr","background":{"image":"https://x.test/b.webp"}}]}"#).unwrap();
+        assert_eq!(d.games[0].background, Some(GameBackground { image: "https://x.test/a.webp".into(), video: Some("https://x.test/a.webm".into()) }));
+        assert_eq!(d.games[1].background, Some(GameBackground { image: "https://x.test/b.webp".into(), video: None }));
+    }
+
+    #[test]
+    fn a_broken_background_is_dropped_and_the_game_still_reads() {
+        for bg in [r#"42"#, r#"{"image":"http://x.test/a.webp"}"#, r#"{"video":"https://x.test/a.webm"}"#, r#"null"#] {
+            let text = format!(r#"{{"version":2,"updatedAt":1,"games":[{{"id":"zzz","title":"Z","background":{bg}}}]}}"#);
+            let d: HubData = serde_json::from_str(&text).unwrap_or_else(|e| panic!("{bg}: {e}"));
+            assert_eq!(d.games.len(), 1, "{bg}: игра читается");
+            assert_eq!(d.games[0].background, None, "{bg}");
+        }
+        let d: HubData = serde_json::from_str(r#"{"version":2,"updatedAt":1,"games":[{"id":"zzz","background":{"image":"https://x.test/a.webp","video":"http://x.test/a.webm"}}]}"#).unwrap();
+        assert_eq!(d.games[0].background.as_ref().unwrap().video, None, "видео не https — одна картинка");
     }
 
     #[test]

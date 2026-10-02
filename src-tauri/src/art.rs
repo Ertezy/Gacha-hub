@@ -29,12 +29,15 @@ pub fn cache_dir(app: &AppHandle) -> Result<PathBuf, String> {
     Ok(dir)
 }
 
-/// Откуда взят фон, который показывается первым (спека этапа 5, §2.1).
+/// Откуда взят фон, который показывается первым (спека этапа 5, §2.1; спека
+/// 2026-10-02 §3.1).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum ArtSource {
     Video,
     Picture,
+    #[serde(rename = "hoyoplay")]
+    HoYoPlay,
     Steam,
     Epic,
     Fill,
@@ -44,35 +47,49 @@ pub enum ArtSource {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Chosen {
     pub source: ArtSource,
-    /// Картинка: своя или магазина. Когда первым идёт видео, она остаётся его
-    /// неподвижным кадром при «уменьшить движение» (спека §6.4).
+    /// Картинка: своя, официального лаунчера или магазина. Когда первым идёт
+    /// видео, она остаётся его неподвижным кадром при «уменьшить движение»
+    /// (спека §6.4).
     pub art_path: Option<PathBuf>,
     pub video_path: Option<PathBuf>,
 }
 
-/// Порядок источников одной чистой функцией (спека §2.1): своё видео, своя
-/// картинка, картинка магазина, заливка. Своё важнее магазинного по тому же
-/// правилу, что у иконок.
-pub fn choose(
-    video: Option<PathBuf>,
-    picture: Option<PathBuf>,
-    store: Option<(ArtSource, PathBuf)>,
-) -> Chosen {
-    let (store_source, store_path) = match store {
-        Some((source, path)) => (Some(source), Some(path)),
-        None => (None, None),
+/// Фон, который игра получает не от человека: официальный лаунчер или магазин.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Provided {
+    pub source: ArtSource,
+    pub picture: Option<PathBuf>,
+    pub video: Option<PathBuf>,
+}
+
+impl Provided {
+    /// Одна картинка магазина.
+    pub fn picture(source: ArtSource, path: PathBuf) -> Self {
+        Self { source, picture: Some(path), video: None }
+    }
+}
+
+/// Порядок источников одной чистой функцией: своё видео, своя картинка,
+/// официальный фон или магазин, заливка (спека этапа 5 §2.1, спека 2026-10-02
+/// §3.1). Своя картинка закрывает и официальное видео; своё видео берёт
+/// неподвижным кадром свою картинку, а если её нет — картинку источника.
+pub fn choose(video: Option<PathBuf>, picture: Option<PathBuf>, provided: Option<Provided>) -> Chosen {
+    let own_picture = picture.is_some();
+    let (provided_source, provided_picture, provided_video) = match provided {
+        Some(p) => (Some(p.source), p.picture, p.video),
+        None => (None, None, None),
     };
     let source = if video.is_some() {
         ArtSource::Video
-    } else if picture.is_some() {
+    } else if own_picture {
         ArtSource::Picture
     } else {
-        store_source.unwrap_or(ArtSource::Fill)
+        provided_source.unwrap_or(ArtSource::Fill)
     };
     Chosen {
         source,
-        art_path: picture.or(store_path),
-        video_path: video,
+        art_path: picture.or(provided_picture),
+        video_path: video.or(if own_picture { None } else { provided_video }),
     }
 }
 
@@ -87,16 +104,19 @@ pub struct ArtContext {
     /// Каталог Epic нужен был, но не прочитался (испорчен, отсутствует,
     /// превысил потолок размера).
     epic_catalog_unreadable: bool,
+    /// Официальные фоны лаунчера по id игры хаба; пусто, если галочка выключена.
+    launcher: std::collections::HashMap<String, crate::hub::schema::GameBackground>,
 }
 
 impl ArtContext {
-    pub fn build(store_art: bool, games: &[Game]) -> Self {
+    pub fn build(store_art: bool, games: &[Game], hub_games: &[crate::hub::schema::HubGame]) -> Self {
         let mut ctx = Self {
             store_art,
             installed: Vec::new(),
             steam_roots: Vec::new(),
             epic_catalog: None,
             epic_catalog_unreadable: false,
+            launcher: launcher_map(store_art, hub_games),
         };
         if !store_art {
             return ctx;
@@ -135,6 +155,7 @@ impl ArtContext {
             steam_roots: Vec::new(),
             epic_catalog,
             epic_catalog_unreadable: false,
+            launcher: Default::default(),
         }
     }
 
@@ -143,6 +164,41 @@ impl ArtContext {
         self.steam_roots = steam_roots;
         self
     }
+
+    #[cfg(test)]
+    pub fn with_launcher(mut self, hub_games: &[crate::hub::schema::HubGame]) -> Self {
+        self.launcher = launcher_map(self.store_art, hub_games);
+        self
+    }
+
+    /// Адреса официальных фонов для игр человека: картинка и видео, по порядку,
+    /// без повторов. Галочка выключена — пусто.
+    pub fn launcher_urls(&self, games: &[Game]) -> Vec<String> {
+        let mut urls = Vec::new();
+        for game in games {
+            let Some(bg) = game.content_id.as_ref().and_then(|id| self.launcher.get(id)) else { continue };
+            for url in std::iter::once(&bg.image).chain(bg.video.iter()) {
+                if !urls.contains(url) {
+                    urls.push(url.clone());
+                }
+            }
+        }
+        urls
+    }
+}
+
+/// Официальные фоны из файла хаба по id игры. Галочка выключена — пусто.
+fn launcher_map(
+    store_art: bool,
+    hub_games: &[crate::hub::schema::HubGame],
+) -> std::collections::HashMap<String, crate::hub::schema::GameBackground> {
+    if !store_art {
+        return Default::default();
+    }
+    hub_games
+        .iter()
+        .filter_map(|g| g.background.clone().map(|bg| (g.id.clone(), bg)))
+        .collect()
 }
 
 /// Адрес картинки Epic для игры — или `None`, если галочка выключена, игра не из
@@ -157,7 +213,8 @@ pub fn epic_image_url(game: &Game, ctx: &ArtContext) -> Option<String> {
     crate::storeart::epic_key_image_url(ctx.epic_catalog.as_ref()?, &catalog_item_id)
 }
 
-/// Фон игры, готовый к показу в окне.
+/// Фон игры, готовый к показу в окне: своё видео, своя картинка, официальный
+/// фон лаунчера или магазин, заливка.
 pub fn resolve(app: &AppHandle, game: &Game, ctx: &ArtContext) -> Chosen {
     // Видео кеш не нужен: без папки кеша пропадают только картинки.
     let video = own_video(app, game);
@@ -172,9 +229,32 @@ pub fn resolve(app: &AppHandle, game: &Game, ctx: &ArtContext) -> Chosen {
         .background
         .as_ref()
         .and_then(|own| crate::localcopy::copy_into(&dir, own, ""));
-    // Своя картинка перекрывает магазин целиком, и тогда магазин не трогаем.
-    let store = if picture.is_some() { None } else { store_picture(&dir, game, ctx) };
-    choose(video, picture, store)
+    // Своя картинка перекрывает всё остальное, и тогда ни лаунчер, ни магазин не трогаем.
+    let provided = if picture.is_some() {
+        None
+    } else {
+        crate::launcher_art::cache_dir(app)
+            .ok()
+            .and_then(|ldir| launcher_backdrop(&ldir, game, ctx))
+            .or_else(|| store_picture(&dir, game, ctx))
+    };
+    choose(video, picture, provided)
+}
+
+/// Официальный фон игры, уже лежащий в кеше фонов лаунчера (спека 2026-10-02
+/// §3.1). Не скачан ни один файл — `None`, и показывается следующий источник.
+fn launcher_backdrop(dir: &Path, game: &Game, ctx: &ArtContext) -> Option<Provided> {
+    let bg = ctx.launcher.get(game.content_id.as_ref()?)?;
+    let picture = crate::images::cached(dir, &bg.image);
+    let video = bg
+        .video
+        .as_ref()
+        .and_then(|url| crate::images::cached(dir, url))
+        .filter(|path| is_video_file_name(path));
+    if picture.is_none() && video.is_none() {
+        return None;
+    }
+    Some(Provided { source: ArtSource::HoYoPlay, picture, video })
 }
 
 /// Ролик ли это по расширению (спека §6.1). Окну выдаётся только mp4 и webm.
@@ -393,7 +473,7 @@ pub fn forget_tried_downloads(app: &AppHandle) {
 /// картинка Steam и картинка Epic здесь только ищутся в кеше — их докачивает
 /// поток, который запускает построение списка игр (спека §3.1, §3.3), и окно
 /// список игр не ждёт. Скачанная большая картинка Steam заменяет картинку с диска.
-fn store_picture(dir: &Path, game: &Game, ctx: &ArtContext) -> Option<(ArtSource, PathBuf)> {
+fn store_picture(dir: &Path, game: &Game, ctx: &ArtContext) -> Option<Provided> {
     if !ctx.store_art {
         return None;
     }
@@ -403,11 +483,11 @@ fn store_picture(dir: &Path, game: &Game, ctx: &ArtContext) -> Option<(ArtSource
             let big = crate::storeart::steam_hero_2x_url(&hero, appid)
                 .and_then(|url| crate::images::cached(dir, &url));
             big.or_else(|| crate::localcopy::copy_into(dir, &hero, "steam-"))
-                .map(|p| (ArtSource::Steam, p))
+                .map(|p| Provided::picture(ArtSource::Steam, p))
         }
         StoreRef::Epic { .. } => {
             let url = epic_image_url(game, ctx)?;
-            crate::images::cached(dir, &url).map(|p| (ArtSource::Epic, p))
+            crate::images::cached(dir, &url).map(|p| Provided::picture(ArtSource::Epic, p))
         }
     }
 }
@@ -477,7 +557,7 @@ mod tests {
 
     #[test]
     fn an_own_video_comes_first_and_keeps_the_picture_as_its_still() {
-        let chosen = choose(Some(p("v.mp4")), Some(p("pic.img")), Some((ArtSource::Steam, p("steam.img"))));
+        let chosen = choose(Some(p("v.mp4")), Some(p("pic.img")), Some(Provided::picture(ArtSource::Steam, p("steam.img"))));
         assert_eq!(chosen.source, ArtSource::Video);
         assert_eq!(chosen.video_path, Some(p("v.mp4")));
         assert_eq!(chosen.art_path, Some(p("pic.img")), "картинка остаётся неподвижным кадром");
@@ -485,21 +565,21 @@ mod tests {
 
     #[test]
     fn a_video_over_store_art_uses_it_as_the_still() {
-        let chosen = choose(Some(p("v.mp4")), None, Some((ArtSource::Epic, p("epic.jpg"))));
+        let chosen = choose(Some(p("v.mp4")), None, Some(Provided::picture(ArtSource::Epic, p("epic.jpg"))));
         assert_eq!(chosen.source, ArtSource::Video);
         assert_eq!(chosen.art_path, Some(p("epic.jpg")));
     }
 
     #[test]
     fn an_own_picture_beats_the_store() {
-        let chosen = choose(None, Some(p("pic.img")), Some((ArtSource::Steam, p("steam.img"))));
+        let chosen = choose(None, Some(p("pic.img")), Some(Provided::picture(ArtSource::Steam, p("steam.img"))));
         assert_eq!(chosen.source, ArtSource::Picture);
         assert_eq!(chosen.art_path, Some(p("pic.img")));
     }
 
     #[test]
     fn store_art_is_used_when_nothing_own_is_set() {
-        let chosen = choose(None, None, Some((ArtSource::Epic, p("epic.jpg"))));
+        let chosen = choose(None, None, Some(Provided::picture(ArtSource::Epic, p("epic.jpg"))));
         assert_eq!(chosen.source, ArtSource::Epic);
         assert_eq!(chosen.art_path, Some(p("epic.jpg")));
         assert_eq!(chosen.video_path, None);
@@ -514,9 +594,69 @@ mod tests {
     }
 
     #[test]
+    fn the_official_background_plays_its_video_over_its_picture() {
+        let chosen = choose(None, None, Some(Provided { source: ArtSource::HoYoPlay, picture: Some(p("hyp.webp")), video: Some(p("hyp.webm")) }));
+        assert_eq!(chosen, Chosen { source: ArtSource::HoYoPlay, art_path: Some(p("hyp.webp")), video_path: Some(p("hyp.webm")) });
+    }
+
+    #[test]
+    fn an_own_picture_hides_the_official_video_too() {
+        let chosen = choose(None, Some(p("pic.img")), Some(Provided { source: ArtSource::HoYoPlay, picture: Some(p("hyp.webp")), video: Some(p("hyp.webm")) }));
+        assert_eq!(chosen, Chosen { source: ArtSource::Picture, art_path: Some(p("pic.img")), video_path: None });
+    }
+
+    #[test]
+    fn an_own_video_keeps_the_official_picture_as_its_still() {
+        let chosen = choose(Some(p("v.mp4")), None, Some(Provided { source: ArtSource::HoYoPlay, picture: Some(p("hyp.webp")), video: Some(p("hyp.webm")) }));
+        assert_eq!(chosen, Chosen { source: ArtSource::Video, art_path: Some(p("hyp.webp")), video_path: Some(p("v.mp4")) });
+    }
+
+    fn hub_game(id: &str, image: &str, video: Option<&str>) -> crate::hub::schema::HubGame {
+        crate::hub::schema::HubGame {
+            id: id.into(),
+            background: Some(crate::hub::schema::GameBackground { image: image.into(), video: video.map(Into::into) }),
+            ..Default::default()
+        }
+    }
+
+    #[test]
+    fn the_official_background_is_looked_up_by_content_id_and_beats_the_store() {
+        let dir = scratch("launcher-pick");
+        let img = "https://x.test/zzz.webp";
+        let vid = "https://x.test/zzz.webm";
+        std::fs::write(dir.join(crate::images::file_name_for(img, "webp")), b"x").unwrap();
+        std::fs::write(dir.join(crate::images::file_name_for(vid, "webm")), b"x").unwrap();
+        let mut game = epic_game("zzz");
+        game.content_id = Some("zzz".into());
+        let hub_games = vec![hub_game("zzz", img, Some(vid))];
+        let ctx = ArtContext::for_test(true, Vec::new(), Some(two_game_catalog())).with_launcher(&hub_games);
+        let picked = launcher_backdrop(&dir, &game, &ctx).expect("официальный фон");
+        assert_eq!(picked.source, ArtSource::HoYoPlay);
+        assert_eq!(picked.picture, Some(dir.join(crate::images::file_name_for(img, "webp"))));
+        assert_eq!(picked.video, Some(dir.join(crate::images::file_name_for(vid, "webm"))));
+        assert_eq!(ctx.launcher_urls(&[game.clone()]), vec![img.to_string(), vid.to_string()]);
+        let off = ArtContext::for_test(false, Vec::new(), None).with_launcher(&hub_games);
+        assert!(launcher_backdrop(&dir, &game, &off).is_none(), "галочка выключена");
+        assert!(off.launcher_urls(&[game]).is_empty());
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn nothing_downloaded_yet_falls_through() {
+        let dir = scratch("launcher-empty");
+        let mut game = epic_game("zzz");
+        game.content_id = Some("zzz".into());
+        let hub_games = vec![hub_game("zzz", "https://x.test/zzz.webp", None)];
+        let ctx = ArtContext::for_test(true, Vec::new(), None).with_launcher(&hub_games);
+        assert!(launcher_backdrop(&dir, &game, &ctx).is_none());
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
     fn the_source_is_sent_in_lowercase() {
         assert_eq!(serde_json::to_string(&ArtSource::Epic).unwrap(), "\"epic\"");
         assert_eq!(serde_json::to_string(&ArtSource::Picture).unwrap(), "\"picture\"");
+        assert_eq!(serde_json::to_string(&ArtSource::HoYoPlay).unwrap(), "\"hoyoplay\"");
     }
 
     #[test]
@@ -637,12 +777,13 @@ mod tests {
         let root = steam_root_with_hero("steam-root-show", 7);
         let dir = scratch("steam-dir-show");
         let ctx = ArtContext::for_test(true, Vec::new(), None).with_steam_roots(vec![root.clone()]);
-        let (source, small) = store_picture(&dir, &steam_game(7), &ctx).unwrap();
-        assert_eq!(source, ArtSource::Steam);
+        let small = store_picture(&dir, &steam_game(7), &ctx).unwrap();
+        assert_eq!(small.source, ArtSource::Steam);
+        let small = small.picture.unwrap();
         assert_eq!(std::fs::read(&small).unwrap(), b"small", "пока большой нет — картинка с диска");
         let big = dir.join(crate::images::file_name_for(&big_hero_url(7), "jpg"));
         std::fs::write(&big, b"big").unwrap();
-        assert_eq!(store_picture(&dir, &steam_game(7), &ctx), Some((ArtSource::Steam, big)));
+        assert_eq!(store_picture(&dir, &steam_game(7), &ctx), Some(Provided::picture(ArtSource::Steam, big)));
         std::fs::remove_dir_all(&root).ok();
         std::fs::remove_dir_all(&dir).ok();
     }

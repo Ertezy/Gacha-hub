@@ -11,8 +11,6 @@ mod icons;
 mod images;
 mod instance;
 mod launch;
-// Пока ничем не вызывается: выбор и показ фонов подключает следующий шаг плана.
-#[allow(dead_code)]
 mod launcher_art;
 mod library;
 mod localcopy;

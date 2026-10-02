@@ -111,12 +111,15 @@ pub fn view_of(app: &AppHandle, game: &Game, ctx: &crate::art::ArtContext) -> Ga
 #[tauri::command]
 pub async fn get_games(app: AppHandle) -> Vec<GameView> {
     let cfg = config::load(&app);
-    let ctx = crate::art::ArtContext::build(cfg.store_art, &cfg.games);
+    // Фоны официального лаунчера — из файла хаба, без сети (спека 2026-10-02 §3).
+    let hub = crate::hub::load_local(&app);
+    let ctx = crate::art::ArtContext::build(cfg.store_art, &cfg.games, &hub.games);
     let views = cfg.games.iter().map(|g| view_of(&app, g, &ctx)).collect();
     // Докачка недостающих картинок Epic стартует отсюда: список игр строится
     // при запуске, после настроек и после каждой их правки, так что одна
     // дорога покрывает все случаи (спека §3.3).
     crate::art::start_missing_downloads(&app, &cfg.games, &ctx);
+    crate::launcher_art::start_downloads(&app, ctx.launcher_urls(&cfg.games));
     views
 }
 
