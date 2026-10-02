@@ -161,6 +161,16 @@ mod tests {
     }
 
     #[test]
+    fn the_value_name_equals_the_product_name() {
+        // Деинсталлятор NSIS удаляет `Run\<productName>`: если имя значения
+        // разойдётся с именем продукта, после удаления программы автозапуск
+        // останется в реестре и будет указывать в пустоту.
+        let conf: serde_json::Value =
+            serde_json::from_str(include_str!("../tauri.conf.json")).unwrap();
+        assert_eq!(conf["productName"].as_str(), Some(VALUE_NAME));
+    }
+
+    #[test]
     fn the_flag_is_found_among_the_arguments() {
         assert!(launched_by(["app.exe".to_string(), "--autostart".to_string()]));
         assert!(!launched_by(["app.exe".to_string()]));
