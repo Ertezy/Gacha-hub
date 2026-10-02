@@ -14,6 +14,7 @@ mod launch;
 mod launcher_art;
 mod library;
 mod localcopy;
+mod migrate;
 mod pe;
 mod stores;
 mod storeart;
@@ -115,6 +116,10 @@ pub fn run() {
         .manage(art::StoreArtDownloads::default())
         .manage(launcher_art::LauncherArtDownloads::default())
         .setup(move |app| {
+            // Перенос со старой установки: до первого чтения конфига. Раньше
+            // его никто не читает, а после первого же сохранения в новой
+            // папке появится свой `config.json`, и переносить станет нечего.
+            migrate::from_gacha_hub(&app.handle().clone());
             sync_games_with_stores(&app.handle().clone());
             // Уборка кеша картинок при запуске: дёшево, и без неё папка
             // за год превращается в свалку.
