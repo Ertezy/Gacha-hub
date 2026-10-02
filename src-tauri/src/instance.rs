@@ -16,7 +16,10 @@ use std::io::{BufRead, BufReader, Write};
 use std::net::{SocketAddr, TcpListener, TcpStream};
 use std::time::Duration;
 
-pub const PORT: u16 = 47631;
+/// Порт сменился вместе с переименованием: прежняя версия (Gacha Hub) слушала
+/// 47631, и общий порт лишил бы Kitsudock защиты от второго экземпляра, пока
+/// запущен Gacha Hub. Теперь у двух приложений порты никогда не совпадают.
+pub const PORT: u16 = 47632;
 const HELLO: &str = "kitsudock show";
 const REPLY: &str = "kitsudock ok";
 const WAIT: Duration = Duration::from_millis(500);
@@ -96,6 +99,13 @@ mod tests {
 
     fn free_port() -> u16 {
         TcpListener::bind(("127.0.0.1", 0)).unwrap().local_addr().unwrap().port()
+    }
+
+    #[test]
+    fn the_port_is_not_the_one_gacha_hub_listened_on() {
+        // Прежняя версия слушала 47631: общий порт лишил бы Kitsudock защиты
+        // от второго экземпляра, пока Gacha Hub запущен.
+        assert_ne!(PORT, 47631);
     }
 
     #[test]
