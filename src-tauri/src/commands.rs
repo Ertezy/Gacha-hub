@@ -547,6 +547,7 @@ pub async fn image_cache_size(app: AppHandle) -> u64 {
         crate::images::cache_dir(&app),
         crate::icons::cache_dir(&app),
         crate::art::cache_dir(&app),
+        crate::launcher_art::cache_dir(&app),
     ]
     .into_iter()
     .filter_map(Result::ok)
@@ -554,11 +555,11 @@ pub async fn image_cache_size(app: AppHandle) -> u64 {
     .sum()
 }
 
-/// Очищает кеш картинок хаба, кеш добытых иконок и кеш фонов. После очистки
-/// иконки и фоны добываются заново сами при следующем обращении к списку
-/// игр — `icons::ensure` и `art::resolve` каждый раз проверяют, что файл в
-/// кеше есть, и пересоздают его, если нет, а картинки Epic — при следующем
-/// запуске.
+/// Очищает кеш картинок хаба, кеш добытых иконок, кеш фонов и кеш официальных
+/// фонов лаунчера. После очистки иконки и фоны добываются заново сами при
+/// следующем обращении к списку игр — `icons::ensure` и `art::resolve` каждый
+/// раз проверяют, что файл в кеше есть, и пересоздают его, если нет, а картинки
+/// Epic и официальные фоны докачиваются в фоне при следующем построении списка.
 #[tauri::command]
 pub async fn clear_image_cache(app: AppHandle) -> Result<usize, AppError> {
     // Папку кеша не найти или не создать — своего кода у такой ошибки нет:
@@ -569,10 +570,12 @@ pub async fn clear_image_cache(app: AppHandle) -> Result<usize, AppError> {
         crate::images::cache_dir(&app).map_err(internal)?,
         crate::icons::cache_dir(&app).map_err(internal)?,
         crate::art::cache_dir(&app).map_err(internal)?,
+        crate::launcher_art::cache_dir(&app).map_err(internal)?,
     ] {
         removed += clear_dir(&dir)?;
     }
     crate::art::forget_tried_downloads(&app);
+    crate::launcher_art::forget_tried_downloads(&app);
     Ok(removed)
 }
 

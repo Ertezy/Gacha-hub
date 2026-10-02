@@ -55,8 +55,20 @@ fn ext_for(content_type: &str) -> &'static str {
         "image/jpeg" | "image/jpg" => "jpg",
         "image/webp" => "webp",
         "image/gif" => "gif",
+        "video/webm" => "webm",
+        "video/mp4" => "mp4",
         _ => "bin",
     }
+}
+
+/// Расширение из адреса, если сервер не назвал тип: только знакомые.
+fn ext_from_url(url: &str) -> Option<&'static str> {
+    let path = url.split(['?', '#']).next()?;
+    let ext = path.rsplit('.').next()?.to_ascii_lowercase();
+    ["png", "jpg", "webp", "gif", "webm", "mp4"]
+        .into_iter()
+        .find(|known| *known == ext)
+        .or((ext == "jpeg").then_some("jpg"))
 }
 
 /// Имя файла в кеше: шестнадцатеричный хеш адреса плюс расширение.
@@ -73,6 +85,13 @@ pub(crate) fn file_name_for(url: &str, ext: &str) -> String {
         h = h.wrapping_mul(0x1000_0000_01b3);
     }
     format!("{h:016x}.{ext}")
+}
+
+/// Основа имени файла в кеше — хеш адреса без расширения. По ней узнаётся,
+/// чей это файл, при уборке устаревших (launcher_art.rs).
+pub(crate) fn cache_stem(url: &str) -> String {
+    let name = file_name_for(url, "");
+    name.trim_end_matches('.').to_string()
 }
 
 pub fn cache_dir(app: &AppHandle) -> Result<PathBuf, String> {
@@ -97,7 +116,7 @@ pub fn cached(dir: &Path, url: &str) -> Option<PathBuf> {
     // одним хешем и разными расширениями. Берём самый свежий, лишние удаляем:
     // фиксированный порядок списка отдавал бы устаревший файл до самой уборки.
     let mut found: Vec<(SystemTime, PathBuf)> = Vec::new();
-    for ext in ["png", "jpg", "webp", "gif", "bin"] {
+    for ext in ["png", "jpg", "webp", "gif", "webm", "mp4", "bin"] {
         let candidate = dir.join(file_name_for(url, ext));
         if let Ok(meta) = fs::metadata(&candidate) {
             if meta.is_file() {
@@ -147,7 +166,12 @@ pub fn fetch_into(dir: &Path, url: &str, max_bytes: u64) -> Result<PathBuf, Stri
         .call()
         .map_err(|e| format!("не удалось скачать {url}: {e}"))?;
 
-    let ext = ext_for(resp.header("Content-Type").unwrap_or(""));
+    // Часть CDN отвечает `application/octet-stream`: тогда берём расширение из
+    // адреса, но только знакомое, всё остальное по-прежнему становится `bin`.
+    let ext = match ext_for(resp.header("Content-Type").unwrap_or("")) {
+        "bin" => ext_from_url(url).unwrap_or("bin"),
+        known => known,
+    };
 
     // Читаем на байт больше потолка: если он прочитался, ответ не влез,
     // и записывать обрезок нельзя — он не раскодируется никогда, а цикл
@@ -337,5 +361,30 @@ mod tests {
         assert!(!old.exists());
         assert!(fresh.exists());
         std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn video_types_get_their_own_extension() {
+        assert_eq!(ext_for("video/webm"), "webm");
+        assert_eq!(ext_for("video/mp4; codecs=avc1"), "mp4");
+    }
+
+    #[test]
+    fn a_cached_video_is_found_like_a_picture() {
+        let dir = std::env::temp_dir().join(format!("images-video-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let url = "https://cdn.example.test/bg/a.webm";
+        let file = dir.join(file_name_for(url, "webm"));
+        std::fs::write(&file, b"x").unwrap();
+        assert_eq!(cached(&dir, url), Some(file));
+        assert_eq!(cache_stem(url), file_name_for(url, "webm").trim_end_matches(".webm"));
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn the_extension_is_taken_from_the_address_only_when_it_is_a_known_one() {
+        assert_eq!(ext_from_url("https://x.test/a.WEBM?x=1"), Some("webm"));
+        assert_eq!(ext_from_url("https://x.test/a.jpeg"), Some("jpg"));
+        assert_eq!(ext_from_url("https://x.test/a"), None);
     }
 }

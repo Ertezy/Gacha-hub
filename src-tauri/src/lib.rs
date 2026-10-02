@@ -11,6 +11,9 @@ mod icons;
 mod images;
 mod instance;
 mod launch;
+// Пока ничем не вызывается: выбор и показ фонов подключает следующий шаг плана.
+#[allow(dead_code)]
+mod launcher_art;
 mod library;
 mod localcopy;
 mod pe;
@@ -112,6 +115,7 @@ pub fn run() {
                 .build(),
         )
         .manage(art::StoreArtDownloads::default())
+        .manage(launcher_art::LauncherArtDownloads::default())
         .setup(move |app| {
             sync_games_with_stores(&app.handle().clone());
             // Уборка кеша картинок при запуске: дёшево, и без неё папка
