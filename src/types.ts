@@ -18,7 +18,8 @@ export interface GameView {
   artPath: string | null;
   /** Откуда взят фон, показанный первым. */
   artSource: "video" | "picture" | "hoyoplay" | "steam" | "epic" | "fill";
-  /** Своё видео фона. `null` — видео не задано или файл пропал. */
+  /** Видео фона: своё или официальное из HoYoPlay (смотри `artSource`).
+   *  `null` — видео нет или файл пропал. */
   videoPath: string | null;
   /** Своё видео задано, но файла на месте нет. */
   videoMissing: boolean;

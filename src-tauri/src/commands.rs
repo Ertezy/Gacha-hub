@@ -63,7 +63,8 @@ pub struct GameView {
     pub art_path: Option<String>,
     /// Откуда взят фон, показанный первым (спека этапа 5, §2.1).
     pub art_source: crate::art::ArtSource,
-    /// Своё видео фона. `None` — видео не задано или файл пропал.
+    /// Видео фона: своё или официальное из HoYoPlay (смотри `art_source`).
+    /// `None` — видео нет или файл пропал.
     pub video_path: Option<String>,
     /// Своё видео задано, но файла нет на месте или это не mp4 и не webm (спека §6.1, §6.5).
     pub video_missing: bool,

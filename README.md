@@ -42,7 +42,7 @@ and cached pictures too, tick "Delete the application data" in the uninstaller, 
 No account, no telemetry, nothing is sent about you. The app downloads the data file
 from GitHub Pages, and pictures for the panel and backgrounds from the game wikis
 (Fandom, wiki.gg), YouTube, Steam, Epic Games and the official HoYoPlay launcher's
-servers (backgrounds of HoYoverse games).
+servers (background pictures and videos of HoYoverse games).
 
 ## Code signing policy
 
@@ -84,9 +84,11 @@ GitHub Actions and publishes one file:
 - file: https://ertezy.github.io/Gacha-hub-info/hub.json
 
 The collector reads community wikis (Fandom, wiki.gg — CC BY-SA), official Wuthering
-Waves announcements (facts only: title, character, dates), an open API mirror and the
-games' official YouTube channels. Every code and banner links back to its
-source. A different address can be set in Settings → Data → Data source URL.
+Waves announcements (facts only: title, character, dates), the official HoYoPlay
+launcher (links to the current backgrounds of Genshin Impact, Honkai: Star Rail and
+Zenless Zone Zero), an open API mirror and the games' official YouTube channels. Every
+code and banner links back to its source. A different address can be set in
+Settings → Data → Data source URL.
 
 ## Building from source
 
